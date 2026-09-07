@@ -59,6 +59,7 @@ function reset() {
   $("capture-audio").load();
   $("capture-audio").hidden = true;
   $("events").textContent = "";
+  $("turn-timeline").replaceChildren();
 }
 async function poll() {
   if (polling) return;
@@ -73,6 +74,11 @@ async function poll() {
     if (!sessionId || state.mode !== "browser") return;
     const events = state.events.filter((e) => e.sessionId === sessionId);
     const last = (type) => events.findLast((e) => e.type === type);
+    const timeline = $("turn-timeline");
+    timeline.replaceChildren(window.voiceTimeline.pipeline(events, state.now));
+    const recognition = last("whisper.diagnostics")?.payload;
+    if (recognition)
+      timeline.append(window.voiceTimeline.recognition(recognition));
     for (const [name, type] of [
       ["whisper", "whisper"],
       ["codex", "codex"],
@@ -321,7 +327,7 @@ let recordings = [],
 function addProfile(settings) {
   const card = document.createElement("div");
   card.className = "profile";
-  card.innerHTML = `<label>Model<select data-model><option value="small">small</option><option value="small-q5_1">small · Q5_1</option><option value="base">base</option></select></label><label>Language<select data-language><option value="ja">Japanese</option><option value="auto">Auto detect</option><option value="zh">Chinese</option><option value="en">English</option></select></label><strong>—</strong><output>Not run</output>`;
+  card.innerHTML = `<label>Model<select data-model><option value="small">small</option><option value="small-q5_1">small · Q5_1</option><option value="base">base</option></select></label><label>Language<select data-language><option value="ja">Japanese</option><option value="auto">Auto detect</option><option value="zh">Chinese</option><option value="en">English</option></select></label><strong>—</strong><output>Not run</output><details><summary>Stage timings</summary><div class="stage-timings"></div></details>`;
   card.querySelector("[data-model]").value = settings.model || "small";
   card.querySelector("[data-language]").value = settings.language;
   const index = profiles.length;
@@ -380,6 +386,17 @@ async function pollComparisons() {
   profiles.forEach(({ card }, index) => {
     card.querySelectorAll("select").forEach((el) => (el.disabled = active));
     const run = runs[index];
+    const target = card.querySelector(".stage-timings");
+    if (run?.result && target.dataset.run !== run.id) {
+      target.replaceChildren(window.voiceTimeline.recognition(run.result, run));
+      target.dataset.run = run.id;
+    } else if (!run?.result) {
+      target.textContent =
+        run?.status === "queued"
+          ? "Waiting for earlier variants…"
+          : "Stage timings appear when recognition finishes.";
+      delete target.dataset.run;
+    }
     card.querySelector("strong").textContent = run?.result
       ? duration(run.result.durationMs)
       : run?.status === "running"

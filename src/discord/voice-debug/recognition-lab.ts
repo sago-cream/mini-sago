@@ -29,6 +29,7 @@ type Run = {
   id: string;
   settings: z.infer<typeof profileSchema>;
   status: string;
+  queuedAt?: number;
   startedAt?: number;
   result?: Awaited<ReturnType<typeof recognizeSpeech>>;
   error?: string;
@@ -120,6 +121,7 @@ export class RecognitionLab {
         id: randomUUID(),
         settings,
         status: "queued",
+        queuedAt: Date.now(),
       }));
       record.runs = [...record.runs, ...runs].slice(-20);
       await this.save(record);

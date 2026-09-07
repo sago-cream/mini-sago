@@ -205,3 +205,64 @@ select {
   color: #666;
   font-size: 13px;
 }
+.timeline {
+  margin: 24px 0;
+}
+.timing-chart {
+  margin: 16px 0;
+}
+.timing-chart h3 {
+  font-size: 13px;
+  margin: 0 0 10px;
+}
+.timing-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 230px) minmax(60px, 1fr) 76px;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  padding: 4px 0;
+}
+.timing-track {
+  height: 12px;
+  position: relative;
+  background: #f0f0f0;
+}
+.timing-bar {
+  position: absolute;
+  height: 100%;
+  background: #555;
+  min-width: 2px;
+}
+.timing-bar.waiting {
+  background: #bc8c3e;
+}
+.timing-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.timing-summary {
+  font-size: 12px;
+  margin: 12px 0;
+}
+.stage-timings {
+  overflow-x: auto;
+}
+.profile:has(details[open]) {
+  grid-column: 1 / -1;
+}
+.profile details {
+  margin-top: 14px;
+}
+.timing-chart small,
+.timeline small,
+.stage-timings small {
+  color: #777;
+  font-size: 11px;
+}
+@media (max-width: 600px) {
+  .timing-row {
+    grid-template-columns: 120px minmax(30px, 1fr) 65px;
+    gap: 5px;
+  }
+}

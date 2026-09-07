@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Voice debug</title>
     <link rel="stylesheet" href="/voice-debug/style.css" />
+    <script defer src="/voice-debug/timeline.js"></script>
     <script defer src="/voice-debug/app.js"></script>
   </head>
   <body>
@@ -72,6 +73,10 @@
             </tr>
           </tbody>
         </table>
+        <details class="timeline" open>
+          <summary>Detailed timeline</summary>
+          <div id="turn-timeline"></div>
+        </details>
         <section aria-label="Recognition comparison" class="comparison">
           <div class="actions">
             <h2>Compare recognition</h2>

@@ -3,10 +3,13 @@ FROM oven/bun:1.3.9-alpine AS speech-builder
 ARG WHISPER_CPP_VERSION=1.9.1
 ARG WHISPER_MODEL_SHA256=1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b
 
-RUN apk add --no-cache build-base cmake wget
+RUN apk add --no-cache build-base cmake wget python3
 WORKDIR /build
+COPY scripts/whisper /instrument
 RUN wget -qO whisper.tar.gz "https://github.com/ggml-org/whisper.cpp/archive/refs/tags/v${WHISPER_CPP_VERSION}.tar.gz" \
   && tar -xzf whisper.tar.gz --strip-components=1 \
+  && cp /instrument/minisago-timing.h include/ \
+  && python3 /instrument/instrument.py \
   && cmake -S . -B build \
     -DBUILD_SHARED_LIBS=OFF \
     -DGGML_OPENMP=OFF \

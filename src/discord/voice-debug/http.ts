@@ -14,6 +14,7 @@ const cookieName = "minisago_voice_debug";
 const publicFiles: Record<string, [string, string]> = {
   "/voice-debug": ["index.html", "text/html; charset=utf-8"],
   "/voice-debug/": ["index.html", "text/html; charset=utf-8"],
+  "/voice-debug/timeline.js": ["timeline.js", "text/javascript; charset=utf-8"],
   "/voice-debug/app.js": ["app.js", "text/javascript; charset=utf-8"],
   "/voice-debug/style.css": ["style.css", "text/css; charset=utf-8"],
 };

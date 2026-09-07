@@ -183,6 +183,7 @@ export async function recognizeSpeech(
       SPEECH_COMMAND_TIMEOUT_MS,
       signal,
     );
+    const conversionMs = performance.now() - startedAt;
     const form = new FormData();
     form.append("file", Bun.file(wavPath), "utterance.wav");
     form.append("language", settings.language);
@@ -199,6 +200,7 @@ export async function recognizeSpeech(
       vad_speech_pad_ms: settings.paddingMs,
     }))
       form.append(key, String(value));
+    const requestStartedAt = performance.now();
     const response = await fetch(
       whisperInferenceUrl(
         settings.model === "base"
@@ -222,7 +224,19 @@ export async function recognizeSpeech(
         `Whisper ${response.status}: ${(await response.text()).trim()}`,
       );
     }
-    const result = (await response.json()) as {
+    const responseText = await response.text();
+    const requestMs = performance.now() - requestStartedAt;
+    const parseStartedAt = performance.now();
+    const result = JSON.parse(responseText) as {
+      timings?: {
+        totalMs: number;
+        spans: Array<{
+          name: string;
+          startMs: number;
+          durationMs: number;
+          depth: number;
+        }>;
+      };
       text?: unknown;
       language?: string;
       detected_language?: string;
@@ -245,6 +259,12 @@ export async function recognizeSpeech(
       durationMs: performance.now() - startedAt,
       audioMs: audio.length / 48,
       settings: { ...settings },
+      timings: {
+        conversionMs,
+        requestMs,
+        responseParseMs: performance.now() - parseStartedAt,
+        server: result.timings ?? null,
+      },
       diagnostics: result,
     };
   } finally {
