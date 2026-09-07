@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Voice debug</title>
+    <link rel="stylesheet" href="/voice-debug/style.css" />
+    <script defer src="/voice-debug/app.js"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Voice debug</h1>
+        <button id="logout" hidden>Sign out</button>
+      </header>
+      <form id="login" hidden>
+        <label for="token">Access token</label
+        ><input
+          id="token"
+          type="password"
+          required
+          autocomplete="off"
+        /><button>Sign in</button>
+      </form>
+      <section id="test" hidden>
+        <div class="actions">
+          <button id="record" class="primary">Record</button
+          ><button id="stop" hidden>Stop reply</button
+          ><span id="status" role="status"
+            >Say something, then stop recording.</span
+          >
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Module</th>
+              <th>Time</th>
+              <th>Output</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>Recording</th>
+              <td id="capture-time">—</td>
+              <td>
+                <audio id="capture-audio" controls preload="none" hidden></audio
+                ><span id="capture-output">—</span>
+              </td>
+            </tr>
+            <tr>
+              <th>Whisper</th>
+              <td id="whisper-time">—</td>
+              <td>
+                <p id="whisper-output">—</p>
+                <small>Includes audio conversion</small>
+              </td>
+            </tr>
+            <tr>
+              <th>Codex</th>
+              <td id="codex-time">—</td>
+              <td><p id="codex-output">—</p></td>
+            </tr>
+            <tr>
+              <th>VOICEVOX</th>
+              <td id="tts-time">—</td>
+              <td><p id="tts-output">—</p></td>
+            </tr>
+            <tr>
+              <th>Playback</th>
+              <td id="audio-time">—</td>
+              <td><p id="audio-output">—</p></td>
+            </tr>
+          </tbody>
+        </table>
+        <details>
+          <summary>Event details</summary>
+          <pre id="events"></pre>
+        </details>
+      </section>
+      <p id="error" role="alert" hidden></p>
+    </main>
+  </body>
+</html>
