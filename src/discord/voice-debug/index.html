@@ -31,6 +31,11 @@
             >Say something, then stop recording.</span
           >
         </div>
+        <div class="actions saved-recording">
+          <label for="recording-select">Saved recording</label>
+          <select id="recording-select"></select>
+          <button id="rerun" disabled>Run again</button>
+        </div>
         <table>
           <thead>
             <tr>
@@ -124,19 +129,6 @@
             </tr>
           </tbody>
         </table>
-        <section aria-label="Recognition comparison" class="comparison">
-          <div class="actions">
-            <h2>Compare recognition</h2>
-            <select id="recording-select" aria-label="Saved recording"></select
-            ><button id="compare">Run comparison</button
-            ><button id="add-profile">Add variant</button>
-          </div>
-          <audio id="comparison-audio" controls preload="none"></audio>
-          <p id="comparison-status" role="status">
-            Same recording, sequential runs. Times include audio conversion.
-          </p>
-          <div id="profiles" class="profiles"></div>
-        </section>
         <details>
           <summary>Event details</summary>
           <pre id="events"></pre>

@@ -71,7 +71,7 @@ async function poll() {
     $("login").hidden = true;
     $("test").hidden = false;
     $("logout").hidden = false;
-    await pollComparisons();
+    await loadRecordings();
     if (!sessionId || state.mode !== "browser") return;
     const events = state.events.filter((e) => e.sessionId === sessionId);
     const last = (type) => events.findLast((e) => e.type === type);
@@ -148,7 +148,7 @@ async function poll() {
       $("status").textContent = failed
         ? "This turn failed. See its output or event details."
         : last("turn.finish")
-          ? "Done. Record again to test another turn."
+          ? "Done. Record or run again to test another turn."
           : last("turn.cancel")
             ? "Reply stopped."
             : last("decision")?.detail?.startsWith("ignore")
@@ -185,6 +185,7 @@ $("record").onclick = async () => {
   if (busy) return;
   busy = true;
   $("record").disabled = true;
+  $("rerun").disabled = $("recording-select").disabled = true;
   error();
   const turn = ++generation;
   try {
@@ -237,8 +238,7 @@ $("record").onclick = async () => {
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error);
-        selectedRecording = "";
-        $("recording-select").value = "";
+        selectedRecording = result.recordingId;
         $("capture-time").textContent = duration(decoded.duration * 1000);
         $("capture-output").textContent = "";
         $("capture-audio").src =
@@ -339,117 +339,77 @@ setInterval(async () => {
   }
 }, 500);
 let recordings = [],
-  profiles = [],
-  comparisonRuns = [],
   selectedRecording = "";
-function addProfile(settings) {
-  const card = document.createElement("div");
-  card.className = "profile";
-  card.innerHTML = `<label>Model<select data-model><option value="small">small</option><option value="small-q5_1">small · Q5_1</option><option value="base">base</option></select></label><label>Language<select data-language><option value="ja">Japanese</option><option value="auto">Auto detect</option><option value="zh">Chinese</option><option value="en">English</option></select></label><strong>—</strong><output>Not run</output><details><summary>Stage timings</summary><div class="stage-timings"></div></details>`;
-  card.querySelector("[data-model]").value = settings.model || "small";
-  card.querySelector("[data-language]").value = settings.language;
-  const index = profiles.length;
-  card.querySelectorAll("select").forEach(
-    (select) =>
-      (select.onchange = () => {
-        comparisonRuns[index] = undefined;
-        card.querySelector("strong").textContent = "—";
-        card.querySelector("output").textContent =
-          "Settings changed · run again";
-      }),
-  );
-  profiles.push({ settings, card });
-  $("profiles").append(card);
-  $("add-profile").disabled = profiles.length >= 4;
+function showRecording() {
+  const recording = recordings.find((r) => r.id === selectedRecording);
+  if (!recording) return;
+  $("capture-time").textContent = duration(recording.audioMs);
+  $("capture-output").textContent = "";
+  $("capture-audio").src = `/api/voice-debug/recording?id=${recording.id}`;
+  $("capture-audio").hidden = false;
 }
-function selectRecording() {
-  selectedRecording = $("recording-select").value;
-  comparisonRuns = [];
-  $("comparison-audio").src =
-    `/api/voice-debug/recording?id=${selectedRecording}`;
-  const saved = recordings.find((r) => r.id === selectedRecording);
-  if (saved?.runs.length) {
-    $("profiles").replaceChildren();
-    profiles = [];
-    saved.runs.slice(-3).forEach((run) => addProfile(run.settings));
-    comparisonRuns = saved.runs.slice(-3).map((run) => run.id);
-  }
-}
-async function pollComparisons() {
+async function loadRecordings() {
   const data = await api("recordings");
+  const changed =
+    JSON.stringify(data.recordings.map((r) => r.id)) !==
+    JSON.stringify(recordings.map((r) => r.id));
   recordings = data.recordings;
-  if (!profiles.length) data.defaults.forEach(addProfile);
-  const previous = $("recording-select").value;
-  $("recording-select").replaceChildren(
-    ...recordings.map((r) => {
-      const option = document.createElement("option");
-      option.value = r.id;
-      option.textContent = `${new Date(r.at).toLocaleString()} · ${duration(r.audioMs)}`;
-      return option;
-    }),
-  );
-  if (recordings.some((r) => r.id === previous))
-    $("recording-select").value = previous;
-  if (!selectedRecording && recordings.length) selectRecording();
-  const record = recordings.find((r) => r.id === selectedRecording);
-  const runs = comparisonRuns.map((id) =>
-    record?.runs.find((r) => r.id === id),
-  );
-  const active = recordings.some((r) =>
-    r.runs.some((run) => ["running", "queued"].includes(run.status)),
-  );
-  $("compare").disabled = active || !record;
-  $("recording-select").disabled = active;
-  $("add-profile").disabled = active || profiles.length >= 4;
-  profiles.forEach(({ card }, index) => {
-    card.querySelectorAll("select").forEach((el) => (el.disabled = active));
-    const run = runs[index];
-    const target = card.querySelector(".stage-timings");
-    if (run?.result && target.dataset.run !== run.id) {
-      target.replaceChildren(window.voiceTimeline.recognition(run.result, run));
-      target.dataset.run = run.id;
-    } else if (!run?.result) {
-      target.textContent =
-        run?.status === "queued"
-          ? "Waiting for earlier variants…"
-          : "Stage timings appear when recognition finishes.";
-      delete target.dataset.run;
-    }
-    card.querySelector("strong").textContent = run?.result
-      ? duration(run.result.durationMs)
-      : run?.status === "running"
-        ? duration(Date.now() - run.startedAt) + "…"
-        : "—";
-    card.querySelector("output").textContent = run?.result
-      ? run.result.text || "No speech detected"
-      : run?.error || run?.status || "Not run";
-  });
-  $("comparison-status").textContent = active
-    ? "Running sequentially on the same recording…"
-    : "Same recording, sequential runs. Times include audio conversion.";
+  if (!recordings.some((r) => r.id === selectedRecording))
+    selectedRecording = recordings[0]?.id || "";
+  if (changed) {
+    $("recording-select").replaceChildren(
+      ...recordings.map((r) => {
+        const option = document.createElement("option");
+        option.value = r.id;
+        option.textContent = `${new Date(r.at).toLocaleString()} · ${duration(r.audioMs)}`;
+        return option;
+      }),
+    );
+    if (!sessionId) showRecording();
+  }
+  $("recording-select").value = selectedRecording;
+  $("recording-select").disabled = busy || !recordings.length;
+  $("rerun").disabled = busy || !selectedRecording;
 }
-$("recording-select").onchange = () => {
-  selectRecording();
-  void pollComparisons();
-};
-$("add-profile").onclick = () => addProfile({ ...profiles[0].settings });
-$("compare").onclick = async () => {
-  $("compare").disabled = true;
-  error();
+$("recording-select").onchange = async () => {
+  selectedRecording = $("recording-select").value;
+  // A different input must not remain paired with the previous run's output.
+  stopAudio();
+  sessionId = "";
   try {
-    const result = await api("comparison", "POST", {
-      id: selectedRecording,
-      profiles: profiles.map(({ settings, card }) => ({
-        ...settings,
-        model: card.querySelector("[data-model]").value,
-        language: card.querySelector("[data-language]").value,
-      })),
-    });
-    comparisonRuns = result.runs.slice(-profiles.length).map((r) => r.id);
-    await pollComparisons();
+    await api("browser", "DELETE");
+    reset();
+    showRecording();
   } catch (err) {
     error(err.message);
-    $("compare").disabled = false;
+  }
+};
+$("rerun").onclick = async () => {
+  if (busy || !selectedRecording) return;
+  busy = true;
+  $("record").disabled =
+    $("rerun").disabled =
+    $("recording-select").disabled =
+      true;
+  error();
+  try {
+    context ??= new AudioContext();
+    await context.resume();
+    stopAudio();
+    sessionId = "";
+    reset();
+    showRecording();
+    $("status").textContent = "Running saved recording…";
+    const result = await api("browser", "POST", {
+      recordingId: selectedRecording,
+    });
+    sessionId = result.sessionId;
+  } catch (err) {
+    error(err.message);
+  } finally {
+    busy = false;
+    $("record").disabled = false;
+    await poll();
   }
 };
 poll();

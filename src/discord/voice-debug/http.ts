@@ -220,6 +220,14 @@ export function createVoiceDebugHandler(
         url.pathname === "/api/voice-debug/browser" &&
         request.method === "POST"
       ) {
+        const value = z
+          .object({ recordingId: z.string().uuid().optional() })
+          .strict()
+          .parse(await input());
+        // Validate and load before replacing the current browser test.
+        const audio = value.recordingId
+          ? await recognitionLab.audio(value.recordingId)
+          : undefined;
         const { transcribeSpeech } = await import("../local-speech");
         const { respondToVoiceChat } = await import("../../chatbot/voice-chat");
         browsers.get(cookie)?.close();
@@ -230,7 +238,12 @@ export function createVoiceDebugHandler(
             respond: respondToVoiceChat,
           }),
         );
-        return json({ ok: true });
+        const browser = browsers.get(cookie)!;
+        if (audio) browser.capture(audio);
+        return json({
+          ok: true,
+          sessionId: browser.state.snapshot().sessions.at(-1)!.id,
+        });
       }
       if (
         url.pathname === "/api/voice-debug/browser" &&
