@@ -213,6 +213,8 @@ $("record").onclick = async () => {
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error);
+        selectedRecording = "";
+        $("recording-select").value = "";
         $("capture-time").textContent = duration(decoded.duration * 1000);
         $("capture-output").textContent = "";
         $("capture-audio").src =
@@ -322,6 +324,16 @@ function addProfile(settings) {
   card.innerHTML = `<label>Model<select data-model><option value="small">small</option><option value="small-q5_1">small · Q5_1</option><option value="base">base</option></select></label><label>Language<select data-language><option value="ja">Japanese</option><option value="auto">Auto detect</option><option value="zh">Chinese</option><option value="en">English</option></select></label><strong>—</strong><output>Not run</output>`;
   card.querySelector("[data-model]").value = settings.model || "small";
   card.querySelector("[data-language]").value = settings.language;
+  const index = profiles.length;
+  card.querySelectorAll("select").forEach(
+    (select) =>
+      (select.onchange = () => {
+        comparisonRuns[index] = undefined;
+        card.querySelector("strong").textContent = "—";
+        card.querySelector("output").textContent =
+          "Settings changed · run again";
+      }),
+  );
   profiles.push({ settings, card });
   $("profiles").append(card);
   $("add-profile").disabled = profiles.length >= 4;
