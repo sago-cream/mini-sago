@@ -133,8 +133,9 @@ check to avoid overwriting another tab's changes. Stop reply cancels the active
 answer. It does not disconnect the voice session.
 
 Transcripts and replies are held only in memory for 30 minutes, up to 800 events
-and 32 session summaries. No raw audio is retained by the dashboard. Clear events
-removes this buffer; exported JSON is a separate local copy containing transcript
+and 32 session summaries. Captured audio has a separate 24 MB memory bound. Browser
+test recordings and recognition results also persist in the test library described below.
+Clear events removes the transient buffer; exported JSON is a separate local copy containing transcript
 text. Authenticated clients poll once per second. Pausing updates affects only
 the dashboard, not the bot. `/voice-debug?demo=1` contains clearly labeled sample
 traces and local-only tuning, and does not contact the live diagnostics API.
@@ -242,4 +243,14 @@ credentials according to the operator's retention requirements.
 
 Open `/voice-debug` and sign in with the dedicated debug token. Select **Record**, speak, then **Stop recording**. The table shows recording playback, Whisper transcript, Codex reply, VOICEVOX text, and playback status with module durations. Event details expose the underlying trace. Capture stops automatically at 30 seconds; starting another recording cancels the preceding answer and creates an isolated browser conversation.
 
-Browser tests do not join Discord or use Discord playback. They share recognition, worker, and TTS service capacity. Each login owns its browser session; logout and expiry destroy it. Captured audio remains in memory for up to 30 minutes with a 24 MB bound per diagnostic state. This PR does not persist recordings or add recognition comparisons.
+Browser tests do not join Discord or use Discord playback. They share recognition, worker, and TTS service capacity. Each login owns its browser session; logout and expiry destroy it. Saved recordings persist in `/app/state/voice-tests`, shared by authorized dashboard users.
+
+### Recognition models and comparisons
+
+Live recognition defaults to **multilingual base with fixed Japanese**, beam size 1, temperature 0, and Silero VAD. `MINISAGO_WHISPER_BASE_URL` selects its server (default `http://whisper-base:8080`). The small server remains at `MINISAGO_WHISPER_URL` for comparison; quantized small uses `MINISAGO_WHISPER_QUANTIZED_URL` (default `http://whisper-quantized:8080`). Deploy `compose.voice-comparison.yaml` with `WHISPER_COMPARISON_MODEL_DIR` containing `ggml-base.bin` and `ggml-small-q5_1.bin` from the ggerganov/whisper.cpp model repository. The base service is required for live recognition.
+
+**Compare recognition** replays a saved recording through three editable model/language cards. **Add variant** allows a fourth profile. Runs execute sequentially and persist their transcripts, timings, settings, and diagnostics. Comparisons invoke recognition only. Recording a normal turn still runs the complete conversation pipeline and saves the recording.
+
+The library retains at most 100 recordings of up to 30 seconds and 20 runs per recording. The authenticated recording DELETE API removes fixtures; the minimal UI has no deletion control. Recognition has a 120-second deadline. Module durations can overlap and should not be summed to estimate time to first audio.
+
+On September 7, the same 1.44-second Japanese greeting produced `こんにちは` with all three models: small 23.6 seconds, small Q5_1 37.1 seconds, base 11.4 seconds. All used fixed Japanese and identical decoding/VAD settings. These single-sample results motivated the base default; they do not establish general accuracy or realtime performance.
