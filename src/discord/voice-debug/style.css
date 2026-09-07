@@ -343,3 +343,21 @@ select {
     max-width: none;
   }
 }
+
+@media (max-width: 600px) {
+  .record-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .record-controls select {
+    width: 100%;
+    min-width: 0;
+  }
+  .record-controls audio {
+    grid-column: 1 / -1;
+  }
+  .record-controls button {
+    padding-inline: 9px;
+    font-size: 12px;
+  }
+}

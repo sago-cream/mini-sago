@@ -89,7 +89,7 @@ async function poll() {
       const stages = spans.filter(
         (s) =>
           labels.includes(s.name) &&
-          (!s.name.includes("wait") || s.durationMs >= 1),
+          (!s.name.includes("wait") || s.durationMs >= 10),
       );
       if (name === "codex") {
         const first = last("codex.first_delta");
