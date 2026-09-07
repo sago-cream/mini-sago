@@ -120,6 +120,7 @@ async function voicevoxRequest(
 }
 
 export type RecognitionSettings = {
+  model?: "small" | "small-q5_1" | "base";
   language: string;
   beamSize: number;
   temperature: number;
@@ -197,14 +198,24 @@ export async function recognizeSpeech(
       vad_speech_pad_ms: settings.paddingMs,
     }))
       form.append(key, String(value));
-    const response = await fetch(whisperInferenceUrl(), {
-      method: "POST",
-      body: form,
-      signal: AbortSignal.any([
-        AbortSignal.timeout(TRANSCRIPTION_TIMEOUT_MS),
-        ...(signal ? [signal] : []),
-      ]),
-    });
+    const response = await fetch(
+      whisperInferenceUrl(
+        settings.model === "base"
+          ? process.env.MINISAGO_WHISPER_BASE_URL || "http://whisper-base:8080"
+          : settings.model === "small-q5_1"
+            ? process.env.MINISAGO_WHISPER_QUANTIZED_URL ||
+              "http://whisper-quantized:8080"
+            : WHISPER_URL,
+      ),
+      {
+        method: "POST",
+        body: form,
+        signal: AbortSignal.any([
+          AbortSignal.timeout(TRANSCRIPTION_TIMEOUT_MS),
+          ...(signal ? [signal] : []),
+        ]),
+      },
+    );
     if (!response.ok) {
       throw new Error(
         `Whisper ${response.status}: ${(await response.text()).trim()}`,
@@ -229,7 +240,7 @@ export async function recognizeSpeech(
     }
     return {
       text: result.text.trim(),
-      model: "small",
+      model: settings.model ?? "small",
       durationMs: performance.now() - startedAt,
       audioMs: audio.length / 48,
       settings: { ...settings },

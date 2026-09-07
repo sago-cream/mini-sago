@@ -69,6 +69,7 @@ async function poll() {
     $("login").hidden = true;
     $("test").hidden = false;
     $("logout").hidden = false;
+    await pollComparisons();
     if (!sessionId || state.mode !== "browser") return;
     const events = state.events.filter((e) => e.sessionId === sessionId);
     const last = (type) => events.findLast((e) => e.type === type);
@@ -311,5 +312,98 @@ setInterval(async () => {
     playingPoll = false;
   }
 }, 500);
+let recordings = [],
+  profiles = [],
+  comparisonRuns = [],
+  selectedRecording = "";
+function addProfile(settings) {
+  const card = document.createElement("div");
+  card.className = "profile";
+  card.innerHTML = `<label>Model<select data-model><option value="small">small</option><option value="small-q5_1">small · Q5_1</option><option value="base">base</option></select></label><label>Language<select data-language><option value="ja">Japanese</option><option value="auto">Auto detect</option><option value="zh">Chinese</option><option value="en">English</option></select></label><strong>—</strong><output>Not run</output>`;
+  card.querySelector("[data-model]").value = settings.model || "small";
+  card.querySelector("[data-language]").value = settings.language;
+  profiles.push({ settings, card });
+  $("profiles").append(card);
+  $("add-profile").disabled = profiles.length >= 4;
+}
+function selectRecording() {
+  selectedRecording = $("recording-select").value;
+  comparisonRuns = [];
+  $("comparison-audio").src =
+    `/api/voice-debug/recording?id=${selectedRecording}`;
+  const saved = recordings.find((r) => r.id === selectedRecording);
+  if (saved?.runs.length) {
+    $("profiles").replaceChildren();
+    profiles = [];
+    saved.runs.slice(-3).forEach((run) => addProfile(run.settings));
+    comparisonRuns = saved.runs.slice(-3).map((run) => run.id);
+  }
+}
+async function pollComparisons() {
+  const data = await api("recordings");
+  recordings = data.recordings;
+  if (!profiles.length) data.defaults.forEach(addProfile);
+  const previous = $("recording-select").value;
+  $("recording-select").replaceChildren(
+    ...recordings.map((r) => {
+      const option = document.createElement("option");
+      option.value = r.id;
+      option.textContent = `${new Date(r.at).toLocaleString()} · ${duration(r.audioMs)}`;
+      return option;
+    }),
+  );
+  if (recordings.some((r) => r.id === previous))
+    $("recording-select").value = previous;
+  if (!selectedRecording && recordings.length) selectRecording();
+  const record = recordings.find((r) => r.id === selectedRecording);
+  const runs = comparisonRuns.map((id) =>
+    record?.runs.find((r) => r.id === id),
+  );
+  const active = recordings.some((r) =>
+    r.runs.some((run) => ["running", "queued"].includes(run.status)),
+  );
+  $("compare").disabled = active || !record;
+  $("recording-select").disabled = active;
+  $("add-profile").disabled = active || profiles.length >= 4;
+  profiles.forEach(({ card }, index) => {
+    card.querySelectorAll("select").forEach((el) => (el.disabled = active));
+    const run = runs[index];
+    card.querySelector("strong").textContent = run?.result
+      ? duration(run.result.durationMs)
+      : run?.status === "running"
+        ? duration(Date.now() - run.startedAt) + "…"
+        : "—";
+    card.querySelector("output").textContent = run?.result
+      ? run.result.text || "No speech detected"
+      : run?.error || run?.status || "Not run";
+  });
+  $("comparison-status").textContent = active
+    ? "Running sequentially on the same recording…"
+    : "Same recording, sequential runs. Times include audio conversion.";
+}
+$("recording-select").onchange = () => {
+  selectRecording();
+  void pollComparisons();
+};
+$("add-profile").onclick = () => addProfile({ ...profiles[0].settings });
+$("compare").onclick = async () => {
+  $("compare").disabled = true;
+  error();
+  try {
+    const result = await api("comparison", "POST", {
+      id: selectedRecording,
+      profiles: profiles.map(({ settings, card }) => ({
+        ...settings,
+        model: card.querySelector("[data-model]").value,
+        language: card.querySelector("[data-language]").value,
+      })),
+    });
+    comparisonRuns = result.runs.slice(-profiles.length).map((r) => r.id);
+    await pollComparisons();
+  } catch (err) {
+    error(err.message);
+    $("compare").disabled = false;
+  }
+};
 poll();
 setInterval(poll, 1000);

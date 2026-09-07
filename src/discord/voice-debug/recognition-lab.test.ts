@@ -47,12 +47,12 @@ test("recordings survive a new lab instance and profile runs use identical audio
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
     expect(maxActive).toBe(1);
-    expect(seen).toEqual(["same audio", "same audio"]);
+    expect(seen).toEqual(["same audio", "same audio", "same audio"]);
     const stored = (await new RecognitionLab(dir).list())[0]!;
     expect(stored.expected).toBe("hello");
     expect(stored.runs[0]!.startedAt).toBeGreaterThan(0);
-    expect(stored.runs).toHaveLength(2);
-    expect(stored.runs[1]!.settings.beamSize).toBe(3);
+    expect(stored.runs).toHaveLength(3);
+    expect(stored.runs[1]!.settings.model).toBe("small-q5_1");
     await lab.remove(record.id);
     expect(await lab.list()).toEqual([]);
     await expect(lab.audio("../../secret")).rejects.toThrow();

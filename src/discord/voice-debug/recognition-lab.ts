@@ -12,6 +12,7 @@ import { z } from "zod";
 import { recognizeSpeech, DEFAULT_RECOGNITION } from "../local-speech";
 export const profileSchema = z
   .object({
+    model: z.enum(["small", "small-q5_1", "base"]).optional(),
     language: z.enum(["auto", "zh", "ja", "en"]),
     beamSize: z.number().int().min(1).max(5),
     temperature: z.number().min(0).max(1),
@@ -157,6 +158,7 @@ export class RecognitionLab {
 }
 export const recognitionLab = new RecognitionLab();
 export const defaultProfiles = [
-  DEFAULT_RECOGNITION,
-  { ...DEFAULT_RECOGNITION, beamSize: 3 },
+  { ...DEFAULT_RECOGNITION, model: "small", language: "ja" },
+  { ...DEFAULT_RECOGNITION, model: "small-q5_1", language: "ja" },
+  { ...DEFAULT_RECOGNITION, model: "base", language: "ja" },
 ];
