@@ -132,7 +132,8 @@ export type RecognitionSettings = {
   paddingMs: number;
 };
 export const DEFAULT_RECOGNITION: RecognitionSettings = {
-  language: "auto",
+  model: "base",
+  language: "ja",
   beamSize: 1,
   temperature: 0,
   prompt: "",
