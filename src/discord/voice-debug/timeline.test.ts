@@ -67,7 +67,7 @@ test("old recordings show missing instrumentation instead of zero VAD", () => {
   expect(output).not.toContain("VAD 0");
 });
 
-test("recognition nests VAD under inference under request without duplicate summaries", () => {
+test("recognition shows measured stages once without redundant wrappers", () => {
   const result = window.voiceTimeline.recognition({
     durationMs: 100,
     timings: {
@@ -86,11 +86,9 @@ test("recognition nests VAD under inference under request without duplicate summ
     },
   });
   const output = text(result);
-  expect(output.match(/VAD/g)?.length).toBe(1);
+  expect(output.match(/Speech detection/g)?.length).toBe(1);
   expect(output).not.toContain("Server processing");
-  const chart = result.children[0];
-  const request = chart.children[1];
-  const inference = request.children[1].children[1];
-  expect(text(inference.children[0])).toContain("Inference");
-  expect(text(inference.children[1])).toContain("VAD");
+  expect(output).not.toContain("Inference");
+  expect(output).not.toContain("Response parsing");
+  expect(output).toContain("Speech detection 20 ms");
 });

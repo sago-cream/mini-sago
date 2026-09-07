@@ -24,23 +24,14 @@
         /><button>Sign in</button>
       </form>
       <section id="test" hidden>
-        <div class="actions">
-          <button id="record" class="primary">Record</button
-          ><button id="stop" hidden>Stop reply</button
-          ><span id="status" role="status"
-            >Say something, then stop recording.</span
-          >
+        <div class="record-controls">
+          <select id="recording-select" aria-label="Recording"></select>
+          <button id="rerun" class="primary" disabled>Run</button>
+          <button id="record">Record new</button>
+          <audio id="capture-audio" controls preload="metadata" hidden></audio>
+          <button id="stop" hidden>Stop reply</button>
         </div>
-        <div class="actions saved-recording">
-          <label for="recording-select">Saved recording</label>
-          <select id="recording-select"></select>
-          <button id="rerun" disabled>Run again</button>
-        </div>
-        <div class="actions recording-preview" aria-label="Recording preview">
-          <audio id="capture-audio" controls preload="none" hidden></audio>
-          <span id="capture-time">—</span>
-          <span id="capture-output">—</span>
-        </div>
+        <p id="status" role="status"></p>
         <table>
           <thead>
             <tr>

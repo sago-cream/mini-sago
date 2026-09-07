@@ -50,7 +50,7 @@ function stopAudio() {
   clipId = "";
 }
 function reset() {
-  for (const name of ["capture", "whisper", "codex", "tts", "audio"]) {
+  for (const name of ["whisper", "codex", "tts", "audio"]) {
     $(name + "-time").textContent = "—";
     $(name + "-output").textContent = "—";
   }
@@ -86,7 +86,26 @@ async function poll() {
       const open = [...target.querySelectorAll("details[open]")].map(
         (n) => n.dataset.path,
       );
-      const stages = spans.filter((s) => labels.includes(s.name));
+      const stages = spans.filter(
+        (s) =>
+          labels.includes(s.name) &&
+          (!s.name.includes("wait") || s.durationMs >= 1),
+      );
+      if (name === "codex") {
+        const first = last("codex.first_delta");
+        if (first)
+          stages.push({
+            name: "First text",
+            startMs: 0,
+            durationMs: first.durationMs,
+          });
+      }
+      if (name === "tts" || name === "audio") {
+        let sentence = 0;
+        stages.forEach((s) => {
+          if (!s.name.includes("wait")) s.name = `Sentence ${++sentence}`;
+        });
+      }
       target.replaceChildren();
       if (stages.length) target.append(window.voiceTimeline.chart("", stages));
       if (name === "whisper" && recognition)
@@ -141,14 +160,14 @@ async function poll() {
       $("status").textContent = failed
         ? "This turn failed. See its module output."
         : last("turn.finish")
-          ? "Done. Record or run again to test another turn."
+          ? "Done."
           : last("turn.cancel")
             ? "Reply stopped."
             : last("decision")?.detail?.startsWith("ignore")
               ? last("decision").detail
               : events.some((e) => e.type === "utterance.queued")
                 ? "Processing your recording…"
-                : "Say something, then stop recording.";
+                : "";
     if (failed) error(failed.detail || failed.type);
     $("stop").hidden = !state.sessions.some(
       (s) => s.id === sessionId && s.activeTurn,
@@ -201,7 +220,7 @@ $("record").onclick = async () => {
       clearInterval(clock);
       stream.getTracks().forEach((t) => t.stop());
       $("record").disabled = true;
-      $("record").textContent = "Record";
+      $("record").textContent = "Record new";
       try {
         if (turn !== generation) return;
         $("status").textContent = "Sending recording…";
@@ -232,8 +251,6 @@ $("record").onclick = async () => {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error);
         selectedRecording = result.recordingId;
-        $("capture-time").textContent = duration(decoded.duration * 1000);
-        $("capture-output").textContent = "";
         $("capture-audio").src =
           `/api/voice-debug/recording?id=${result.recordingId}`;
         $("capture-audio").hidden = false;
@@ -336,25 +353,33 @@ let recordings = [],
 function showRecording() {
   const recording = recordings.find((r) => r.id === selectedRecording);
   if (!recording) return;
-  $("capture-time").textContent = duration(recording.audioMs);
-  $("capture-output").textContent = "";
   $("capture-audio").src = `/api/voice-debug/recording?id=${recording.id}`;
   $("capture-audio").hidden = false;
+}
+function recordingLabel(r) {
+  const text = (
+    r.transcript ??
+    r.runs?.findLast((run) => run.result)?.result.text ??
+    ""
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > 28 ? text.slice(0, 28) + "…" : text;
 }
 async function loadRecordings() {
   const data = await api("recordings");
   const changed =
-    JSON.stringify(data.recordings.map((r) => r.id)) !==
-    JSON.stringify(recordings.map((r) => r.id));
+    JSON.stringify(data.recordings.map((r) => [r.id, recordingLabel(r)])) !==
+    JSON.stringify(recordings.map((r) => [r.id, recordingLabel(r)]));
   recordings = data.recordings;
   if (!recordings.some((r) => r.id === selectedRecording))
     selectedRecording = recordings[0]?.id || "";
   if (changed) {
     $("recording-select").replaceChildren(
-      ...recordings.map((r) => {
+      ...recordings.map((r, index) => {
         const option = document.createElement("option");
         option.value = r.id;
-        option.textContent = `${new Date(r.at).toLocaleString()} · ${duration(r.audioMs)}`;
+        option.textContent = recordingLabel(r) || `Untitled ${index + 1}`;
         return option;
       }),
     );

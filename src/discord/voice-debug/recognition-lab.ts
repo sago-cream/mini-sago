@@ -39,6 +39,7 @@ type Recording = {
   at: number;
   audioMs: number;
   expected: string;
+  transcript?: string;
   runs: Run[];
 };
 export class RecognitionLab {
@@ -97,6 +98,11 @@ export class RecognitionLab {
     await writeFile(this.file(record.id, ".pcm"), audio, { mode: 0o600 });
     await this.save(record);
     return record;
+  }
+  async label(id: string, text: string) {
+    const record = await this.get(id);
+    record.transcript = text.slice(0, 4000);
+    await this.save(record);
   }
   async audio(id: string) {
     return readFile(this.file(id, ".pcm"));

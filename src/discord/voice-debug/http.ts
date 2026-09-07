@@ -235,11 +235,12 @@ export function createVoiceDebugHandler(
           cookie,
           createBrowserSession({
             transcribe: transcribeSpeech,
+            onTranscript: (id, text) => recognitionLab.label(id, text),
             respond: respondToVoiceChat,
           }),
         );
         const browser = browsers.get(cookie)!;
-        if (audio) browser.capture(audio);
+        if (audio) browser.capture(audio, value.recordingId);
         return json({
           ok: true,
           sessionId: browser.state.snapshot().sessions.at(-1)!.id,
@@ -290,7 +291,8 @@ export function createVoiceDebugHandler(
             409,
           );
         }
-        if (url.searchParams.get("compare") !== "1") browser.capture(audio);
+        if (url.searchParams.get("compare") !== "1")
+          browser.capture(audio, recording.id);
         return json({ ok: true, recordingId: recording.id });
       }
       if (url.pathname === "/api/voice-debug/playback" && browser) {

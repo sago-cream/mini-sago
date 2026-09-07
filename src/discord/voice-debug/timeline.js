@@ -65,57 +65,47 @@
         "small",
         "No stage timings were captured for this older run. Rerun to measure them.",
       );
-    const roots = [],
-      stack = [];
-    for (const [index, span] of (t.server?.spans || []).entries()) {
-      while (stack.length && stack.at(-1).depth >= span.depth) stack.pop();
-      const node = {
-        ...span,
-        depth: 0,
-        path: `server-${index}`,
-        children: [],
-        childTotal: t.server.totalMs,
-      };
-      // Server processing is just a wrapper around the measured stages.
-      const parent = stack.at(-1);
-      (parent ? parent.children : roots).push(node);
-      stack.push({ ...node, depth: span.depth });
-    }
-    const server = roots.flatMap((s) =>
-      s.name === "Server processing" ? s.children : [s],
+    const source = t.server?.spans || [];
+    const extra = source.find(
+      (s) => s.name === "Language diagnostics (extra pass)",
     );
     const spans = [
       { name: "Audio conversion", startMs: 0, durationMs: t.conversionMs },
-      {
-        name: "Whisper request",
-        startMs: t.conversionMs,
-        durationMs: t.requestMs,
-        children: server,
-        childTotal: t.server?.totalMs,
-      },
-      {
-        name: "Response parsing",
-        startMs: t.conversionMs + t.requestMs,
-        durationMs: t.responseParseMs,
-      },
     ];
-    const box = el("div");
-    if (run?.queuedAt && run.startedAt)
-      box.append(
-        el(
-          "small",
-          `Wait for earlier variants: ${time(run.startedAt - run.queuedAt)}`,
-        ),
+    const names = {
+      "Model queue wait": "Model wait",
+      VAD: "Speech detection",
+      "Mel spectrogram": "Audio features",
+      Encoder: "Encoding",
+      Decoder: "Decoding",
+    };
+    for (const [name, label] of Object.entries(names)) {
+      const matches = source.filter(
+        (s) => s.name === name && (!extra || s.startMs < extra.startMs),
       );
-    box.append(chart("", spans, result.durationMs));
-    box.append(
-      el(
-        "small",
-        t.server
-          ? "Expand a stage for its children. Child times are included in the parent; Whisper offsets use its server clock."
-          : "Server does not expose VAD or model queue timings.",
-      ),
-    );
+      const durationMs = matches.reduce((n, s) => n + s.durationMs, 0);
+      if (!matches.length || (name === "Model queue wait" && durationMs < 1))
+        continue;
+      spans.push({
+        name: label,
+        startMs: t.conversionMs + matches[0].startMs,
+        durationMs,
+      });
+    }
+    if (extra)
+      spans.push({
+        name: "Language diagnostics",
+        startMs: t.conversionMs + extra.startMs,
+        durationMs: extra.durationMs,
+      });
+    const overhead = Math.max(0, t.requestMs - (t.server?.totalMs || 0));
+    if (overhead >= 10)
+      spans.push({
+        name: t.server ? "Request overhead" : "Recognition request",
+        startMs: t.conversionMs + (t.server?.totalMs || 0),
+        durationMs: overhead,
+      });
+    const box = chart("", spans, result.durationMs);
     return box;
   }
   function pipeline(events, now, raw = false) {
