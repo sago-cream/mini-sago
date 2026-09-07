@@ -36,6 +36,11 @@
           <select id="recording-select"></select>
           <button id="rerun" disabled>Run again</button>
         </div>
+        <div class="actions recording-preview" aria-label="Recording preview">
+          <audio id="capture-audio" controls preload="none" hidden></audio>
+          <span id="capture-time">—</span>
+          <span id="capture-output">—</span>
+        </div>
         <table>
           <thead>
             <tr>
@@ -45,14 +50,6 @@
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <th>Recording</th>
-              <td id="capture-time">—</td>
-              <td>
-                <audio id="capture-audio" controls preload="none" hidden></audio
-                ><span id="capture-output">—</span>
-              </td>
-            </tr>
             <tr>
               <th>
                 <button
