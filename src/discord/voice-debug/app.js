@@ -58,7 +58,6 @@ function reset() {
   $("capture-audio").removeAttribute("src");
   $("capture-audio").load();
   $("capture-audio").hidden = true;
-  $("events").textContent = "";
   for (const name of ["whisper", "codex", "tts", "audio"])
     $(name + "-stages").replaceChildren();
 }
@@ -137,16 +136,10 @@ async function poll() {
         playback.at(-1)?.type
       ] ||
       "—";
-    $("events").textContent = events
-      .map(
-        (e) =>
-          `${new Date(e.at).toLocaleTimeString()} ${e.type}\n${JSON.stringify(e.payload ?? { text: e.text, detail: e.detail, durationMs: e.durationMs }, null, 2)}`,
-      )
-      .join("\n\n");
     const failed = events.findLast((e) => e.type.endsWith(".error"));
     if (!busy)
       $("status").textContent = failed
-        ? "This turn failed. See its output or event details."
+        ? "This turn failed. See its module output."
         : last("turn.finish")
           ? "Done. Record or run again to test another turn."
           : last("turn.cancel")
