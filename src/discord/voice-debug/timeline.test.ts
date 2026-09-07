@@ -142,3 +142,26 @@ test("shared-clock pending synthesis stops growing at cancellation", () => {
   expect(flow.tts[0].segments[1].durationMs).toBe(300);
   expect(flow.tts[0].running).toBe(false);
 });
+
+test("shared timeline exposes Codex startup stages and identifies cached PCM", () => {
+  const result = window.voiceTimeline.flow(
+    [
+      { type: "utterance.queued", at: 1000 },
+      { type: "codex.start", at: 1100 },
+      {
+        type: "codex.stage",
+        at: 1350,
+        durationMs: 200,
+        detail: "Process startup",
+      },
+      { type: "codex.sentence", at: 2000, sentenceId: 1, text: "こんにちは。" },
+      { type: "tts.start", at: 2000, sentenceId: 1 },
+      { type: "tts.finish", at: 2001, sentenceId: 1, detail: "PCM cache hit" },
+      { type: "turn.finish", at: 2100 },
+    ],
+    2100,
+  );
+  expect(result.details.codex[0].name).toBe("Process startup");
+  expect(result.details.codex[0].segments[0].durationMs).toBe(200);
+  expect(result.tts[0].name).toBe("Sentence 1 · cached");
+});

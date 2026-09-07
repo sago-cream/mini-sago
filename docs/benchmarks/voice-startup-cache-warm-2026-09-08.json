@@ -1,0 +1,31 @@
+[
+  {
+    "type": "codex.stage",
+    "detail": "Process startup",
+    "durationMs": 233.99702499999694
+  },
+  {
+    "type": "codex.stage",
+    "detail": "Thread setup",
+    "durationMs": 873.5779199999961
+  },
+  {
+    "type": "codex.first_delta",
+    "durationMs": 4987.295263000007
+  },
+  {
+    "type": "tts.finish",
+    "detail": "PCM cache hit",
+    "durationMs": 0.03972000000067055
+  },
+  {
+    "type": "tts.finish",
+    "detail": "PCM cache hit",
+    "durationMs": 0.0378400000045076
+  },
+  {
+    "type": "codex.finish",
+    "detail": "Reply accepted",
+    "durationMs": 5285.815434999997
+  }
+]

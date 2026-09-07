@@ -243,6 +243,13 @@ function validTaskProgress(value: unknown): value is ChatbotTaskProgress {
     typeof progress.summary === "string" &&
     progress.summary.length > 0 &&
     progress.summary.length <= 2_000 &&
+    (progress.timing === undefined ||
+      (progress.timing !== null &&
+        typeof progress.timing === "object" &&
+        typeof progress.timing.stage === "string" &&
+        progress.timing.stage.length <= 80 &&
+        Number.isFinite(progress.timing.durationMs) &&
+        progress.timing.durationMs >= 0)) &&
     (progress.kind === undefined || progress.kind === "trace") &&
     (progress.completion === undefined ||
       progress.completion === "pull_request_merged") &&
@@ -368,6 +375,7 @@ export class MacAgentBridge {
       job.executionRoute === "oracle" ? "dev" : "chat",
     ],
     onReplyDelta?: (delta: string) => void,
+    onProgress?: (progress: ChatbotTaskProgress) => void,
   ): DispatchResult {
     const selected = this.selectWorker(capabilities, undefined, job.repository);
     if (selected.status !== "accepted") return selected;
@@ -375,7 +383,7 @@ export class MacAgentBridge {
       job,
       selected.worker.id,
       undefined,
-      undefined,
+      onProgress,
       onReplyDelta,
     );
   }

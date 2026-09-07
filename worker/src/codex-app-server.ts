@@ -91,6 +91,7 @@ class CodexAppServerSession {
   private ready: Promise<void>;
   private stderr = "";
   private threadId?: string;
+  private readonly startedAt = performance.now();
 
   constructor(private readonly options: RunOptions) {
     this.child = Bun.spawn(options.command, {
@@ -197,7 +198,16 @@ class CodexAppServerSession {
     await this.request("initialize", {
       clientInfo: { name: "minisago", title: "MiniSago", version: "1" },
     });
+    this.options.onProgress?.({
+      phase: "preparing",
+      summary: "Codex process ready.",
+      timing: {
+        stage: "Process startup",
+        durationMs: performance.now() - this.startedAt,
+      },
+    });
     this.notify("initialized", {});
+    const threadStartedAt = performance.now();
     const response = await this.request(
       this.options.resumeThreadId ? "thread/resume" : "thread/start",
       this.options.resumeThreadId
@@ -221,6 +231,10 @@ class CodexAppServerSession {
     this.options.onProgress?.({
       phase: "preparing",
       summary: "Codex thread started.",
+      timing: {
+        stage: "Thread setup",
+        durationMs: performance.now() - threadStartedAt,
+      },
       sessionId: thread.id,
     });
     if (this.options.title) {

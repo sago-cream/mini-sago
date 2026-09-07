@@ -81,3 +81,23 @@ test("cancels an in-flight synthesis request", async () => {
     request.mockRestore();
   }
 });
+
+test("reply cache is bounded, distinguishes settings and honors cancellation", async () => {
+  const { ReplySpeechCache } = await import("./local-speech");
+  const cache = new ReplySpeechCache(4);
+  let calls = 0;
+  const synthesize = async () => {
+    calls++;
+    return Buffer.from("aa");
+  };
+  await cache.get("text:speed1", synthesize);
+  expect((await cache.get("text:speed1", synthesize)).cached).toBe(true);
+  await cache.get("text:speed2", synthesize);
+  await cache.get("other:speed1", synthesize);
+  expect((await cache.get("text:speed1", synthesize)).cached).toBe(false);
+  expect(calls).toBe(4);
+  await expect(
+    cache.get("text:speed1", synthesize, AbortSignal.abort()),
+  ).rejects.toThrow();
+  expect(calls).toBe(4);
+});

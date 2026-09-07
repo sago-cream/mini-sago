@@ -33,6 +33,43 @@ export class SpeechCache {
   }
 }
 
+/** Completed PCM only: cancellation never propagates between unrelated turns. */
+export class ReplySpeechCache {
+  private audio = new Map<string, Buffer>();
+  private bytes = 0;
+  constructor(private readonly maxBytes = 16 * 1024 * 1024) {}
+  async get(
+    key: string,
+    synthesize: () => Promise<Buffer>,
+    signal?: AbortSignal,
+  ) {
+    signal?.throwIfAborted();
+    const cached = this.audio.get(key);
+    if (cached) {
+      this.audio.delete(key);
+      this.audio.set(key, cached);
+      return { audio: cached, cached: true };
+    }
+    const audio = await synthesize();
+    signal?.throwIfAborted();
+    if (audio.length <= this.maxBytes) {
+      const previous = this.audio.get(key);
+      if (previous) {
+        this.bytes -= previous.length;
+        this.audio.delete(key);
+      }
+      while (this.bytes + audio.length > this.maxBytes) {
+        const oldest = this.audio.keys().next().value!;
+        this.bytes -= this.audio.get(oldest)!.length;
+        this.audio.delete(oldest);
+      }
+      this.audio.set(key, audio);
+      this.bytes += audio.length;
+    }
+    return { audio, cached: false };
+  }
+}
+
 async function run(
   command: string,
   args: string[],

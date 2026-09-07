@@ -43,6 +43,7 @@ export type VoiceEventType =
   | "codex.start"
   | "codex.output"
   | "codex.first_delta"
+  | "codex.stage"
   | "codex.sentence"
   | "codex.finish"
   | "codex.error"

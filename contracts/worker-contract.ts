@@ -116,6 +116,7 @@ export type ChatbotTaskProgress = {
   sessionId?: string;
   kind?: "trace";
   completion?: "pull_request_merged";
+  timing?: { stage: string; durationMs: number };
 };
 
 export type ChatbotTraceContext = {

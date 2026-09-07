@@ -5,7 +5,11 @@ import type {
   ChatbotMessage,
 } from "../../contracts/worker-contract";
 import { parseChatbotAnswerDecision } from "../../contracts/answer-contract";
-import { SpeechCache, synthesizeSpeech } from "../discord/local-speech";
+import {
+  ReplySpeechCache,
+  SpeechCache,
+  synthesizeSpeech,
+} from "../discord/local-speech";
 import type {
   VoiceChatResponse,
   VoiceChatTurn,
@@ -20,6 +24,7 @@ const FAILURE_FEEDBACK = "ごめん、うまくいかなかった。もう一度
 const feedbackSpeech = new SpeechCache((text) =>
   synthesizeSpeech(text, text === THINKING_FEEDBACK ? { speedScale: 0.8 } : {}),
 );
+const replySpeech = new ReplySpeechCache();
 const feedbackLines = [THINKING_FEEDBACK, FAILURE_FEEDBACK] as const;
 
 export function startThinkingFeedback(options: {
@@ -222,15 +227,22 @@ export async function respondToVoiceChat(
         trace?.("tts.start", { text: sentence, sentenceId });
         let audio: Buffer;
         try {
-          audio = await synthesizeSpeech(sentence, {
-            signal: input.signal,
-            speedScale: input.settings?.speechSpeed,
-          });
+          const result = await replySpeech.get(
+            JSON.stringify([sentence, input.settings?.speechSpeed ?? null]),
+            () =>
+              synthesizeSpeech(sentence, {
+                signal: input.signal,
+                speedScale: input.settings?.speechSpeed,
+              }),
+            input.signal,
+          );
+          audio = result.audio;
           trace?.("tts.finish", {
             text: sentence,
             sentenceId,
             durationMs: performance.now() - startedAt,
             audioMs: audio.length / 192,
+            detail: result.cached ? "PCM cache hit" : "Synthesized",
           });
         } catch (error) {
           trace?.("tts.error", {
@@ -255,18 +267,29 @@ export async function respondToVoiceChat(
     trace?.("codex.start", {
       detail: "Chat worker · streamed Japanese reply · low reasoning",
     });
-    const dispatch = macAgentBridge.dispatch(job, ["chat"], (delta) => {
-      if (!input.isCurrent()) return;
-      if (firstDelta) {
-        trace?.("codex.first_delta", {
-          durationMs: performance.now() - codexStartedAt,
-        });
-        firstDelta = false;
-      }
-      streamedReply += delta;
-      trace?.("codex.output", { text: streamedReply });
-      sentences.push(delta);
-    });
+    const dispatch = macAgentBridge.dispatch(
+      job,
+      ["chat"],
+      (delta) => {
+        if (!input.isCurrent()) return;
+        if (firstDelta) {
+          trace?.("codex.first_delta", {
+            durationMs: performance.now() - codexStartedAt,
+          });
+          firstDelta = false;
+        }
+        streamedReply += delta;
+        trace?.("codex.output", { text: streamedReply });
+        sentences.push(delta);
+      },
+      (progress) => {
+        if (input.isCurrent() && progress.timing)
+          trace?.("codex.stage", {
+            detail: progress.timing.stage,
+            durationMs: progress.timing.durationMs,
+          });
+      },
+    );
     if (dispatch.status !== "accepted") {
       trace?.("codex.error", { detail: dispatch.status });
       stopFeedback();

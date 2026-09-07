@@ -278,7 +278,7 @@
         if (start) segments.push(segment(start.at, end?.at ?? until));
         if (segments.length)
           result[group].push({
-            name: `Sentence ${id}`,
+            name: `Sentence ${id}${end?.detail === "PCM cache hit" ? " · cached" : ""}`,
             sentenceId: id,
             text: queue?.text || ready.find((e) => e.sentenceId === id)?.text,
             segments,
@@ -310,6 +310,12 @@
           ],
         });
       }
+    }
+    for (const event of events.filter((e) => e.type === "codex.stage")) {
+      result.details.codex.push({
+        name: event.detail,
+        segments: [segment(event.at - event.durationMs, event.at)],
+      });
     }
     const first = events.find((e) => e.type === "codex.first_delta");
     if (first)
