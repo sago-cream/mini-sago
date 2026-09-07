@@ -1,0 +1,58 @@
+# Optional isolated recognition servers for /voice-debug comparisons.
+# Download ggml-small-q5_1.bin and ggml-base.bin from ggerganov/whisper.cpp
+# into WHISPER_COMPARISON_MODEL_DIR before starting these services.
+services:
+  whisper-quantized:
+    image: ghcr.io/sago-cream/minisago:canary-43d1219
+    restart: unless-stopped
+    entrypoint: /usr/local/bin/whisper-server
+    command:
+      [
+        --model,
+        /models/ggml-small-q5_1.bin,
+        --host,
+        0.0.0.0,
+        --port,
+        "8080",
+        --threads,
+        "2",
+        --language,
+        auto,
+        --vad-model,
+        /opt/minisago-models/ggml-silero.bin,
+      ]
+    cpus: 2
+    mem_limit: 2g
+    volumes: ["${WHISPER_COMPARISON_MODEL_DIR:?Set model directory}:/models:ro"]
+    networks:
+      frontend:
+        aliases: [whisper-quantized]
+  whisper-base:
+    image: ghcr.io/sago-cream/minisago:canary-43d1219
+    restart: unless-stopped
+    entrypoint: /usr/local/bin/whisper-server
+    command:
+      [
+        --model,
+        /models/ggml-base.bin,
+        --host,
+        0.0.0.0,
+        --port,
+        "8080",
+        --threads,
+        "2",
+        --language,
+        auto,
+        --vad-model,
+        /opt/minisago-models/ggml-silero.bin,
+      ]
+    cpus: 2
+    mem_limit: 2g
+    volumes: ["${WHISPER_COMPARISON_MODEL_DIR:?Set model directory}:/models:ro"]
+    networks:
+      frontend:
+        aliases: [whisper-base]
+networks:
+  frontend:
+    external: true
+    name: sago_cloud_edge
