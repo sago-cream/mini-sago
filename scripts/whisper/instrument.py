@@ -12,6 +12,9 @@ for function, label in [('whisper_vad', 'VAD'), ('whisper_pcm_to_mel_with_state'
     pattern = r'((?:static bool|int) ' + function + r'\([^{}]*\)\s*\{)'
     s, count = re.subn(pattern, lambda m: m[1] + '\n    minisago_timing::Scope timing_scope("' + label + '");', s)
     assert count == 1, (function, count)
+# Silero processes tiny 32 ms chunks. Four worker threads oversubscribe our two-core host.
+s = replace_once(s, 'struct whisper_vad_context_params vad_ctx_params = whisper_vad_default_context_params();',
+    'struct whisper_vad_context_params vad_ctx_params = whisper_vad_default_context_params();\n        vad_ctx_params.n_threads = 1;')
 p.write_text(s)
 p = Path('examples/server/server.cpp')
 s = '#include "minisago-timing.h"\n' + p.read_text()

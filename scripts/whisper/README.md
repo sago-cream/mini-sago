@@ -14,3 +14,5 @@ c++ -std=c++11 -pthread -I scripts/whisper scripts/whisper/timing-test.cpp scrip
 ```
 
 Old saved recordings remain readable; runs without timing data must be rerun to show stage timings.
+
+Silero VAD uses one CPU thread for its small 32 ms chunks. The upstream default is four threads, independently of the server’s `--threads` setting; this oversubscribes our two-core Oracle instance. Whisper transcription still uses the configured two threads. Fixed-language requests skip the extra language-probability diagnostics pass; auto-language requests retain it.
