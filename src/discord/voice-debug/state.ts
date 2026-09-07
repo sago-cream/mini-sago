@@ -43,6 +43,7 @@ export type VoiceEventType =
   | "codex.start"
   | "codex.output"
   | "codex.first_delta"
+  | "codex.sentence"
   | "codex.finish"
   | "codex.error"
   | "tts.start"
@@ -56,6 +57,8 @@ export type VoiceEventType =
   | "audio.clear"
   | "settings.updated";
 export type VoiceEventDetails = {
+  sentenceId?: number;
+  clientElapsedMs?: number;
   pcm?: Buffer;
   payload?: unknown;
   turnId?: string;

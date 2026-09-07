@@ -201,5 +201,189 @@
       );
     return box;
   }
-  window.voiceTimeline = { chart, recognition, pipeline };
+
+  function flow(events, now) {
+    const origin = events.find((e) => e.type === "utterance.queued")?.at;
+    const result = {
+      total: 1,
+      whisper: [],
+      codex: [],
+      tts: [],
+      audio: [],
+      details: { whisper: [], codex: [], tts: [], audio: [] },
+    };
+    if (origin == null) return result;
+    const terminal = events.findLast(
+      (e) =>
+        ["turn.finish", "turn.cancel", "turn.error"].includes(e.type) ||
+        (e.type === "decision" && /^(ignore|stop)/.test(e.detail || "")),
+    );
+    const until = terminal?.at ?? now;
+    const segment = (start, end, waiting = false) => ({
+      startMs: Math.max(0, start - origin),
+      durationMs: Math.max(0, end - start),
+      waiting,
+    });
+    for (const name of ["whisper", "codex"]) {
+      const start = events.find((e) => e.type === name + ".start");
+      const end = events.find((e) =>
+        [name + ".finish", name + ".error"].includes(e.type),
+      );
+      if (start)
+        result[name].push({
+          name: name === "whisper" ? "Recognition" : "Generating",
+          segments: [segment(start.at, end?.at ?? until)],
+          running: !end && !terminal,
+        });
+    }
+    const ready = events.filter((e) => e.type === "codex.sentence");
+    for (const e of ready)
+      result.codex.push({
+        name: `Sentence ${e.sentenceId} ready`,
+        sentenceId: e.sentenceId,
+        text: e.text,
+        segments: [segment(e.at, e.at)],
+        marker: true,
+      });
+    for (const [group, type] of [
+      ["tts", "tts"],
+      ["audio", "audio"],
+    ]) {
+      const starts = events.filter(
+        (e) =>
+          e.type === type + ".start" &&
+          (type !== "audio" || e.kind === "reply"),
+      );
+      const queued =
+        type === "tts"
+          ? ready
+          : events.filter(
+              (e) => e.type === "audio.queued" && e.kind === "reply",
+            );
+      const ids = [
+        ...new Set([...queued, ...starts].map((e, i) => e.sentenceId ?? i + 1)),
+      ];
+      for (const id of ids) {
+        const start = starts.find((e) => e.sentenceId === id);
+        const queue = queued.find((e) => e.sentenceId === id);
+        const end = events.find(
+          (e) =>
+            e.sentenceId === id &&
+            [type + ".finish", type + ".error"].includes(e.type) &&
+            (type !== "audio" || e.kind === "reply"),
+        );
+        const segments = [];
+        if (queue && (start?.at ?? until) > queue.at)
+          segments.push(segment(queue.at, start?.at ?? until, true));
+        if (start) segments.push(segment(start.at, end?.at ?? until));
+        if (segments.length)
+          result[group].push({
+            name: `Sentence ${id}`,
+            sentenceId: id,
+            text: queue?.text || ready.find((e) => e.sentenceId === id)?.text,
+            segments,
+            running: !end && !terminal,
+          });
+      }
+    }
+    const whisper = events.find((e) => e.type === "whisper.start");
+    const diagnostics = events.find(
+      (e) => e.type === "whisper.diagnostics",
+    )?.payload;
+    const timing = diagnostics?.timings;
+    if (whisper && timing) {
+      result.details.whisper.push({
+        name: "Conversion",
+        segments: [segment(whisper.at, whisper.at + timing.conversionMs)],
+      });
+      const base = whisper.at + timing.conversionMs;
+      for (const span of timing.server?.spans || []) {
+        if (
+          ["Server processing", "Inference"].includes(span.name) ||
+          (span.name === "Model queue wait" && span.durationMs < 1)
+        )
+          continue;
+        result.details.whisper.push({
+          name: span.name,
+          segments: [
+            segment(base + span.startMs, base + span.startMs + span.durationMs),
+          ],
+        });
+      }
+    }
+    const first = events.find((e) => e.type === "codex.first_delta");
+    if (first)
+      result.details.codex.push({
+        name: "First text",
+        marker: true,
+        segments: [segment(first.at, first.at)],
+      });
+    for (const [name, type] of [
+      ["whisper", "whisper.start"],
+      ["codex", "turn.start"],
+    ]) {
+      const event = events.find((e) => e.type === type);
+      if (event?.durationMs >= 10)
+        result[name].unshift({
+          name: "Queue wait",
+          segments: [segment(event.at - event.durationMs, event.at, true)],
+        });
+    }
+    const all = [
+      result.whisper,
+      result.codex,
+      result.tts,
+      result.audio,
+      ...Object.values(result.details),
+    ].flat();
+    result.total = Math.max(
+      1,
+      ...all.flatMap((l) => l.segments.map((s) => s.startMs + s.durationMs)),
+    );
+    return result;
+  }
+  function lanes(items, total) {
+    const box = el("div", undefined, "flow-lanes");
+    if (!items.length) {
+      box.append(el("span", "—"));
+      return box;
+    }
+    for (const item of items) {
+      const lane = el("div", undefined, "flow-lane");
+      const work = item.segments
+        .filter((s) => !s.waiting)
+        .reduce((n, s) => n + s.durationMs, 0);
+      const wait = item.segments
+        .filter((s) => s.waiting)
+        .reduce((n, s) => n + s.durationMs, 0);
+      lane.append(
+        el(
+          "span",
+          `${item.name}${item.marker ? "" : ` · ${time(work || wait)}${item.running ? "…" : ""}`}`,
+          "flow-caption",
+        ),
+      );
+      const track = el("div", undefined, "flow-track");
+      for (const span of item.segments) {
+        const bar = el(
+          "button",
+          undefined,
+          `flow-bar${span.waiting ? " waiting" : ""}${item.marker ? " milestone" : ""}`,
+        );
+        bar.type = "button";
+        if (item.sentenceId) bar.dataset.sentence = String(item.sentenceId);
+        bar.style.left = `${(100 * span.startMs) / total}%`;
+        bar.style.width = item.marker
+          ? "6px"
+          : `${Math.max(0.3, (100 * span.durationMs) / total)}%`;
+        bar.title = `${item.name}${span.waiting ? " · waiting" : ""}: +${time(span.startMs)} → +${time(span.startMs + span.durationMs)}${item.text ? ` · ${item.text}` : ""}`;
+        bar.setAttribute("aria-label", bar.title);
+        track.append(bar);
+      }
+      lane.append(track);
+      box.append(lane);
+    }
+    return box;
+  }
+  window.voiceTimeline = { chart, recognition, pipeline, flow, lanes };
 })();

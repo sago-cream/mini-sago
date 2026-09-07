@@ -302,9 +302,15 @@ export function createVoiceDebugHandler(
             .object({
               id: z.string().uuid(),
               phase: z.enum(["start", "end", "error"]),
+              clientElapsedMs: z
+                .number()
+                .finite()
+                .nonnegative()
+                .max(3600000)
+                .optional(),
             })
             .parse(await input());
-          browser.acknowledge(value.id, value.phase);
+          browser.acknowledge(value.id, value.phase, value.clientElapsedMs);
           return json({ ok: true });
         }
       }

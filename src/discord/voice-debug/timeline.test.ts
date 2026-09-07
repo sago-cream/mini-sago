@@ -92,3 +92,53 @@ test("recognition shows measured stages once without redundant wrappers", () => 
   expect(output).not.toContain("Response parsing");
   expect(output).toContain("Speech detection 20 ms");
 });
+
+test("shared clock preserves generation, synthesis and playback overlap and sentence waits", () => {
+  const events = [
+    { type: "utterance.queued", at: 1000 },
+    { type: "codex.start", at: 2000 },
+    { type: "codex.sentence", at: 3000, sentenceId: 1, text: "one" },
+    { type: "tts.start", at: 3100, sentenceId: 1 },
+    { type: "tts.finish", at: 4000, sentenceId: 1 },
+    { type: "audio.queued", at: 4000, sentenceId: 1, kind: "reply" },
+    { type: "audio.start", at: 4200, sentenceId: 1, kind: "reply" },
+    { type: "codex.sentence", at: 4500, sentenceId: 2, text: "two" },
+    { type: "tts.start", at: 4600, sentenceId: 2 },
+    { type: "codex.finish", at: 5000 },
+    { type: "tts.finish", at: 5500, sentenceId: 2 },
+    { type: "audio.queued", at: 5500, sentenceId: 2, kind: "reply" },
+    { type: "audio.finish", at: 6000, sentenceId: 1, kind: "reply" },
+    { type: "audio.start", at: 6000, sentenceId: 2, kind: "reply" },
+    { type: "audio.finish", at: 7000, sentenceId: 2, kind: "reply" },
+    { type: "turn.finish", at: 7000 },
+  ];
+  const flow = window.voiceTimeline.flow(events, 9000);
+  expect(flow.total).toBe(6000);
+  expect(flow.codex[0].segments[0]).toEqual({
+    startMs: 1000,
+    durationMs: 3000,
+    waiting: false,
+  });
+  expect(flow.audio[0].segments[1].startMs).toBe(3200);
+  expect(flow.tts[1].segments[1].startMs).toBe(3600);
+  expect(flow.audio[1].segments[0]).toEqual({
+    startMs: 4500,
+    durationMs: 500,
+    waiting: true,
+  });
+  expect(flow.audio[1].sentenceId).toBe(2);
+});
+
+test("shared-clock pending synthesis stops growing at cancellation", () => {
+  const flow = window.voiceTimeline.flow(
+    [
+      { type: "utterance.queued", at: 1000 },
+      { type: "codex.sentence", at: 1200, sentenceId: 1 },
+      { type: "tts.start", at: 1400, sentenceId: 1 },
+      { type: "turn.cancel", at: 1700 },
+    ],
+    9900,
+  );
+  expect(flow.tts[0].segments[1].durationMs).toBe(300);
+  expect(flow.tts[0].running).toBe(false);
+});

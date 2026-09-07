@@ -98,7 +98,7 @@ export function createBrowserSession(deps: {
       const clip = clips[0];
       return clip ? { id: clip.id, pcm: clip.audio.toString("base64") } : null;
     },
-    acknowledge(id: string, phase: string) {
+    acknowledge(id: string, phase: string, clientElapsedMs?: number) {
       const clip = clips[0];
       if (!clip || clip.id !== id) return;
       if (phase === "start") {
@@ -106,6 +106,7 @@ export function createBrowserSession(deps: {
         clip.started = Date.now();
         (clip.playback?.trace ?? session.trace)("audio.start", {
           kind: clip.kind,
+          clientElapsedMs,
         });
       } else {
         clips.shift();

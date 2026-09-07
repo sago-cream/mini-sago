@@ -212,11 +212,14 @@ export async function respondToVoiceChat(
   try {
     if (!input.isCurrent()) return null;
     let streamedReply = "";
+    let sentenceCount = 0;
     const sentences = new VoiceSentenceBuffer((sentence) => {
+      const sentenceId = ++sentenceCount;
+      trace?.("codex.sentence", { sentenceId, text: sentence });
       speech = speech.then(async () => {
         if (!input.isCurrent()) return;
         const startedAt = performance.now();
-        trace?.("tts.start", { text: sentence });
+        trace?.("tts.start", { text: sentence, sentenceId });
         let audio: Buffer;
         try {
           audio = await synthesizeSpeech(sentence, {
@@ -225,11 +228,13 @@ export async function respondToVoiceChat(
           });
           trace?.("tts.finish", {
             text: sentence,
+            sentenceId,
             durationMs: performance.now() - startedAt,
             audioMs: audio.length / 192,
           });
         } catch (error) {
           trace?.("tts.error", {
+            sentenceId,
             durationMs: performance.now() - startedAt,
             detail: input.signal.aborted
               ? "cancelled"
@@ -240,7 +245,8 @@ export async function respondToVoiceChat(
           throw error;
         }
         stopFeedback();
-        if (input.isCurrent()) input.onAudio(audio, "reply", sentence);
+        if (input.isCurrent())
+          input.onAudio(audio, "reply", sentence, sentenceId);
       });
       void speech.catch(() => undefined);
     });

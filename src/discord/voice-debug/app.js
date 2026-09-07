@@ -1,3 +1,5 @@
+let runStarted = 0,
+  flowKey = "";
 const $ = (id) => document.getElementById(id);
 let signedIn = false,
   sessionId = "",
@@ -35,7 +37,6 @@ async function api(path, method = "GET", body) {
       signedIn = false;
       $("login").hidden = false;
       $("test").hidden = true;
-      $("logout").hidden = true;
     }
     throw new Error(result.error || "Request failed");
   }
@@ -50,10 +51,13 @@ function stopAudio() {
   clipId = "";
 }
 function reset() {
+  flowKey = "";
   for (const name of ["whisper", "codex", "tts", "audio"]) {
     $(name + "-time").textContent = "—";
     $(name + "-output").textContent = "—";
   }
+  $("first-audio").textContent = "";
+  $("time-axis").textContent = "Timeline";
   $("capture-audio").pause();
   $("capture-audio").removeAttribute("src");
   $("capture-audio").load();
@@ -69,63 +73,16 @@ async function poll() {
     signedIn = true;
     $("login").hidden = true;
     $("test").hidden = false;
-    $("logout").hidden = false;
     await loadRecordings();
     if (!sessionId || state.mode !== "browser") return;
     const events = state.events.filter((e) => e.sessionId === sessionId);
     const last = (type) => events.findLast((e) => e.type === type);
-    const spans = window.voiceTimeline.pipeline(events, state.now, true);
-    const recognition = last("whisper.diagnostics")?.payload;
-    for (const [name, labels] of [
-      ["whisper", ["Recognition queue wait"]],
-      ["codex", ["Prior answer wait"]],
-      ["tts", ["Synthesis"]],
-      ["audio", ["Playback queue wait", "Playback"]],
-    ]) {
-      const target = $(name + "-stages");
-      const open = [...target.querySelectorAll("details[open]")].map(
-        (n) => n.dataset.path,
-      );
-      const stages = spans.filter(
-        (s) =>
-          labels.includes(s.name) &&
-          (!s.name.includes("wait") || s.durationMs >= 10),
-      );
-      if (name === "codex") {
-        const first = last("codex.first_delta");
-        if (first)
-          stages.push({
-            name: "First text",
-            startMs: 0,
-            durationMs: first.durationMs,
-          });
-      }
-      if (name === "tts" || name === "audio") {
-        let sentence = 0;
-        stages.forEach((s) => {
-          if (!s.name.includes("wait")) s.name = `Sentence ${++sentence}`;
-        });
-      }
-      target.replaceChildren();
-      if (stages.length) target.append(window.voiceTimeline.chart("", stages));
-      if (name === "whisper" && recognition)
-        target.append(window.voiceTimeline.recognition(recognition));
-      if (!target.childNodes.length)
-        target.textContent = "No internal stage timings captured yet.";
-      for (const node of target.querySelectorAll("details"))
-        node.open = open.includes(node.dataset.path);
-    }
     for (const [name, type] of [
       ["whisper", "whisper"],
       ["codex", "codex"],
     ]) {
       const end = last(type + ".finish") || last(type + ".error"),
         start = last(type + ".start");
-      $(name + "-time").textContent = end
-        ? duration(end.durationMs)
-        : start
-          ? duration(state.now - start.at) + "…"
-          : "—";
       const text =
         end?.text || (type === "codex" ? last("codex.output")?.text : "");
       $(name + "-output").textContent =
@@ -135,26 +92,42 @@ async function poll() {
     }
     const tts = events.filter((e) => e.type === "tts.start");
     $("tts-output").textContent = tts.map((e) => e.text).join("\n") || "—";
-    const ttsEnds = events.filter((e) =>
-      ["tts.finish", "tts.error"].includes(e.type),
-    );
-    $("tts-time").textContent = tts.length
-      ? duration(ttsEnds.reduce((sum, e) => sum + (e.durationMs || 0), 0)) +
-        (ttsEnds.length < tts.length ? "…" : "")
-      : "—";
     const playback = events.filter(
       (e) => e.kind === "reply" && e.type.startsWith("audio."),
     );
-    const ended = playback.filter((e) => e.type === "audio.finish");
-    $("audio-time").textContent = ended.length
-      ? duration(ended.reduce((sum, e) => sum + (e.durationMs || 0), 0))
-      : "—";
     $("audio-output").textContent =
       playback.at(-1)?.detail ||
       { "audio.queued": "Waiting to play", "audio.start": "Playing…" }[
         playback.at(-1)?.type
       ] ||
       "—";
+    const flow = window.voiceTimeline.flow(events, state.now);
+    $("time-axis").textContent =
+      `0 → ${duration(flow.total)} · from server receipt`;
+    const firstAudio = events.find(
+      (e) => e.type === "audio.start" && e.kind === "reply",
+    );
+    $("first-audio").textContent =
+      firstAudio?.clientElapsedMs != null
+        ? `First reply audio: ${duration(firstAudio.clientElapsedMs)}`
+        : "";
+    const nextFlowKey = JSON.stringify(flow);
+    if (nextFlowKey !== flowKey) {
+      flowKey = nextFlowKey;
+      for (const name of ["whisper", "codex", "tts", "audio"]) {
+        $(name + "-time").replaceChildren(
+          window.voiceTimeline.lanes(flow[name], flow.total),
+        );
+        $(name + "-stages").replaceChildren(
+          window.voiceTimeline.lanes(flow.details[name], flow.total),
+        );
+        const toggle = document.querySelector(
+          `[aria-controls="${name}-details"]`,
+        );
+        toggle.disabled = !flow.details[name].length;
+        if (toggle.disabled) $(name + "-details").hidden = true;
+      }
+    }
     const failed = events.findLast((e) => e.type.endsWith(".error"));
     if (!busy)
       $("status").textContent = failed
@@ -191,13 +164,14 @@ $("login").onsubmit = async (event) => {
 };
 $("record").onclick = async () => {
   if (recorder?.state === "recording") {
+    runStarted = performance.now();
     recorder.stop();
     return;
   }
   if (busy) return;
   busy = true;
   $("record").disabled = true;
-  $("rerun").disabled = $("recording-select").disabled = true;
+  $("rerun").disabled = true;
   error();
   const turn = ++generation;
   try {
@@ -216,6 +190,7 @@ $("record").onclick = async () => {
     recorder = new MediaRecorder(stream);
     recorder.ondataavailable = (event) => parts.push(event.data);
     recorder.onstop = async () => {
+      if (!runStarted) runStarted = performance.now();
       clearTimeout(timer);
       clearInterval(clock);
       stream.getTracks().forEach((t) => t.stop());
@@ -262,6 +237,7 @@ $("record").onclick = async () => {
         await poll();
       }
     };
+    runStarted = 0;
     recorder.start();
     started = Date.now();
     $("record").textContent = "Stop recording";
@@ -293,14 +269,6 @@ $("stop").onclick = async () => {
   } catch (err) {
     error(err.message);
   }
-};
-$("logout").onclick = async () => {
-  generation++;
-  if (recorder?.state === "recording") recorder.stop();
-  stream?.getTracks().forEach((t) => t.stop());
-  stopAudio();
-  await api("logout", "POST", {});
-  location.reload();
 };
 setInterval(async () => {
   if (!signedIn || !sessionId || busy || playingPoll) return;
@@ -335,8 +303,12 @@ setInterval(async () => {
         error(err.message),
       );
     };
-    await api("playback", "POST", { id: clip.id, phase: "start" });
     source.start();
+    await api("playback", "POST", {
+      id: clip.id,
+      phase: "start",
+      clientElapsedMs: performance.now() - runStarted,
+    });
   } catch (err) {
     error(err.message);
     if (clipId)
@@ -366,6 +338,53 @@ function recordingLabel(r) {
     .trim();
   return text.length > 28 ? text.slice(0, 28) + "…" : text;
 }
+let listKey = "";
+function renderRecordings() {
+  const query = $("record-search").value.trim().toLocaleLowerCase();
+  const key = JSON.stringify([
+    query,
+    busy,
+    selectedRecording,
+    recordings.map((r) => [r.id, recordingLabel(r)]),
+  ]);
+  if (key === listKey) return;
+  listKey = key;
+  const scroll = $("record-list").scrollTop;
+  const items = recordings
+    .map((r, index) => ({
+      ...r,
+      label: recordingLabel(r) || `Untitled ${index + 1}`,
+    }))
+    .filter((r) => r.label.toLocaleLowerCase().includes(query));
+  $("record-list").replaceChildren(
+    ...items.map((r) => {
+      const row = document.createElement("div");
+      row.setAttribute("role", "listitem");
+      const button = document.createElement("button");
+      button.textContent = r.label;
+      button.title =
+        r.transcript ??
+        r.runs?.findLast((run) => run.result)?.result.text ??
+        r.label;
+      button.className = "record-item";
+      button.disabled = busy;
+      button.setAttribute("aria-current", String(r.id === selectedRecording));
+      button.onclick = () => void selectRecording(r.id);
+      row.append(button);
+      return row;
+    }),
+  );
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "record-empty";
+    empty.textContent = query
+      ? "No matching recordings"
+      : "Record something to start";
+    $("record-list").append(empty);
+  }
+  $("record-list").scrollTop = scroll;
+}
+$("record-search").oninput = renderRecordings;
 async function loadRecordings() {
   const data = await api("recordings");
   const changed =
@@ -374,23 +393,14 @@ async function loadRecordings() {
   recordings = data.recordings;
   if (!recordings.some((r) => r.id === selectedRecording))
     selectedRecording = recordings[0]?.id || "";
-  if (changed) {
-    $("recording-select").replaceChildren(
-      ...recordings.map((r, index) => {
-        const option = document.createElement("option");
-        option.value = r.id;
-        option.textContent = recordingLabel(r) || `Untitled ${index + 1}`;
-        return option;
-      }),
-    );
-    if (!sessionId) showRecording();
-  }
-  $("recording-select").value = selectedRecording;
-  $("recording-select").disabled = busy || !recordings.length;
+  if (changed && !sessionId) showRecording();
+  renderRecordings();
   $("rerun").disabled = busy || !selectedRecording;
 }
-$("recording-select").onchange = async () => {
-  selectedRecording = $("recording-select").value;
+async function selectRecording(id) {
+  if (busy) return;
+  selectedRecording = id;
+  renderRecordings();
   // A different input must not remain paired with the previous run's output.
   stopAudio();
   sessionId = "";
@@ -401,14 +411,12 @@ $("recording-select").onchange = async () => {
   } catch (err) {
     error(err.message);
   }
-};
+}
 $("rerun").onclick = async () => {
   if (busy || !selectedRecording) return;
+  runStarted = performance.now();
   busy = true;
-  $("record").disabled =
-    $("rerun").disabled =
-    $("recording-select").disabled =
-      true;
+  $("record").disabled = $("rerun").disabled = true;
   error();
   try {
     context ??= new AudioContext();
@@ -440,3 +448,12 @@ for (const button of document.querySelectorAll(".module-toggle")) {
     $(button.getAttribute("aria-controls")).hidden = !expanded;
   };
 }
+
+function highlightSentence(target) {
+  const id = target.closest("[data-sentence]")?.dataset.sentence;
+  for (const node of document.querySelectorAll("[data-sentence]"))
+    node.classList.toggle("linked", !!id && node.dataset.sentence === id);
+}
+$("test").addEventListener("pointerover", (e) => highlightSentence(e.target));
+$("test").addEventListener("focusin", (e) => highlightSentence(e.target));
+$("test").addEventListener("pointerleave", () => highlightSentence($("test")));

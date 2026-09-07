@@ -24,6 +24,7 @@ export type VoiceReplyInput = {
     audio: Buffer,
     kind?: VoiceAudioKind,
     text?: string,
+    sentenceId?: number,
   ) => void | Promise<void>;
 };
 
@@ -317,7 +318,7 @@ export class VoiceConversation {
           trace,
           settings,
           isCurrent,
-          onAudio: (audio, kind = "reply", text) => {
+          onAudio: (audio, kind = "reply", text, sentenceId) => {
             if (
               !isCurrent() ||
               (kind === "feedback" && (!this.quiet || this.transcribing))
@@ -328,7 +329,8 @@ export class VoiceConversation {
               kind,
               text
                 ? {
-                    trace,
+                    trace: (type, details) =>
+                      trace(type, { ...details, sentenceId }),
                     finished: (interrupted) => {
                       this.history.push({
                         role: "assistant",
