@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 class Node {
   children: Node[] = [];
   style = {};
+  dataset = {};
   textContent = "";
   append(...nodes: Node[]) {
     this.children.push(...nodes);
@@ -64,4 +65,32 @@ test("old recordings show missing instrumentation instead of zero VAD", () => {
   const output = text(window.voiceTimeline.recognition({ text: "こんにちは" }));
   expect(output).toContain("Rerun");
   expect(output).not.toContain("VAD 0");
+});
+
+test("recognition nests VAD under inference under request without duplicate summaries", () => {
+  const result = window.voiceTimeline.recognition({
+    durationMs: 100,
+    timings: {
+      conversionMs: 5,
+      requestMs: 95,
+      responseParseMs: 0,
+      server: {
+        totalMs: 94,
+        spans: [
+          { name: "Model queue wait", startMs: 0, durationMs: 4, depth: 0 },
+          { name: "Server processing", startMs: 4, durationMs: 90, depth: 0 },
+          { name: "Inference", startMs: 4, durationMs: 90, depth: 1 },
+          { name: "VAD", startMs: 4, durationMs: 20, depth: 2 },
+        ],
+      },
+    },
+  });
+  const output = text(result);
+  expect(output.match(/VAD/g)?.length).toBe(1);
+  expect(output).not.toContain("Server processing");
+  const chart = result.children[0];
+  const request = chart.children[1];
+  const inference = request.children[1].children[1];
+  expect(text(inference.children[0])).toContain("Inference");
+  expect(text(inference.children[1])).toContain("VAD");
 });

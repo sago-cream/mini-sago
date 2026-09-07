@@ -49,34 +49,81 @@
               </td>
             </tr>
             <tr>
-              <th>Whisper</th>
+              <th>
+                <button
+                  class="module-toggle"
+                  aria-expanded="false"
+                  aria-controls="whisper-details"
+                >
+                  Whisper
+                </button>
+              </th>
               <td id="whisper-time">—</td>
               <td>
                 <p id="whisper-output">—</p>
-                <small>Includes speech detection and audio conversion</small>
+              </td>
+            </tr>
+            <tr id="whisper-details" hidden>
+              <td colspan="3" class="module-details">
+                <div id="whisper-stages"></div>
               </td>
             </tr>
             <tr>
-              <th>Codex</th>
+              <th>
+                <button
+                  class="module-toggle"
+                  aria-expanded="false"
+                  aria-controls="codex-details"
+                >
+                  Codex
+                </button>
+              </th>
               <td id="codex-time">—</td>
               <td><p id="codex-output">—</p></td>
             </tr>
+            <tr id="codex-details" hidden>
+              <td colspan="3" class="module-details">
+                <div id="codex-stages"></div>
+              </td>
+            </tr>
             <tr>
-              <th>VOICEVOX</th>
+              <th>
+                <button
+                  class="module-toggle"
+                  aria-expanded="false"
+                  aria-controls="tts-details"
+                >
+                  VOICEVOX
+                </button>
+              </th>
               <td id="tts-time">—</td>
               <td><p id="tts-output">—</p></td>
             </tr>
+            <tr id="tts-details" hidden>
+              <td colspan="3" class="module-details">
+                <div id="tts-stages"></div>
+              </td>
+            </tr>
             <tr>
-              <th>Playback</th>
+              <th>
+                <button
+                  class="module-toggle"
+                  aria-expanded="false"
+                  aria-controls="audio-details"
+                >
+                  Playback
+                </button>
+              </th>
               <td id="audio-time">—</td>
               <td><p id="audio-output">—</p></td>
             </tr>
+            <tr id="audio-details" hidden>
+              <td colspan="3" class="module-details">
+                <div id="audio-stages"></div>
+              </td>
+            </tr>
           </tbody>
         </table>
-        <details class="timeline" open>
-          <summary>Detailed timeline</summary>
-          <div id="turn-timeline"></div>
-        </details>
         <section aria-label="Recognition comparison" class="comparison">
           <div class="actions">
             <h2>Compare recognition</h2>

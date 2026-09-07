@@ -59,7 +59,8 @@ function reset() {
   $("capture-audio").load();
   $("capture-audio").hidden = true;
   $("events").textContent = "";
-  $("turn-timeline").replaceChildren();
+  for (const name of ["whisper", "codex", "tts", "audio"])
+    $(name + "-stages").replaceChildren();
 }
 async function poll() {
   if (polling) return;
@@ -74,11 +75,28 @@ async function poll() {
     if (!sessionId || state.mode !== "browser") return;
     const events = state.events.filter((e) => e.sessionId === sessionId);
     const last = (type) => events.findLast((e) => e.type === type);
-    const timeline = $("turn-timeline");
-    timeline.replaceChildren(window.voiceTimeline.pipeline(events, state.now));
+    const spans = window.voiceTimeline.pipeline(events, state.now, true);
     const recognition = last("whisper.diagnostics")?.payload;
-    if (recognition)
-      timeline.append(window.voiceTimeline.recognition(recognition));
+    for (const [name, labels] of [
+      ["whisper", ["Recognition queue wait"]],
+      ["codex", ["Prior answer wait"]],
+      ["tts", ["Synthesis"]],
+      ["audio", ["Playback queue wait", "Playback"]],
+    ]) {
+      const target = $(name + "-stages");
+      const open = [...target.querySelectorAll("details[open]")].map(
+        (n) => n.dataset.path,
+      );
+      const stages = spans.filter((s) => labels.includes(s.name));
+      target.replaceChildren();
+      if (stages.length) target.append(window.voiceTimeline.chart("", stages));
+      if (name === "whisper" && recognition)
+        target.append(window.voiceTimeline.recognition(recognition));
+      if (!target.childNodes.length)
+        target.textContent = "No internal stage timings captured yet.";
+      for (const node of target.querySelectorAll("details"))
+        node.open = open.includes(node.dataset.path);
+    }
     for (const [name, type] of [
       ["whisper", "whisper"],
       ["codex", "codex"],
@@ -436,3 +454,11 @@ $("compare").onclick = async () => {
 };
 poll();
 setInterval(poll, 1000);
+
+for (const button of document.querySelectorAll(".module-toggle")) {
+  button.onclick = () => {
+    const expanded = button.getAttribute("aria-expanded") !== "true";
+    button.setAttribute("aria-expanded", String(expanded));
+    $(button.getAttribute("aria-controls")).hidden = !expanded;
+  };
+}

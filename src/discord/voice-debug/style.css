@@ -266,3 +266,42 @@ select {
     gap: 5px;
   }
 }
+.module-toggle {
+  border: 0;
+  background: none;
+  padding: 0;
+  min-height: 24px;
+  font: inherit;
+}
+.module-toggle::before {
+  content: "▸ ";
+  color: #737373;
+}
+.module-toggle[aria-expanded="true"]::before {
+  content: "▾ ";
+}
+.module-details {
+  background: #fafafa;
+}
+.timing-branch {
+  margin: 0;
+}
+.timing-branch > summary {
+  padding: 0;
+  color: inherit;
+  list-style: none;
+}
+.timing-branch > summary::-webkit-details-marker {
+  display: none;
+}
+.timing-branch > summary .timing-label::before {
+  content: "▸ ";
+}
+.timing-branch[open] > summary .timing-label::before {
+  content: "▾ ";
+}
+.timing-branch > .timing-chart {
+  margin: 0 0 8px 16px;
+  padding-left: 12px;
+  border-left: 1px solid #ddd;
+}
