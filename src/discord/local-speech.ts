@@ -189,6 +189,8 @@ export async function recognizeSpeech(
     form.append("language", settings.language);
     form.append("response_format", "verbose_json");
     for (const [key, value] of Object.entries({
+      // Fixed-language recognition does not need a second encoder pass for language probabilities.
+      no_language_probabilities: settings.language !== "auto",
       beam_size: settings.beamSize,
       temperature: settings.temperature,
       temperature_inc: 0,
