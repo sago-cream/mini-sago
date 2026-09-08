@@ -9,6 +9,7 @@ Codex-powered chat with server context, emote creation and cross-server migratio
 
 - Reacts to community messages with emotes in configured server.
 - Answers member and configured role mentions using conversation context, attachments, public web search, and accessible Discord history.
+- Joins Discord voice channels for spoken conversations. **WIP and far from usable:** recognition, response latency, and turn-taking still need work.
 - Performs expression management on demand, including adding emojis or stickers from attachments and moving emojis to other servers.
 - Publishes daily TOEFL vocabulary, AniGamer forum voucher code updates, Threads keyword matches, and Codex news on X to configured channels.
 - Improves Instagram and Twitter/X embeds with `kkinstagram.com` and `fxtwitter.com` links.
