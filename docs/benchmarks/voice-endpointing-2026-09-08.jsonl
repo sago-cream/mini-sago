@@ -1,0 +1,12 @@
+{"silenceMs":700,"pauseMs":0,"utterances":1,"finalEndpointDelayMs":700}
+{"silenceMs":700,"pauseMs":300,"utterances":1,"finalEndpointDelayMs":700}
+{"silenceMs":700,"pauseMs":450,"utterances":1,"finalEndpointDelayMs":700}
+{"silenceMs":700,"pauseMs":600,"utterances":1,"finalEndpointDelayMs":700}
+{"silenceMs":500,"pauseMs":0,"utterances":1,"finalEndpointDelayMs":500}
+{"silenceMs":500,"pauseMs":300,"utterances":1,"finalEndpointDelayMs":500}
+{"silenceMs":500,"pauseMs":450,"utterances":1,"finalEndpointDelayMs":500}
+{"silenceMs":500,"pauseMs":600,"utterances":2,"finalEndpointDelayMs":500}
+{"silenceMs":360,"pauseMs":0,"utterances":1,"finalEndpointDelayMs":360}
+{"silenceMs":360,"pauseMs":300,"utterances":1,"finalEndpointDelayMs":360}
+{"silenceMs":360,"pauseMs":450,"utterances":2,"finalEndpointDelayMs":360}
+{"silenceMs":360,"pauseMs":600,"utterances":2,"finalEndpointDelayMs":360}

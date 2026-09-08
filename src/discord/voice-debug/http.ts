@@ -14,6 +14,7 @@ const cookieName = "minisago_voice_debug";
 const publicFiles: Record<string, [string, string]> = {
   "/voice-debug": ["index.html", "text/html; charset=utf-8"],
   "/voice-debug/": ["index.html", "text/html; charset=utf-8"],
+  "/voice-debug/timeline.js": ["timeline.js", "text/javascript; charset=utf-8"],
   "/voice-debug/app.js": ["app.js", "text/javascript; charset=utf-8"],
   "/voice-debug/style.css": ["style.css", "text/css; charset=utf-8"],
 };
@@ -219,6 +220,14 @@ export function createVoiceDebugHandler(
         url.pathname === "/api/voice-debug/browser" &&
         request.method === "POST"
       ) {
+        const value = z
+          .object({ recordingId: z.string().uuid().optional() })
+          .strict()
+          .parse(await input());
+        // Validate and load before replacing the current browser test.
+        const audio = value.recordingId
+          ? await recognitionLab.audio(value.recordingId)
+          : undefined;
         const { transcribeSpeech } = await import("../local-speech");
         const { respondToVoiceChat } = await import("../../chatbot/voice-chat");
         browsers.get(cookie)?.close();
@@ -226,10 +235,16 @@ export function createVoiceDebugHandler(
           cookie,
           createBrowserSession({
             transcribe: transcribeSpeech,
+            onTranscript: (id, text) => recognitionLab.label(id, text),
             respond: respondToVoiceChat,
           }),
         );
-        return json({ ok: true });
+        const browser = browsers.get(cookie)!;
+        if (audio) browser.capture(audio, value.recordingId);
+        return json({
+          ok: true,
+          sessionId: browser.state.snapshot().sessions.at(-1)!.id,
+        });
       }
       if (
         url.pathname === "/api/voice-debug/browser" &&
@@ -276,7 +291,8 @@ export function createVoiceDebugHandler(
             409,
           );
         }
-        if (url.searchParams.get("compare") !== "1") browser.capture(audio);
+        if (url.searchParams.get("compare") !== "1")
+          browser.capture(audio, recording.id);
         return json({ ok: true, recordingId: recording.id });
       }
       if (url.pathname === "/api/voice-debug/playback" && browser) {
@@ -286,9 +302,15 @@ export function createVoiceDebugHandler(
             .object({
               id: z.string().uuid(),
               phase: z.enum(["start", "end", "error"]),
+              clientElapsedMs: z
+                .number()
+                .finite()
+                .nonnegative()
+                .max(3600000)
+                .optional(),
             })
             .parse(await input());
-          browser.acknowledge(value.id, value.phase);
+          browser.acknowledge(value.id, value.phase, value.clientElapsedMs);
           return json({ ok: true });
         }
       }

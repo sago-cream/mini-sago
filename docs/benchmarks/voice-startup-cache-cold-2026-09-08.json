@@ -1,0 +1,31 @@
+[
+  {
+    "type": "codex.stage",
+    "detail": "Process startup",
+    "durationMs": 235.86103100000037
+  },
+  {
+    "type": "codex.stage",
+    "detail": "Thread setup",
+    "durationMs": 1273.885291999999
+  },
+  {
+    "type": "codex.first_delta",
+    "durationMs": 4402.2721630000015
+  },
+  {
+    "type": "codex.finish",
+    "detail": "Reply accepted",
+    "durationMs": 4688.780254000005
+  },
+  {
+    "type": "tts.finish",
+    "detail": "Synthesized",
+    "durationMs": 2965.1652160000012
+  },
+  {
+    "type": "tts.finish",
+    "detail": "Synthesized",
+    "durationMs": 4517.946129999997
+  }
+]

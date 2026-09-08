@@ -1,3 +1,5 @@
+let runStarted = 0,
+  flowKey = "";
 const $ = (id) => document.getElementById(id);
 let signedIn = false,
   sessionId = "",
@@ -35,7 +37,6 @@ async function api(path, method = "GET", body) {
       signedIn = false;
       $("login").hidden = false;
       $("test").hidden = true;
-      $("logout").hidden = true;
     }
     throw new Error(result.error || "Request failed");
   }
@@ -50,15 +51,19 @@ function stopAudio() {
   clipId = "";
 }
 function reset() {
-  for (const name of ["capture", "whisper", "codex", "tts", "audio"]) {
+  flowKey = "";
+  for (const name of ["whisper", "codex", "tts", "audio"]) {
     $(name + "-time").textContent = "—";
     $(name + "-output").textContent = "—";
   }
+  $("first-audio").textContent = "";
+  $("time-axis").textContent = "Timeline";
   $("capture-audio").pause();
   $("capture-audio").removeAttribute("src");
   $("capture-audio").load();
   $("capture-audio").hidden = true;
-  $("events").textContent = "";
+  for (const name of ["whisper", "codex", "tts", "audio"])
+    $(name + "-stages").replaceChildren();
 }
 async function poll() {
   if (polling) return;
@@ -68,8 +73,7 @@ async function poll() {
     signedIn = true;
     $("login").hidden = true;
     $("test").hidden = false;
-    $("logout").hidden = false;
-    await pollComparisons();
+    await loadRecordings();
     if (!sessionId || state.mode !== "browser") return;
     const events = state.events.filter((e) => e.sessionId === sessionId);
     const last = (type) => events.findLast((e) => e.type === type);
@@ -79,11 +83,6 @@ async function poll() {
     ]) {
       const end = last(type + ".finish") || last(type + ".error"),
         start = last(type + ".start");
-      $(name + "-time").textContent = end
-        ? duration(end.durationMs)
-        : start
-          ? duration(state.now - start.at) + "…"
-          : "—";
       const text =
         end?.text || (type === "codex" ? last("codex.output")?.text : "");
       $(name + "-output").textContent =
@@ -93,45 +92,55 @@ async function poll() {
     }
     const tts = events.filter((e) => e.type === "tts.start");
     $("tts-output").textContent = tts.map((e) => e.text).join("\n") || "—";
-    const ttsEnds = events.filter((e) =>
-      ["tts.finish", "tts.error"].includes(e.type),
-    );
-    $("tts-time").textContent = tts.length
-      ? duration(ttsEnds.reduce((sum, e) => sum + (e.durationMs || 0), 0)) +
-        (ttsEnds.length < tts.length ? "…" : "")
-      : "—";
     const playback = events.filter(
       (e) => e.kind === "reply" && e.type.startsWith("audio."),
     );
-    const ended = playback.filter((e) => e.type === "audio.finish");
-    $("audio-time").textContent = ended.length
-      ? duration(ended.reduce((sum, e) => sum + (e.durationMs || 0), 0))
-      : "—";
     $("audio-output").textContent =
       playback.at(-1)?.detail ||
       { "audio.queued": "Waiting to play", "audio.start": "Playing…" }[
         playback.at(-1)?.type
       ] ||
       "—";
-    $("events").textContent = events
-      .map(
-        (e) =>
-          `${new Date(e.at).toLocaleTimeString()} ${e.type}\n${JSON.stringify(e.payload ?? { text: e.text, detail: e.detail, durationMs: e.durationMs }, null, 2)}`,
-      )
-      .join("\n\n");
+    const flow = window.voiceTimeline.flow(events, state.now);
+    $("time-axis").textContent =
+      `0 → ${duration(flow.total)} · from server receipt`;
+    const firstAudio = events.find(
+      (e) => e.type === "audio.start" && e.kind === "reply",
+    );
+    $("first-audio").textContent =
+      firstAudio?.clientElapsedMs != null
+        ? `First reply audio: ${duration(firstAudio.clientElapsedMs)}`
+        : "";
+    const nextFlowKey = JSON.stringify(flow);
+    if (nextFlowKey !== flowKey) {
+      flowKey = nextFlowKey;
+      for (const name of ["whisper", "codex", "tts", "audio"]) {
+        $(name + "-time").replaceChildren(
+          window.voiceTimeline.lanes(flow[name], flow.total),
+        );
+        $(name + "-stages").replaceChildren(
+          window.voiceTimeline.lanes(flow.details[name], flow.total),
+        );
+        const toggle = document.querySelector(
+          `[aria-controls="${name}-details"]`,
+        );
+        toggle.disabled = !flow.details[name].length;
+        if (toggle.disabled) $(name + "-details").hidden = true;
+      }
+    }
     const failed = events.findLast((e) => e.type.endsWith(".error"));
     if (!busy)
       $("status").textContent = failed
-        ? "This turn failed. See its output or event details."
+        ? "This turn failed. See its module output."
         : last("turn.finish")
-          ? "Done. Record again to test another turn."
+          ? "Done."
           : last("turn.cancel")
             ? "Reply stopped."
             : last("decision")?.detail?.startsWith("ignore")
               ? last("decision").detail
               : events.some((e) => e.type === "utterance.queued")
                 ? "Processing your recording…"
-                : "Say something, then stop recording.";
+                : "";
     if (failed) error(failed.detail || failed.type);
     $("stop").hidden = !state.sessions.some(
       (s) => s.id === sessionId && s.activeTurn,
@@ -155,12 +164,14 @@ $("login").onsubmit = async (event) => {
 };
 $("record").onclick = async () => {
   if (recorder?.state === "recording") {
+    runStarted = performance.now();
     recorder.stop();
     return;
   }
   if (busy) return;
   busy = true;
   $("record").disabled = true;
+  $("rerun").disabled = true;
   error();
   const turn = ++generation;
   try {
@@ -179,11 +190,12 @@ $("record").onclick = async () => {
     recorder = new MediaRecorder(stream);
     recorder.ondataavailable = (event) => parts.push(event.data);
     recorder.onstop = async () => {
+      if (!runStarted) runStarted = performance.now();
       clearTimeout(timer);
       clearInterval(clock);
       stream.getTracks().forEach((t) => t.stop());
       $("record").disabled = true;
-      $("record").textContent = "Record";
+      $("record").textContent = "Record new";
       try {
         if (turn !== generation) return;
         $("status").textContent = "Sending recording…";
@@ -213,10 +225,7 @@ $("record").onclick = async () => {
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error);
-        selectedRecording = "";
-        $("recording-select").value = "";
-        $("capture-time").textContent = duration(decoded.duration * 1000);
-        $("capture-output").textContent = "";
+        selectedRecording = result.recordingId;
         $("capture-audio").src =
           `/api/voice-debug/recording?id=${result.recordingId}`;
         $("capture-audio").hidden = false;
@@ -228,6 +237,7 @@ $("record").onclick = async () => {
         await poll();
       }
     };
+    runStarted = 0;
     recorder.start();
     started = Date.now();
     $("record").textContent = "Stop recording";
@@ -259,14 +269,6 @@ $("stop").onclick = async () => {
   } catch (err) {
     error(err.message);
   }
-};
-$("logout").onclick = async () => {
-  generation++;
-  if (recorder?.state === "recording") recorder.stop();
-  stream?.getTracks().forEach((t) => t.stop());
-  stopAudio();
-  await api("logout", "POST", {});
-  location.reload();
 };
 setInterval(async () => {
   if (!signedIn || !sessionId || busy || playingPoll) return;
@@ -301,8 +303,12 @@ setInterval(async () => {
         error(err.message),
       );
     };
-    await api("playback", "POST", { id: clip.id, phase: "start" });
     source.start();
+    await api("playback", "POST", {
+      id: clip.id,
+      phase: "start",
+      clientElapsedMs: performance.now() - runStarted,
+    });
   } catch (err) {
     error(err.message);
     if (clipId)
@@ -315,107 +321,139 @@ setInterval(async () => {
   }
 }, 500);
 let recordings = [],
-  profiles = [],
-  comparisonRuns = [],
   selectedRecording = "";
-function addProfile(settings) {
-  const card = document.createElement("div");
-  card.className = "profile";
-  card.innerHTML = `<label>Model<select data-model><option value="small">small</option><option value="small-q5_1">small · Q5_1</option><option value="base">base</option></select></label><label>Language<select data-language><option value="ja">Japanese</option><option value="auto">Auto detect</option><option value="zh">Chinese</option><option value="en">English</option></select></label><strong>—</strong><output>Not run</output>`;
-  card.querySelector("[data-model]").value = settings.model || "small";
-  card.querySelector("[data-language]").value = settings.language;
-  const index = profiles.length;
-  card.querySelectorAll("select").forEach(
-    (select) =>
-      (select.onchange = () => {
-        comparisonRuns[index] = undefined;
-        card.querySelector("strong").textContent = "—";
-        card.querySelector("output").textContent =
-          "Settings changed · run again";
-      }),
-  );
-  profiles.push({ settings, card });
-  $("profiles").append(card);
-  $("add-profile").disabled = profiles.length >= 4;
+function showRecording() {
+  const recording = recordings.find((r) => r.id === selectedRecording);
+  if (!recording) return;
+  $("capture-audio").src = `/api/voice-debug/recording?id=${recording.id}`;
+  $("capture-audio").hidden = false;
 }
-function selectRecording() {
-  selectedRecording = $("recording-select").value;
-  comparisonRuns = [];
-  $("comparison-audio").src =
-    `/api/voice-debug/recording?id=${selectedRecording}`;
-  const saved = recordings.find((r) => r.id === selectedRecording);
-  if (saved?.runs.length) {
-    $("profiles").replaceChildren();
-    profiles = [];
-    saved.runs.slice(-3).forEach((run) => addProfile(run.settings));
-    comparisonRuns = saved.runs.slice(-3).map((run) => run.id);
-  }
+function recordingLabel(r) {
+  const text = (
+    r.transcript ??
+    r.runs?.findLast((run) => run.result)?.result.text ??
+    ""
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > 28 ? text.slice(0, 28) + "…" : text;
 }
-async function pollComparisons() {
-  const data = await api("recordings");
-  recordings = data.recordings;
-  if (!profiles.length) data.defaults.forEach(addProfile);
-  const previous = $("recording-select").value;
-  $("recording-select").replaceChildren(
-    ...recordings.map((r) => {
-      const option = document.createElement("option");
-      option.value = r.id;
-      option.textContent = `${new Date(r.at).toLocaleString()} · ${duration(r.audioMs)}`;
-      return option;
+let listKey = "";
+function renderRecordings() {
+  const query = $("record-search").value.trim().toLocaleLowerCase();
+  const key = JSON.stringify([
+    query,
+    busy,
+    selectedRecording,
+    recordings.map((r) => [r.id, recordingLabel(r)]),
+  ]);
+  if (key === listKey) return;
+  listKey = key;
+  const scroll = $("record-list").scrollTop;
+  const items = recordings
+    .map((r, index) => ({
+      ...r,
+      label: recordingLabel(r) || `Untitled ${index + 1}`,
+    }))
+    .filter((r) => r.label.toLocaleLowerCase().includes(query));
+  $("record-list").replaceChildren(
+    ...items.map((r) => {
+      const row = document.createElement("div");
+      row.setAttribute("role", "listitem");
+      const button = document.createElement("button");
+      button.textContent = r.label;
+      button.title =
+        r.transcript ??
+        r.runs?.findLast((run) => run.result)?.result.text ??
+        r.label;
+      button.className = "record-item";
+      button.disabled = busy;
+      button.setAttribute("aria-current", String(r.id === selectedRecording));
+      button.onclick = () => void selectRecording(r.id);
+      row.append(button);
+      return row;
     }),
   );
-  if (recordings.some((r) => r.id === previous))
-    $("recording-select").value = previous;
-  if (!selectedRecording && recordings.length) selectRecording();
-  const record = recordings.find((r) => r.id === selectedRecording);
-  const runs = comparisonRuns.map((id) =>
-    record?.runs.find((r) => r.id === id),
-  );
-  const active = recordings.some((r) =>
-    r.runs.some((run) => ["running", "queued"].includes(run.status)),
-  );
-  $("compare").disabled = active || !record;
-  $("recording-select").disabled = active;
-  $("add-profile").disabled = active || profiles.length >= 4;
-  profiles.forEach(({ card }, index) => {
-    card.querySelectorAll("select").forEach((el) => (el.disabled = active));
-    const run = runs[index];
-    card.querySelector("strong").textContent = run?.result
-      ? duration(run.result.durationMs)
-      : run?.status === "running"
-        ? duration(Date.now() - run.startedAt) + "…"
-        : "—";
-    card.querySelector("output").textContent = run?.result
-      ? run.result.text || "No speech detected"
-      : run?.error || run?.status || "Not run";
-  });
-  $("comparison-status").textContent = active
-    ? "Running sequentially on the same recording…"
-    : "Same recording, sequential runs. Times include audio conversion.";
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "record-empty";
+    empty.textContent = query
+      ? "No matching recordings"
+      : "Record something to start";
+    $("record-list").append(empty);
+  }
+  $("record-list").scrollTop = scroll;
 }
-$("recording-select").onchange = () => {
-  selectRecording();
-  void pollComparisons();
-};
-$("add-profile").onclick = () => addProfile({ ...profiles[0].settings });
-$("compare").onclick = async () => {
-  $("compare").disabled = true;
-  error();
+$("record-search").oninput = renderRecordings;
+async function loadRecordings() {
+  const data = await api("recordings");
+  const changed =
+    JSON.stringify(data.recordings.map((r) => [r.id, recordingLabel(r)])) !==
+    JSON.stringify(recordings.map((r) => [r.id, recordingLabel(r)]));
+  recordings = data.recordings;
+  if (!recordings.some((r) => r.id === selectedRecording))
+    selectedRecording = recordings[0]?.id || "";
+  if (changed && !sessionId) showRecording();
+  renderRecordings();
+  $("rerun").disabled = busy || !selectedRecording;
+}
+async function selectRecording(id) {
+  if (busy) return;
+  selectedRecording = id;
+  renderRecordings();
+  // A different input must not remain paired with the previous run's output.
+  stopAudio();
+  sessionId = "";
   try {
-    const result = await api("comparison", "POST", {
-      id: selectedRecording,
-      profiles: profiles.map(({ settings, card }) => ({
-        ...settings,
-        model: card.querySelector("[data-model]").value,
-        language: card.querySelector("[data-language]").value,
-      })),
-    });
-    comparisonRuns = result.runs.slice(-profiles.length).map((r) => r.id);
-    await pollComparisons();
+    await api("browser", "DELETE");
+    reset();
+    showRecording();
   } catch (err) {
     error(err.message);
-    $("compare").disabled = false;
+  }
+}
+$("rerun").onclick = async () => {
+  if (busy || !selectedRecording) return;
+  runStarted = performance.now();
+  busy = true;
+  $("record").disabled = $("rerun").disabled = true;
+  error();
+  try {
+    context ??= new AudioContext();
+    await context.resume();
+    stopAudio();
+    sessionId = "";
+    reset();
+    showRecording();
+    $("status").textContent = "Running saved recording…";
+    const result = await api("browser", "POST", {
+      recordingId: selectedRecording,
+    });
+    sessionId = result.sessionId;
+  } catch (err) {
+    error(err.message);
+  } finally {
+    busy = false;
+    $("record").disabled = false;
+    await poll();
   }
 };
 poll();
 setInterval(poll, 1000);
+
+for (const button of document.querySelectorAll(".module-toggle")) {
+  button.onclick = () => {
+    const expanded = button.getAttribute("aria-expanded") !== "true";
+    button.setAttribute("aria-expanded", String(expanded));
+    $(button.getAttribute("aria-controls")).hidden = !expanded;
+  };
+}
+
+function highlightSentence(target) {
+  const id = target.closest("[data-sentence]")?.dataset.sentence;
+  for (const node of document.querySelectorAll("[data-sentence]"))
+    node.classList.toggle("linked", !!id && node.dataset.sentence === id);
+}
+$("test").addEventListener("pointerover", (e) => highlightSentence(e.target));
+$("test").addEventListener("focusin", (e) => highlightSentence(e.target));
+$("test").addEventListener("pointerleave", () => highlightSentence($("test")));

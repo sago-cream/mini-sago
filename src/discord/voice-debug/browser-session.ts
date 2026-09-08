@@ -14,6 +14,7 @@ export function createBrowserSession(deps: {
     signal?: AbortSignal,
     trace?: import("./state").VoiceTrace,
   ) => Promise<string>;
+  onTranscript?: (id: string, text: string) => Promise<void>;
   respond: (
     input: VoiceReplyInput & { guildId: string; channelId: string },
   ) => Promise<VoiceChatResponse | null>;
@@ -62,8 +63,19 @@ export function createBrowserSession(deps: {
         ? new Promise<void>((resolve) => waiters.push(resolve))
         : Promise.resolve(),
   };
+  const recordingIds = new WeakMap<Buffer, string>();
   const conversation = new VoiceConversation({
-    transcribe: deps.transcribe,
+    transcribe: async (audio, signal, trace) => {
+      const text = await deps.transcribe(audio, signal, trace);
+      const id = recordingIds.get(audio);
+      if (id)
+        await deps
+          .onTranscript?.(id, text)
+          .catch((error) =>
+            console.warn("Could not save recording label", error),
+          );
+      return text;
+    },
     respond: (input) =>
       deps.respond({ ...input, guildId: "browser", channelId: session.id }),
     pendingAgeMs: 120000,
@@ -75,7 +87,8 @@ export function createBrowserSession(deps: {
   session.trace("connection.state", { detail: "ready" });
   return {
     state,
-    capture(audio: Buffer) {
+    capture(audio: Buffer, recordingId?: string) {
+      if (recordingId) recordingIds.set(audio, recordingId);
       conversation.stop();
       conversation.speechStarted("browser-user");
       void conversation.utterance("browser-user", audio);
@@ -85,7 +98,7 @@ export function createBrowserSession(deps: {
       const clip = clips[0];
       return clip ? { id: clip.id, pcm: clip.audio.toString("base64") } : null;
     },
-    acknowledge(id: string, phase: string) {
+    acknowledge(id: string, phase: string, clientElapsedMs?: number) {
       const clip = clips[0];
       if (!clip || clip.id !== id) return;
       if (phase === "start") {
@@ -93,6 +106,7 @@ export function createBrowserSession(deps: {
         clip.started = Date.now();
         (clip.playback?.trace ?? session.trace)("audio.start", {
           kind: clip.kind,
+          clientElapsedMs,
         });
       } else {
         clips.shift();

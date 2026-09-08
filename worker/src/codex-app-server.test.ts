@@ -98,8 +98,9 @@ describe("Codex App Server manager", () => {
   test("streams reply deltas from an ephemeral turn", async () => {
     const manager = new CodexAppServerManager();
     const deltas: string[] = [];
+    const progress: ChatbotTaskProgress[] = [];
     const result = await manager.run({
-      ...runOptions(() => undefined, "job-stream"),
+      ...runOptions((item) => progress.push(item), "job-stream"),
       taskId: "job-stream",
       ephemeral: true,
       outputSchema: { type: "object" },
@@ -107,6 +108,14 @@ describe("Codex App Server manager", () => {
     });
 
     expect(result).toBe('{"reply":"最初の文。次の文。"}');
+    expect(
+      progress.filter((item) => item.timing).map((item) => item.timing!.stage),
+    ).toEqual(["Process startup", "Thread setup"]);
+    expect(
+      progress
+        .filter((item) => item.timing)
+        .every((item) => item.timing!.durationMs >= 0),
+    ).toBe(true);
     expect(deltas.join("")).toBe('{"reply":"最初の文。次の文。"}');
     expect(manager.status()).toEqual({ ok: true, sessions: 0, active: 0 });
     manager.close();

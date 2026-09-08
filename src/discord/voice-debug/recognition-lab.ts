@@ -29,6 +29,7 @@ type Run = {
   id: string;
   settings: z.infer<typeof profileSchema>;
   status: string;
+  queuedAt?: number;
   startedAt?: number;
   result?: Awaited<ReturnType<typeof recognizeSpeech>>;
   error?: string;
@@ -38,6 +39,7 @@ type Recording = {
   at: number;
   audioMs: number;
   expected: string;
+  transcript?: string;
   runs: Run[];
 };
 export class RecognitionLab {
@@ -97,6 +99,11 @@ export class RecognitionLab {
     await this.save(record);
     return record;
   }
+  async label(id: string, text: string) {
+    const record = await this.get(id);
+    record.transcript = text.slice(0, 4000);
+    await this.save(record);
+  }
   async audio(id: string) {
     return readFile(this.file(id, ".pcm"));
   }
@@ -120,6 +127,7 @@ export class RecognitionLab {
         id: randomUUID(),
         settings,
         status: "queued",
+        queuedAt: Date.now(),
       }));
       record.runs = [...record.runs, ...runs].slice(-20);
       await this.save(record);

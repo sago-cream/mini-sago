@@ -33,6 +33,43 @@ export class SpeechCache {
   }
 }
 
+/** Completed PCM only: cancellation never propagates between unrelated turns. */
+export class ReplySpeechCache {
+  private audio = new Map<string, Buffer>();
+  private bytes = 0;
+  constructor(private readonly maxBytes = 16 * 1024 * 1024) {}
+  async get(
+    key: string,
+    synthesize: () => Promise<Buffer>,
+    signal?: AbortSignal,
+  ) {
+    signal?.throwIfAborted();
+    const cached = this.audio.get(key);
+    if (cached) {
+      this.audio.delete(key);
+      this.audio.set(key, cached);
+      return { audio: cached, cached: true };
+    }
+    const audio = await synthesize();
+    signal?.throwIfAborted();
+    if (audio.length <= this.maxBytes) {
+      const previous = this.audio.get(key);
+      if (previous) {
+        this.bytes -= previous.length;
+        this.audio.delete(key);
+      }
+      while (this.bytes + audio.length > this.maxBytes) {
+        const oldest = this.audio.keys().next().value!;
+        this.bytes -= this.audio.get(oldest)!.length;
+        this.audio.delete(oldest);
+      }
+      this.audio.set(key, audio);
+      this.bytes += audio.length;
+    }
+    return { audio, cached: false };
+  }
+}
+
 async function run(
   command: string,
   args: string[],
@@ -183,11 +220,14 @@ export async function recognizeSpeech(
       SPEECH_COMMAND_TIMEOUT_MS,
       signal,
     );
+    const conversionMs = performance.now() - startedAt;
     const form = new FormData();
     form.append("file", Bun.file(wavPath), "utterance.wav");
     form.append("language", settings.language);
     form.append("response_format", "verbose_json");
     for (const [key, value] of Object.entries({
+      // Fixed-language recognition does not need a second encoder pass for language probabilities.
+      no_language_probabilities: settings.language !== "auto",
       beam_size: settings.beamSize,
       temperature: settings.temperature,
       temperature_inc: 0,
@@ -199,6 +239,7 @@ export async function recognizeSpeech(
       vad_speech_pad_ms: settings.paddingMs,
     }))
       form.append(key, String(value));
+    const requestStartedAt = performance.now();
     const response = await fetch(
       whisperInferenceUrl(
         settings.model === "base"
@@ -222,7 +263,19 @@ export async function recognizeSpeech(
         `Whisper ${response.status}: ${(await response.text()).trim()}`,
       );
     }
-    const result = (await response.json()) as {
+    const responseText = await response.text();
+    const requestMs = performance.now() - requestStartedAt;
+    const parseStartedAt = performance.now();
+    const result = JSON.parse(responseText) as {
+      timings?: {
+        totalMs: number;
+        spans: Array<{
+          name: string;
+          startMs: number;
+          durationMs: number;
+          depth: number;
+        }>;
+      };
       text?: unknown;
       language?: string;
       detected_language?: string;
@@ -245,6 +298,12 @@ export async function recognizeSpeech(
       durationMs: performance.now() - startedAt,
       audioMs: audio.length / 48,
       settings: { ...settings },
+      timings: {
+        conversionMs,
+        requestMs,
+        responseParseMs: performance.now() - parseStartedAt,
+        server: result.timings ?? null,
+      },
       diagnostics: result,
     };
   } finally {
