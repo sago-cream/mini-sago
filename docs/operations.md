@@ -160,6 +160,64 @@ for their contents and exclusions.
 
 ## Common recovery procedures
 
+### Durable-state backup and restore
+
+Production state is backed up to the private
+[sago-cream/minisago-state](https://github.com/sago-cream/minisago-state)
+repository, separately from application code. Keep its local checkout alongside
+this one:
+
+```text
+Bot & Infra/
+  mini-sago/
+  minisago-state/
+```
+
+An ordinary Mac cron job runs `minisago-state/scripts/sync.py` at five minutes
+past every hour. It reads Oracle through SSH alias `sago-cloud`, commits changes,
+and pushes to the backup repository's `main` branch. No Codex automation is
+involved. The Mac must be awake, connected to Tailscale, and configured with the
+repository-scoped SSH deploy key; the job does not use login-Keychain credentials.
+Logs are at `~/Library/Logs/ObiInfra/minisago-state-sync.log`.
+
+The allowlist includes guild-memory Markdown and its Git history, reminders,
+feature availability, GitHub PR-thread mappings, and selected monitor cursors.
+The reader validates JSON and requires two matching reads around the history
+capture, retrying if files change. It does not stop the bot. This is a stable
+file snapshot, not a cross-service transaction. When adding a new durable state
+file, update the backup reader's allowlist in `minisago-state` as well.
+
+Credentials are stored in Bitwarden folder **Obi and MiniSago Recovery**.
+Media, recordings, traces, sessions, caches, dependencies, and worker checkouts
+are excluded. Preserve unfinished worker code in its application remote before
+discarding a workspace; uploaded media and share links are expendable under the
+current recovery policy. The live guild-memory repository keeps no remote.
+
+After moving or cloning the backup checkout, install its cron entry again:
+
+```bash
+sh ../minisago-state/scripts/install-cron.sh
+python3 ../minisago-state/scripts/sync.py
+```
+
+To recover after losing the server:
+
+1. Clone the private state repository and provision services from
+   [sago-cloud](https://github.com/sago-cream/sago-cloud).
+2. Restore current service credentials from Bitwarden and stop bot-core while
+   restoring files.
+3. Copy the contents of `state/` into the `sago_cloud_bot-core-state` volume,
+   preserving the service user's ownership and private permissions.
+4. Clone `history/guild-memory.bundle` into a temporary directory, remove its
+   origin, and copy its `.git` directory into the restored `guild-memory`
+   directory. Keep `state/guild-memory/*.md` as the latest working files. Never
+   attach the backup remote to the bot's live memory repository.
+5. Restart bot-core and verify memory, reminders, and feature settings. Consult
+   the private backup repository's README for current recovery details.
+
+The former Oracle bot/CouchDB snapshot and restore-test timers are retired;
+Git history is the durable-state recovery source.
+
 ### Worker unavailable
 
 1. Check `/api/health` for connected, available, capacity, active, and Mac
