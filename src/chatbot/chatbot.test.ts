@@ -31,6 +31,7 @@ import {
   parseExecutionRoute,
   parsePreviousTraceLookup,
   postChatbotResponse,
+  requestsChatExecution,
   searchGuildMessages,
   toChatbotMessage,
   type DiscordRequest,
@@ -1504,6 +1505,21 @@ describe("Discord chatbot", () => {
     expect(parseExecutionRoute("not json", repositories)).toEqual({
       route: "unclear",
     });
+  });
+
+  test("honors an explicit chat-mode route directive", () => {
+    expect(
+      requestsChatExecution(
+        "allow non-owner access in this server, use chat mode",
+      ),
+    ).toBe(true);
+    expect(requestsChatExecution("Use the chat mode for this request")).toBe(
+      true,
+    );
+    expect(requestsChatExecution("add a use chat mode button")).toBe(false);
+    expect(requestsChatExecution("change the chatbot mode selector")).toBe(
+      false,
+    );
   });
 
   test("asks for a repository instead of dispatching an invalid dev job", () => {

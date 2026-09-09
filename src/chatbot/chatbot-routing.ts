@@ -3,6 +3,12 @@ import type {
   ChatbotTraceContext,
 } from "../../contracts/worker-contract";
 
+export function requestsChatExecution(request: string) {
+  return /(?:^|[,.;!?，。；！？]\s*)use\s+(?:the\s+)?chat\s+mode(?:\s|$)/iu.test(
+    request,
+  );
+}
+
 export function parsePreviousTraceLookup(content: string): {
   status: "complete" | "not_found" | "unavailable";
   trace?: ChatbotTraceContext;

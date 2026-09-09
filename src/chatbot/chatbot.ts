@@ -69,6 +69,7 @@ import {
   missingDeveloperRepositoryResponse,
   parseExecutionRoute,
   parsePreviousTraceLookup,
+  requestsChatExecution,
 } from "./chatbot-routing";
 import {
   ChannelQuietTracker,
@@ -100,6 +101,7 @@ export {
   missingDeveloperRepositoryResponse,
   parseExecutionRoute,
   parsePreviousTraceLookup,
+  requestsChatExecution,
 } from "./chatbot-routing";
 export { parseChatbotAnswerDecision } from "../../contracts/answer-contract";
 
@@ -1099,10 +1101,12 @@ export async function handleChatbotMention({
       let executionRoute: ChatbotExecutionRoute = "chat";
       let selectedRepository: string | undefined;
       let developerThreadTitle: string | undefined;
+      const chatExecutionRequested = requestsChatExecution(request);
 
       if (
         requesterUserId === accessConfig.ownerUserId &&
         !invocation?.chatOnly &&
+        !chatExecutionRequested &&
         !isChannelQuietRequest(request)
       ) {
         const routeJob: ChatbotJob = {
