@@ -180,6 +180,13 @@ involved. The Mac must be awake, connected to Tailscale, and configured with the
 repository-scoped SSH deploy key; the job does not use login-Keychain credentials.
 Logs are at `~/Library/Logs/ObiInfra/minisago-state-sync.log`.
 
+For a replacement Mac, follow the [Mac recovery setup runbook](https://github.com/sago-cream/obi-infra/blob/master/docs/mac-recovery-setup.md).
+It covers dependencies, cloning, Git author identity, Oracle SSH/Tailscale access,
+deploy-key regeneration, cron installation, and scheduled-run verification. While
+[Obi infrastructure PR #4](https://github.com/sago-cream/obi-infra/pull/4) is pending,
+read the runbook on its `chore/git-vault-recovery` branch. A Git clone alone does
+not restore the crontab, `.git/config`, private keys, host trust, or account logins.
+
 The allowlist includes guild-memory Markdown and its Git history, reminders,
 feature availability, GitHub PR-thread mappings, and selected monitor cursors.
 The reader validates JSON and requires two matching reads around the history
