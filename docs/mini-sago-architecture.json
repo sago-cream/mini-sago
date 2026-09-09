@@ -1,0 +1,225 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "MiniSago 系統架構",
+    "output": "docs/mini-sago-architecture.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/sago-cream/mini-sago.git",
+      "revision": "1487f4f2304edacc416f3a9302a63671458d6554"
+    },
+    "views": [
+      {
+        "id": "chat-path",
+        "label": "一次對話怎麼跑",
+        "focus": ["person", "discord", "host", "bridge", "oracle", "codex"],
+        "note": "Discord 權限留在 hosted service，模型工作交給 outbound worker。"
+      },
+      {
+        "id": "tool-path",
+        "label": "工具與資料邊界",
+        "focus": ["codex", "mcp", "host", "state"],
+        "note": "工具 session 綁定單次 request，host 驗證後才讀寫 Discord 或持久狀態。"
+      },
+      {
+        "id": "dev-path",
+        "label": "開發工作",
+        "focus": ["bridge", "oracle", "mac", "codex", "workspace"],
+        "note": "Oracle 優先處理開發任務，Mac helper 提供 fallback 與明確授權的本機能力。"
+      }
+    ]
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [42, 90],
+    "cols": 6,
+    "gapX": 70,
+    "gapY": 88,
+    "cellW": 164,
+    "cellH": 66
+  },
+  "components": [
+    {
+      "id": "person",
+      "type": "external",
+      "label": "Discord 成員",
+      "sublabel": "mention + reply",
+      "row": 2,
+      "col": 0,
+      "sources": [{ "path": "src/discord/gateway.ts", "label": "訊息入口" }]
+    },
+    {
+      "id": "discord",
+      "type": "cloud",
+      "label": "Discord API",
+      "sublabel": "Gateway + REST",
+      "row": 2,
+      "col": 1,
+      "sources": [
+        { "path": "src/discord/gateway.ts", "label": "Gateway" },
+        { "path": "src/discord/api/request.ts", "label": "REST client" }
+      ]
+    },
+    {
+      "id": "host",
+      "type": "backend",
+      "label": "Hosted Bun service",
+      "sublabel": "auth + context",
+      "tag": "authority",
+      "row": 2,
+      "col": 2,
+      "sources": [
+        { "path": "src/server.ts", "label": "HTTP entrypoint" },
+        { "path": "src/chatbot/chatbot.ts", "label": "chat orchestration" },
+        { "path": "src/chatbot/access.ts", "label": "access policy" }
+      ]
+    },
+    {
+      "id": "bridge",
+      "type": "messagebus",
+      "label": "Workflow bridge",
+      "sublabel": "outbound WebSocket",
+      "row": 2,
+      "col": 3,
+      "sources": [{ "path": "src/chatbot/bridge.ts", "label": "worker reservation" }]
+    },
+    {
+      "id": "oracle",
+      "type": "backend",
+      "label": "Oracle worker",
+      "sublabel": "preferred chat + dev",
+      "row": 2,
+      "col": 4,
+      "sources": [
+        { "path": "worker/src/client.ts", "label": "worker client" },
+        { "path": "worker/src/config.ts", "label": "worker profile" }
+      ]
+    },
+    {
+      "id": "mac",
+      "type": "backend",
+      "label": "Mac helper",
+      "sublabel": "fallback + Mac files",
+      "row": 0,
+      "col": 4,
+      "sources": [
+        { "path": "worker/src/mac/session-monitor.ts", "label": "session state" },
+        { "path": "worker/src/mac/mac-files.ts", "label": "allowlisted files" }
+      ]
+    },
+    {
+      "id": "codex",
+      "type": "backend",
+      "label": "Codex App Server",
+      "sublabel": "threads + steering",
+      "tag": "model runtime",
+      "row": 2,
+      "col": 5,
+      "sources": [
+        { "path": "worker/src/codex-app-server.ts", "label": "thread runtime" },
+        { "path": "worker/src/codex.ts", "label": "job execution" }
+      ]
+    },
+    {
+      "id": "workspace",
+      "type": "external",
+      "label": "GitHub + repository",
+      "sublabel": "issues + draft PR",
+      "row": 0,
+      "col": 5,
+      "sources": [{ "path": "worker/src/developer-workspace.ts", "label": "repository workspace" }]
+    },
+    {
+      "id": "mcp",
+      "type": "security",
+      "label": "Request MCP",
+      "sublabel": "bound tools + media",
+      "row": 4,
+      "col": 5,
+      "sources": [
+        { "path": "src/chatbot/mcp.ts", "label": "host tools" },
+        { "path": "worker/src/media/media-mcp.ts", "label": "worker media tools" }
+      ]
+    },
+    {
+      "id": "state",
+      "type": "database",
+      "label": "Host state",
+      "sublabel": "memory + reminders",
+      "row": 4,
+      "col": 2,
+      "sources": [
+        { "path": "src/chatbot/guild-memory.ts", "label": "guild memory" },
+        { "path": "src/discord/jobs/reminders.ts", "label": "reminders" },
+        { "path": "src/discord/service-subscriptions.ts", "label": "subscriptions" }
+      ]
+    },
+    {
+      "id": "jobs",
+      "type": "backend",
+      "label": "Background jobs",
+      "sublabel": "feeds + webhooks",
+      "row": 0,
+      "col": 2,
+      "sources": [
+        { "path": "src/server.ts", "label": "scheduler startup" },
+        { "path": "src/discord/jobs/x-post-monitor.ts", "label": "job implementation" }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "Discord-facing authority",
+      "wraps": ["host", "bridge", "mcp", "state", "jobs"],
+      "pad": 18
+    },
+    {
+      "kind": "region",
+      "label": "Outbound workers，沒有公開 port",
+      "wraps": ["oracle", "mac", "codex"],
+      "pad": 18
+    }
+  ],
+  "connections": [
+    { "id": "memberDiscord", "from": "person", "to": "discord", "label": "訊息與互動", "variant": "emphasis" },
+    { "id": "discordHost", "from": "discord", "to": "host", "label": "events + REST", "variant": "security" },
+    { "id": "hostBridge", "from": "host", "to": "bridge", "label": "reserve + dispatch", "variant": "emphasis" },
+    { "id": "bridgeOracle", "from": "bridge", "to": "oracle", "label": "preferred worker", "variant": "emphasis", "labelDy": 47 },
+    { "id": "bridgeMac", "from": "bridge", "to": "mac", "label": "fallback / explicit mac", "variant": "dashed" },
+    { "id": "oracleCodex", "from": "oracle", "to": "codex" },
+    { "id": "macCodex", "from": "mac", "to": "codex", "variant": "dashed" },
+    { "id": "codexWorkspace", "from": "codex", "to": "workspace", "label": "authorized dev", "variant": "security" },
+    { "id": "codexMcp", "from": "codex", "to": "mcp", "label": "typed tool calls", "variant": "security", "labelDy": 24 },
+    { "id": "mcpHost", "from": "mcp", "to": "host", "label": "bound action request", "variant": "security" },
+    { "id": "hostState", "from": "host", "to": "state" },
+    { "id": "hostJobs", "from": "host", "to": "jobs", "label": "runs schedulers" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "權限留在 host",
+      "items": [
+        "Hosted service 決定誰能觸發、能看哪些頻道、能用哪些 Discord actions",
+        "Worker 只回報 capacity、repository availability 與可執行的 profile"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "一次 workflow，一個 worker",
+      "items": [
+        "routing、context retrieval、answering 原則上沿用同一個 reservation",
+        "Codex App Server 保留 thread，支援 progress、steer、stop 與 continuation"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "工具不是模型的直通門",
+      "items": [
+        "MCP token 綁 requester、guild、channel、worker profile 與 repository",
+        "Host 驗證 structured result，再把文字、reaction 或檔案送回 Discord"
+      ]
+    }
+  ]
+}
