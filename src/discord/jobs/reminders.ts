@@ -19,6 +19,7 @@ export type Reminder = {
   nextRunAt: string;
   cron?: string;
   timezone?: string;
+  skipIfImagePosted?: { threadId: string; userId: string };
 };
 
 type ReminderState = {
@@ -268,6 +269,9 @@ export class ReminderScheduler {
         channelId: current.channelId,
         createdAt: current.createdAt,
         content: content ?? current.content,
+        ...(current.skipIfImagePosted
+          ? { skipIfImagePosted: { ...current.skipIfImagePosted } }
+          : {}),
         ...schedule,
       };
       const reminders = [...this.reminders];
