@@ -119,6 +119,10 @@ directory is an independent local-only Git repository with no configured
 remote. Its files and Git history must never be committed to the application
 repository. Each guild file is capped at 4,000 characters.
 
+Production recovery uses a separate private `minisago-state` repository. Its
+backup job reads memory and history without adding a remote to the live memory
+repository. See [backup and restore](operations.md#durable-state-backup-and-restore).
+
 Feature availability defaults to `/app/state/feature-availability.json` in
 production and `.data/feature-availability.json` elsewhere. On the first
 change, MiniSago writes a complete policy initialized from the existing chatbot

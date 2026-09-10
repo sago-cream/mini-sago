@@ -36,6 +36,7 @@ Start with [Discord setup](docs/discord-setup.md) and
 - [Configuration](docs/configuration.md)
 - [Security](docs/security.md)
 - [Operations](docs/operations.md)
+- [Durable-state backup and restore](docs/operations.md#durable-state-backup-and-restore)
 
 ## Voice credits
 
