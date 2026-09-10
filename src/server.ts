@@ -28,6 +28,7 @@ import {
   type Reminder,
 } from "./discord/jobs/reminders";
 import { createDiscordRequest } from "./discord/api/request";
+import { shouldSkipImageReminder } from "./discord/jobs/reminder-images";
 
 function jsonResponse(body: unknown, status = 200) {
   return Response.json(body, { status });
@@ -114,6 +115,7 @@ const reminderBotToken = process.env.DISCORD_BOT_TOKEN?.trim();
 if (reminderBotToken) {
   const discordRequest = createDiscordRequest(reminderBotToken);
   configureChatbotReminderScheduler(async (reminder: Reminder) => {
+    if (await shouldSkipImageReminder(reminder, discordRequest)) return;
     await discordRequest(`/channels/${reminder.channelId}/messages`, {
       method: "POST",
       body: {

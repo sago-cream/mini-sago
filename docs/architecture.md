@@ -127,6 +127,15 @@ channel. Relative timers need no timezone; wall-clock and recurring requests
 require an IANA timezone or an unambiguous location. Each requester may keep at
 most 50 active reminders.
 
+Persisted reminders may include `skipIfImagePosted: { threadId, userId }`.
+Before sending, the host checks that thread belongs to the reminder's channel
+and scans its messages back to midnight in the reminder's timezone (Asia/Taipei
+for legacy reminders). An image attachment or image embed from the specified
+user skips that occurrence; the recurring schedule still advances normally.
+Discord lookup failures leave the occurrence due for retry. Ordinary content
+or schedule edits preserve the condition. This condition is configured in
+durable state by an operator, not through the reminder chat tools.
+
 ## Prompt harness and context policy
 
 Workers compile every model call into three explicit authority layers:
