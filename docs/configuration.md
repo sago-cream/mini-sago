@@ -51,7 +51,8 @@ The X monitor keeps the configurable primary pipe and also reposts
 `@thsottiaux` to Discord channel `1515569479541854218` and
 `@hololive_dreams` to channel `1290252977621176361`. Each additional pipe
 stores an isolated checkpoint beside `X_POST_STATE_FILE` and validates its
-destination guild independently.
+destination guild independently. The `@hololive_dreams` pipe only forwards
+posts authored by that official account and ignores posts it retweets.
 
 The Threads search monitor reads the public Recent search pages through Jina
 Reader, using `清大,NTHU,學生會` by default. Its managed service initially

@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildXPostMessage,
   getXPostMonitorConfigs,
+  isXPostAuthoredBy,
   parseXPosts,
   shouldCheckpointXPostState,
 } from "./x-post-monitor";
@@ -43,6 +44,29 @@ describe("X post monitor", () => {
     });
   });
 
+  test("identifies posts authored by the monitored account", () => {
+    expect(
+      isXPostAuthoredBy(
+        {
+          id: "1",
+          text: "Official post",
+          url: "https://x.com/hololive_dreams/status/1",
+        },
+        "hololive_dreams",
+      ),
+    ).toBe(true);
+    expect(
+      isXPostAuthoredBy(
+        {
+          id: "2",
+          text: "Retweeted member post",
+          url: "https://x.com/oozorasubaru/status/2",
+        },
+        "hololive_dreams",
+      ),
+    ).toBe(false);
+  });
+
   test("includes additional Discord pipes with isolated state", () => {
     const configs = getXPostMonitorConfigs({
       DISCORD_BOT_TOKEN: "test-token",
@@ -51,30 +75,36 @@ describe("X post monitor", () => {
     });
 
     expect(
-      configs.map(({ service, handle, feedUrl, stateFile }) => ({
-        service,
-        handle,
-        feedUrl,
-        stateFile,
-      })),
+      configs.map(
+        ({ service, handle, feedUrl, stateFile, onlyAuthoredPosts }) => ({
+          service,
+          handle,
+          feedUrl,
+          stateFile,
+          onlyAuthoredPosts,
+        }),
+      ),
     ).toEqual([
       {
         service: "x_posts_primary",
         handle: "thsottiaux",
         feedUrl: "https://fxtwitter.com/thsottiaux/feed.xml?count=20",
         stateFile: "/app/state/x-post-state.json",
+        onlyAuthoredPosts: false,
       },
       {
         service: "x_posts_thsottiaux",
         handle: "thsottiaux",
         feedUrl: "https://fxtwitter.com/thsottiaux/feed.xml?count=20",
         stateFile: "/app/state/x-post-thsottiaux-additional-state.json",
+        onlyAuthoredPosts: false,
       },
       {
         service: "x_posts_hololive_dreams",
         handle: "hololive_dreams",
         feedUrl: "https://fxtwitter.com/hololive_dreams/feed.xml?count=20",
         stateFile: "/app/state/x-post-hololive-dreams-state.json",
+        onlyAuthoredPosts: true,
       },
     ]);
   });

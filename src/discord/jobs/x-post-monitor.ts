@@ -14,16 +14,19 @@ const DEFAULT_ADDITIONAL_PIPES = [
     handle: "thsottiaux",
     service: "x_posts_thsottiaux",
     stateFileName: "x-post-thsottiaux-additional-state.json",
+    onlyAuthoredPosts: false,
   },
   {
     handle: "hololive_dreams",
     service: "x_posts_hololive_dreams",
     stateFileName: "x-post-hololive-dreams-state.json",
+    onlyAuthoredPosts: true,
   },
 ] as const satisfies ReadonlyArray<{
   handle: string;
   service: ManagedServiceId;
   stateFileName: string;
+  onlyAuthoredPosts: boolean;
 }>;
 const DEFAULT_CHECK_INTERVAL_MS = 300_000;
 const STATE_CHECKPOINT_INTERVAL_MS = 3_600_000;
@@ -44,6 +47,7 @@ type XPostMonitorConfig = {
   feedUrl: string;
   stateFile: string;
   checkIntervalMs: number;
+  onlyAuthoredPosts: boolean;
 };
 
 type XPostState = {
@@ -117,6 +121,15 @@ export function parseXPosts(feedXml: string) {
   }
 
   return posts;
+}
+
+export function isXPostAuthoredBy(post: XPost, handle: string) {
+  try {
+    const postHandle = new URL(post.url).pathname.split("/").filter(Boolean)[0];
+    return postHandle?.toLowerCase() === handle.toLowerCase();
+  } catch {
+    return false;
+  }
 }
 
 function comparePostIds(a: string, b: string) {
@@ -201,17 +214,24 @@ export function getXPostMonitorConfigs(
       env.X_POST_FEED_URL?.trim() ||
       `https://fxtwitter.com/${handle}/feed.xml?count=20`,
     stateFile,
+    onlyAuthoredPosts: false,
   };
 
   return [
     primaryConfig,
     ...DEFAULT_ADDITIONAL_PIPES.map(
-      ({ handle, service, stateFileName }): XPostMonitorConfig => ({
+      ({
+        handle,
+        service,
+        stateFileName,
+        onlyAuthoredPosts,
+      }): XPostMonitorConfig => ({
         ...sharedConfig,
         service,
         handle,
         feedUrl: `https://fxtwitter.com/${handle}/feed.xml?count=20`,
         stateFile: stateFileBeside(stateFile, stateFileName),
+        onlyAuthoredPosts,
       }),
     ),
   ];
@@ -262,8 +282,10 @@ async function sendXPostAlertsIfNeeded(
   );
   if (destinations.length === 0) return;
 
-  const posts = await fetchLatestXPosts(config.feedUrl);
-  const latestPost = posts.sort((a, b) => comparePostIds(a.id, b.id)).at(-1);
+  const feedPosts = await fetchLatestXPosts(config.feedUrl);
+  const latestPost = feedPosts
+    .sort((a, b) => comparePostIds(a.id, b.id))
+    .at(-1);
 
   if (!latestPost) {
     throw new Error("X feed did not contain any posts.");
@@ -283,7 +305,11 @@ async function sendXPostAlertsIfNeeded(
     return;
   }
 
-  const newPosts = posts
+  const newPosts = feedPosts
+    .filter(
+      (post) =>
+        !config.onlyAuthoredPosts || isXPostAuthoredBy(post, config.handle),
+    )
     .filter((post) => comparePostIds(post.id, state.lastPostId ?? "0") > 0)
     .sort((a, b) => comparePostIds(a.id, b.id));
 
