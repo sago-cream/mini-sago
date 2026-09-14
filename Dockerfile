@@ -13,6 +13,8 @@ RUN wget -qO whisper.tar.gz "https://github.com/ggml-org/whisper.cpp/archive/ref
   && cmake -S . -B build \
     -DBUILD_SHARED_LIBS=OFF \
     -DGGML_OPENMP=OFF \
+    -DGGML_NATIVE=OFF \
+    -DGGML_CPU_ARM_ARCH=armv8-a \
     -DWHISPER_BUILD_EXAMPLES=ON \
     -DWHISPER_BUILD_TESTS=OFF \
     -DWHISPER_BUILD_SERVER=ON \

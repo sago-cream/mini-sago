@@ -36,7 +36,7 @@ jobs:
           images: ${{ matrix.image }}
           tags: |
             type=raw,value=main
-            type=sha,prefix=sha-
+            type=sha,prefix=sha-,format=long
       - uses: docker/build-push-action@v7
         with:
           context: .
