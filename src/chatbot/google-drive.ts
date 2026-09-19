@@ -20,7 +20,6 @@ export const APPROVED_DRIVES = {
   "0AJzRKoIO-_ZSUk9PVA": "行政中心 | 秘書處",
   "0ADfBicEmYsfhUk9PVA": "行政中心 | 部長",
   "0AKN7pnUlmNnzUk9PVA": "行政中心 | 資訊處",
-  "0AD_M3A4IQVILUk9PVA": "行政中心 | 學權部",
   "0AEkLCCpY_PatUk9PVA": "國立清華大學學生會",
   "0APUnkbvRdsC4Uk9PVA": "國立清華大學學生議會",
   "0AA92UaFW5MLqUk9PVA": "學生會 | 財務處",

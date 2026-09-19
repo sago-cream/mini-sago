@@ -230,10 +230,16 @@ List existing bookings before creating; Google Calendar permits overlaps.
 
 `list_shared_drives`, `search_drive_files`, and `read_drive_file` use the dedicated
 `discord-drive@nthusa-discord-drive.iam.gserviceaccount.com` identity from project
-`nthusa-discord-drive`. The host permits only the 11 shared-drive IDs in
+`nthusa-discord-drive`. The host permits only the 10 shared-drive IDs in
 `APPROVED_DRIVES` in `src/chatbot/google-drive.ts`. Give that account Viewer
 membership on those drives. It has no project IAM roles, admin impersonation,
 or domain-wide delegation; JWTs request only `drive.readonly`.
+
+`行政中心 | 學權部` (`0AD_M3A4IQVILUk9PVA`) is excluded for every Discord role
+because it contains sensitive documents. Do not grant the service account
+membership on that drive. Its files cannot be searched, read by direct ID, or
+downloaded through cached media. The 學權 role mapping below still applies to
+group grants on the remaining approved drives.
 
 Set `MINISAGO_GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` in the host's
 `/srv/sago-cloud/secrets/bot-core.env` to the complete JSON on one line, preserving

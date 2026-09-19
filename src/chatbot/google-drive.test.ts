@@ -28,6 +28,7 @@ const context = {
   resolveRequester: async () => ({ roleIds: [DRIVE_ROLE_MAPPINGS[0].roleId] }),
 };
 const driveId = Object.keys(APPROVED_DRIVES)[0]!;
+const excludedRightsDriveId = "0AD_M3A4IQVILUk9PVA";
 const file = {
   id: "file_1",
   driveId,
@@ -222,6 +223,7 @@ test("invalid inputs cannot select foreign drives, raw queries, URLs or API endp
   });
   for (const input of [
     { driveId: "foreign" },
+    { driveId: excludedRightsDriveId },
     { driveId, q: "trashed = true" },
     { driveId, limit: 500 },
   ])
@@ -241,6 +243,7 @@ test("invalid inputs cannot select foreign drives, raw queries, URLs or API endp
 test("every read rechecks metadata and refuses foreign, trashed and download-restricted files", async () => {
   for (const change of [
     { driveId: "foreign" },
+    { driveId: excludedRightsDriveId },
     { trashed: true },
     { capabilities: { canDownload: false } },
   ]) {
@@ -268,6 +271,57 @@ test("every read rechecks metadata and refuses foreign, trashed and download-res
   expect(
     (await client.call("read_drive_file", { fileId: file.id })).status,
   ).toBe("unavailable");
+});
+
+test("sensitive rights drive is absent even for a requester with every mapped role", async () => {
+  const setup = fixture(() => {
+    throw new Error("Document content must not be requested");
+  });
+  const client = createGoogleDriveClient(
+    env,
+    {
+      guildId: DRIVE_GUILD_ID,
+      resolveRequester: async () => ({
+        roleIds: DRIVE_ROLE_MAPPINGS.map((role) => role.roleId),
+      }),
+    },
+    setup.media,
+    setup.request,
+  )!;
+  const result = await client.call("list_shared_drives", {});
+  expect(result.status).toBe("complete");
+  expect(result.drives).not.toContainEqual({
+    id: excludedRightsDriveId,
+    name: "行政中心 | 學權部",
+  });
+  expect(
+    setup.calls.some((call) =>
+      call.url.pathname.includes(excludedRightsDriveId),
+    ),
+  ).toBe(false);
+});
+
+test("cached document media is denied after its file moves into the excluded rights drive", async () => {
+  let currentDriveId = driveId;
+  const { client, media } = fixture((url) => {
+    if (url.searchParams.get("alt") === "media")
+      return new Response("%PDF-test");
+    return Response.json({
+      ...file,
+      driveId: currentDriveId,
+      mimeType: "application/pdf",
+    });
+  });
+  const result = await client.call("read_drive_file", { fileId: file.id });
+  expect(result.status).toBe("complete");
+  const mediaId = (result.media as { mediaId: string }).mediaId;
+  currentDriveId = excludedRightsDriveId;
+  expect(
+    (await client.call("read_drive_file", { fileId: file.id })).status,
+  ).toBe("unavailable");
+  await expect(media.read(mediaId)).rejects.toThrow(
+    "outside the approved shared drives",
+  );
 });
 test("Google Docs export returns bounded text, continuation, and a source link", async () => {
   const { client } = fixture((url) => {
