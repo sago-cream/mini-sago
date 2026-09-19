@@ -10,8 +10,10 @@ const MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
 const ALLOWED_HOSTS = new Set(["cdn.discordapp.com", "media.discordapp.net"]);
 const MEDIA_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/u;
 
-type MediaAsset = ChatbotMediaRef &
-  ({ url: string; bytes?: never } | { bytes: Uint8Array; url?: never });
+type MediaAsset = ChatbotMediaRef & { authorize?: () => Promise<void> } & (
+    | { url: string; bytes?: never }
+    | { bytes: Uint8Array; url?: never }
+  );
 type MediaFetch = (
   input: string | URL | Request,
   init?: RequestInit,
@@ -104,6 +106,7 @@ export class ChatbotMediaRegistry {
     filename: string;
     contentType?: string;
     bytes: Uint8Array;
+    authorize?: () => Promise<void>;
   }): ChatbotMediaRef {
     const mediaId = validatedId(input.mediaId);
     if (this.assets.has(mediaId)) throw new Error("Media ID already exists.");
@@ -116,6 +119,7 @@ export class ChatbotMediaRegistry {
       ...(input.contentType ? { contentType: input.contentType } : {}),
       size: input.bytes.byteLength,
       bytes: input.bytes,
+      ...(input.authorize ? { authorize: input.authorize } : {}),
     };
     this.assets.set(mediaId, asset);
     return this.reference(asset);
@@ -129,6 +133,7 @@ export class ChatbotMediaRegistry {
   async read(mediaId: string, fetcher: MediaFetch = this.fetcher) {
     const asset = this.assets.get(validatedId(mediaId));
     if (!asset) throw new Error("Media is unavailable for this request.");
+    await asset.authorize?.();
     if (asset.bytes) return { ...this.reference(asset), bytes: asset.bytes };
 
     const response = await fetcher(asset.url, {

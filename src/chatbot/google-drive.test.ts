@@ -7,6 +7,7 @@ import {
   createGoogleDriveClient,
 } from "./google-drive";
 import { ChatbotMediaRegistry } from "./media-assets";
+import { DRIVE_ROLE_MAPPINGS } from "./google-drive-permissions";
 
 const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const credentials = {
@@ -20,8 +21,12 @@ const credentials = {
 };
 const env = {
   MINISAGO_GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: JSON.stringify(credentials),
+  MINISAGO_GOOGLE_DRIVE_ACCESS: "roles",
 };
-const context = { guildId: DRIVE_GUILD_ID, isOwner: true };
+const context = {
+  guildId: DRIVE_GUILD_ID,
+  resolveRequester: async () => ({ roleIds: [DRIVE_ROLE_MAPPINGS[0].roleId] }),
+};
 const driveId = Object.keys(APPROVED_DRIVES)[0]!;
 const file = {
   id: "file_1",
@@ -33,6 +38,12 @@ const file = {
 };
 function fixture(
   handle: (url: URL, init: RequestInit) => Response | Promise<Response>,
+  permissions: (url: URL) => Response | Promise<Response> = () =>
+    Response.json({
+      permissions: [
+        { id: DRIVE_ROLE_MAPPINGS[0].groupId, type: "group", role: "reader" },
+      ],
+    }),
 ) {
   const calls: { url: URL; init: RequestInit }[] = [];
   const request = (async (
@@ -50,6 +61,7 @@ function fixture(
     expect(parsed.pathname).toStartWith("/drive/v3/");
     expect(init.method ?? "GET").toBe("GET");
     expect(init.redirect).toBe("error");
+    if (parsed.pathname.endsWith("/permissions")) return permissions(parsed);
     return handle(parsed, init);
   }) as typeof fetch;
   const media = new ChatbotMediaRegistry();
@@ -61,21 +73,21 @@ function fixture(
   };
 }
 
-test("Drive tools require the exact account and guild, default to owner, and support explicit guild access", () => {
+test("Drive tools require the exact account, guild, and role access mode", () => {
   const media = new ChatbotMediaRegistry();
-  for (const ctx of [
-    { isOwner: true },
-    { guildId: "other", isOwner: true },
-    { guildId: DRIVE_GUILD_ID, isOwner: false },
-  ])
-    expect(createGoogleDriveClient(env, ctx, media)).toBeUndefined();
-  expect(
-    createGoogleDriveClient(
-      { ...env, MINISAGO_GOOGLE_DRIVE_ACCESS: "guild" },
-      { ...context, isOwner: false },
-      media,
-    ),
-  ).toBeDefined();
+  for (const guildId of [undefined, "other"])
+    expect(
+      createGoogleDriveClient(env, { ...context, guildId }, media),
+    ).toBeUndefined();
+  for (const mode of [undefined, "owner", "guild", "unknown"])
+    expect(
+      createGoogleDriveClient(
+        { ...env, MINISAGO_GOOGLE_DRIVE_ACCESS: mode },
+        context,
+        media,
+      ),
+    ).toBeUndefined();
+  expect(createGoogleDriveClient(env, context, media)).toBeDefined();
   for (const value of [
     "{}",
     "bad",
@@ -85,7 +97,7 @@ test("Drive tools require the exact account and guild, default to owner, and sup
   ])
     expect(
       createGoogleDriveClient(
-        { MINISAGO_GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: value },
+        { ...env, MINISAGO_GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: value },
         context,
         media,
       ),
@@ -200,7 +212,9 @@ test("search and folder reads expose actual ancestry across different drive layo
       file: { name: folder.name, parentIds: [folder.driveId] },
     });
   }
-  expect(calls).toHaveLength(5);
+  expect(
+    calls.filter((call) => !call.url.pathname.endsWith("/permissions")),
+  ).toHaveLength(5);
 });
 test("invalid inputs cannot select foreign drives, raw queries, URLs or API endpoints", async () => {
   const { client, calls } = fixture(() => {
@@ -236,7 +250,9 @@ test("every read rechecks metadata and refuses foreign, trashed and download-res
     expect(
       (await client.call("read_drive_file", { fileId: file.id })).status,
     ).toBe("unavailable");
-    expect(calls).toHaveLength(2);
+    expect(
+      calls.filter((call) => !call.url.pathname.endsWith("/permissions")),
+    ).toHaveLength(2);
   }
   let reads = 0;
   const { client } = fixture((url) => {
@@ -285,12 +301,16 @@ test("shortcuts do not bypass drive restrictions and parent filters are checked"
   expect(
     await client.call("read_drive_file", { fileId: file.id }),
   ).toMatchObject({ status: "shortcut", targetId: "foreign_file" });
-  expect(calls).toHaveLength(2);
+  expect(
+    calls.filter((call) => !call.url.pathname.endsWith("/permissions")),
+  ).toHaveLength(2);
   expect(
     (await client.call("search_drive_files", { driveId, parentId: file.id }))
       .status,
   ).toBe("unavailable");
-  expect(calls).toHaveLength(3);
+  expect(
+    calls.filter((call) => !call.url.pathname.endsWith("/permissions")),
+  ).toHaveLength(3);
 });
 test("PDFs become request-local media, cached only after fresh authorization, without credentials", async () => {
   let metadataCalls = 0;
@@ -314,7 +334,7 @@ test("PDFs become request-local media, cached only after fresh authorization, wi
   expect(
     (await client.call("read_drive_file", { fileId: file.id })).media,
   ).toEqual(asset);
-  expect(metadataCalls).toBe(2);
+  expect(metadataCalls).toBe(3);
   expect(
     calls.filter((c) => c.url.searchParams.get("alt") === "media"),
   ).toHaveLength(1);
@@ -388,4 +408,127 @@ test("aggregate read budget bounds multiple document downloads", async () => {
     (await client.call("read_drive_file", { fileId: "file_4" })).error,
   ).toContain("24 MiB");
   expect(downloads).toBe(3);
+});
+
+test("catalog and search filter permissions without leaking denied names or losing pagination", async () => {
+  const { client } = fixture(
+    () =>
+      Response.json({
+        files: [file, { ...file, id: "denied_file", name: "private-name" }],
+        nextPageToken: "continue",
+      }),
+    (url) =>
+      Response.json({
+        permissions: url.pathname.includes("denied_file")
+          ? []
+          : [
+              {
+                id: DRIVE_ROLE_MAPPINGS[0].groupId,
+                type: "group",
+                role: "reader",
+              },
+            ],
+      }),
+  );
+  const result = await client.call("search_drive_files", { driveId });
+  expect(result).toMatchObject({
+    status: "complete",
+    files: [{ id: file.id }],
+    nextPageToken: "continue",
+  });
+  expect(result.files).toHaveLength(1);
+  expect(JSON.stringify(result)).not.toContain("private-name");
+  const blocked = fixture(
+    () => {
+      throw new Error("Content must not be requested");
+    },
+    () => Response.json({ permissions: [] }),
+  );
+  expect(await blocked.client.call("list_shared_drives", {})).toMatchObject({
+    status: "complete",
+    drives: [],
+  });
+  expect(
+    (await blocked.client.call("search_drive_files", { driveId })).status,
+  ).toBe("unavailable");
+});
+
+test("direct IDs, cached text and cached media recheck requester roles and Google permissions", async () => {
+  let roleIds: string[] = [DRIVE_ROLE_MAPPINGS[0].roleId];
+  let allowed = true;
+  let binary = false;
+  const setup = fixture(
+    (url) => {
+      if (url.pathname.endsWith("/export")) return new Response("meeting text");
+      if (url.searchParams.get("alt") === "media")
+        return new Response("%PDF-test");
+      return Response.json({
+        ...file,
+        mimeType: binary ? "application/pdf" : file.mimeType,
+      });
+    },
+    () =>
+      Response.json({
+        permissions: allowed
+          ? [
+              {
+                id: DRIVE_ROLE_MAPPINGS[0].groupId,
+                type: "group",
+                role: "reader",
+              },
+            ]
+          : [],
+      }),
+  );
+  const client = createGoogleDriveClient(
+    env,
+    { guildId: DRIVE_GUILD_ID, resolveRequester: async () => ({ roleIds }) },
+    setup.media,
+    setup.request,
+  )!;
+  expect(
+    (await client.call("read_drive_file", { fileId: file.id })).status,
+  ).toBe("complete");
+  roleIds = [];
+  expect(
+    (await client.call("read_drive_file", { fileId: file.id })).status,
+  ).toBe("unavailable");
+  roleIds = [DRIVE_ROLE_MAPPINGS[0].roleId];
+  binary = true;
+  const result = await client.call("read_drive_file", { fileId: file.id });
+  const mediaId = (result.media as { mediaId: string }).mediaId;
+  expect((await setup.media.read(mediaId)).bytes.length).toBeGreaterThan(0);
+  allowed = false;
+  expect(
+    (await client.call("read_drive_file", { fileId: file.id })).status,
+  ).toBe("unavailable");
+  await expect(setup.media.read(mediaId)).rejects.toThrow(
+    "no longer available",
+  );
+  allowed = true;
+  roleIds = [];
+  await expect(setup.media.read(mediaId)).rejects.toThrow(
+    "no longer available",
+  );
+});
+
+test("permission API failure returns no file content and tool arguments cannot claim roles", async () => {
+  const { client, calls } = fixture(
+    () => Response.json(file),
+    () => new Response("private error", { status: 403 }),
+  );
+  expect(
+    (await client.call("read_drive_file", { fileId: file.id })).status,
+  ).toBe("unavailable");
+  expect(calls.some((c) => c.url.pathname.endsWith("/export"))).toBe(false);
+  const before = calls.length;
+  expect(
+    (
+      await client.call("read_drive_file", {
+        fileId: file.id,
+        roleIds: [DRIVE_ROLE_MAPPINGS[0].roleId],
+      })
+    ).status,
+  ).toBe("unavailable");
+  expect(calls).toHaveLength(before);
 });

@@ -245,10 +245,35 @@ container after changing it. Missing, malformed, or foreign credentials disable
 the tools.
 
 Tools are limited to guild `1514899496797212683`, absent in DMs and other guilds,
-and available to the bot owner by default. Set `MINISAGO_GOOGLE_DRIVE_ACCESS=guild`
-only when every chatbot user in that server is authorized to retrieve these
-documents, including finance and court material. Existing chatbot access rules
-still apply. Answers appear in the invoking Discord channel.
+and require `MINISAGO_GOOGLE_DRIVE_ACCESS=roles`. Other values disable the tools.
+The host fetches the requester's current Discord membership before each tool
+call and document-media read. The model cannot supply a guild, requester, or
+role list. The bot owner has no role bypass. Existing chatbot access rules
+still apply.
+
+Google group permissions are matched by their stable permission IDs:
+
+| Google group          | Discord role | Role ID               |
+| --------------------- | ------------ | --------------------- |
+| `sa-exec@nthusa.tw`   | 部長         | `1514899497199861863` |
+| `sa-event@nthusa.tw`  | 活動         | `1514899497187147824` |
+| `sa-media@nthusa.tw`  | 社群         | `1514899497199861861` |
+| `sa-rights@nthusa.tw` | 學權         | `1514899497187147825` |
+| `sa-it@nthusa.tw`     | 資訊         | `1514899497187147822` |
+
+By the server owner's policy, **an active, readable Google group without one
+of these mappings grants bot access to every member of this guild**. This also
+applies to newly added unmapped groups. Individual-user grants (including the
+service account), domain grants, and public-link grants do not grant Discord
+access. A requester needs any one effective group grant. Replies remain in
+the invoking channel; channel audience roles are not checked.
+
+Drive catalog entries, each search result, direct reads, and cached document
+downloads check the item's current Google permissions. Denied search results
+are omitted while pagination is retained. Permission-list errors fail closed;
+expired, deleted, metadata-only, and disabled inherited grants do not authorize
+document access. Limited-access folders require an effective direct grant or
+organizer/owner access, following Google's permission response.
 
 Search one drive at a time; it includes nested folders unless `parentId` is given.
 Follow pagination tokens, including empty pages. Each direct read verifies the

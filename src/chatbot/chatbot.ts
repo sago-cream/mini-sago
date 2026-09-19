@@ -3,6 +3,7 @@ import { searchThreads } from "./threads-search";
 import { randomUUID } from "node:crypto";
 
 import { createGoogleDriveClient } from "./google-drive";
+import { resolveDriveRequester } from "./drive-discord-access";
 import { createGoogleCalendarClient } from "./google-calendar";
 import type { ChatbotAccessConfig } from "./access";
 import {
@@ -1234,7 +1235,14 @@ export async function handleChatbotMention({
         process.env,
         {
           guildId: message.guild_id,
-          isOwner: requesterUserId === accessConfig.ownerUserId,
+          resolveRequester: () =>
+            resolveDriveRequester(
+              {
+                guildId: message.guild_id!,
+                requesterId: requesterUserId,
+              },
+              discordRequest,
+            ),
         },
         mediaRegistry,
       );
