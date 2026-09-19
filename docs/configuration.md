@@ -161,24 +161,63 @@ Google requests to 學生會辦空間登記
 (`c_14bf5641071c6089c46061dda50e795027b7bd66885861a4f6d0a72a68cd3703@group.calendar.google.com`)
 and uses `Asia/Taipei`. Existing chatbot access policy still applies.
 
-The dedicated identity is
-`discord-calendar@nthusa-discord-calendar.iam.gserviceaccount.com`, in project
-`nthusa-discord-calendar`. It receives **Make changes to events** on this calendar
-only. It has no project IAM roles or domain-wide delegation and does not
-impersonate `admin@nthusa.tw`. The token requests only `calendar.events` access.
+The booking identity is `nthusa@gapp.nthu.edu.tw`, authorized through the
+`discord-calendar` Desktop OAuth client in project `nthusa-discord-calendar`.
+It needs event-edit permission on the shared calendar. The host verifies its
+Google email before using a token and requests `openid`, `email`, and
+`https://www.googleapis.com/auth/calendar.events`. It does not impersonate an
+administrator or use domain-wide delegation.
 
-Set `MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON` in
-`/srv/sago-cloud/secrets/bot-core.env` to the complete downloaded service-account
-JSON serialized on one line (PEM newlines remain escaped inside JSON). Restore
-it from the encrypted notes in Vaultwarden (`safe.nthusa.tw`), entry
-**discord-calendar**. Recreate the host container after updating credentials.
-Never put the key in the worker environment, source code, logs, or Discord
-messages. Invalid or missing credentials leave the calendar tools unavailable.
+Set `MINISAGO_GOOGLE_CALENDAR_OAUTH_JSON` in
+`/srv/sago-cloud/secrets/bot-core.env` to one-line JSON containing `client_id`,
+`client_secret`, and `refresh_token`. Keep the full recovery JSON in Vaultwarden
+(`safe.nthusa.tw`), entry **discord-calendar**, and verify that the saved copy can
+be restored. Recreate the host container after updating credentials. Never put
+credentials in the worker environment, source code, logs, or Discord messages.
+Malformed OAuth credentials fail closed; the host does not silently switch
+identities.
 
-Follow the existing application-based account naming: a lowercase, hyphenated
-application name, such as `nthu-chatbot` or `discord-calendar`, in its dedicated
-project. Keep one active runtime key with a verified Vaultwarden recovery copy.
-When rotating, install and verify the replacement before deleting the old key.
+For initial authorization or recovery, set the OAuth audience to External and
+publishing status to Production before authorizing the account. External Testing
+mode expires calendar authorizations after seven days. The app information and
+privacy URLs are `https://bot.hsichen.dev/calendar` and
+`https://bot.hsichen.dev/calendar/privacy`. Download the Desktop client JSON from
+Google Cloud and run on a trusted local computer:
+
+```sh
+bun scripts/calendar-authorize.mjs /path/to/client.json /path/to/calendar-oauth.json
+```
+
+Open the printed Google authorization URL and select `nthusa@gapp.nthu.edu.tw`.
+The script uses a temporary loopback listener, state, and PKCE, checks the account
+and granted scope, and writes a private recovery file without printing tokens.
+Back it up in Vaultwarden before installing it on the host. A returned
+`refresh_token_expires_in` needs investigation before production deployment.
+Production removes the Testing-specific seven-day expiry; account policies and
+revocation can still require reauthorization.
+
+When OAuth is absent, `MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON` supports
+bookings without adding guests using
+`discord-calendar@nthusa-discord-calendar.iam.gserviceaccount.com`. This mode
+uses a fixed service-account identity with no project IAM roles or delegation.
+After a verified OAuth migration, remove that environment value and revoke its
+unused key; keep the key-creation organization restriction enforced.
+
+Create and edit tools post an immutable preview in the originating Discord
+channel. Only the requester can confirm or cancel, in that same guild and
+channel. No calendar write or invitation happens before confirmation. Drafts
+expire after 15 minutes and survive a host restart in `calendar-drafts.json`
+beside `MINISAGO_REMINDER_STATE_FILE`; `MINISAGO_CALENDAR_DRAFTS_FILE` overrides
+the path. Use persistent storage. Cancelled and completed previews cannot be
+executed again. A failed creation retries with the original operation key.
+
+Guest addresses must be supplied or explicitly selected by the user. Up to 50
+unique email addresses are supported, subject to the Discord preview length.
+Editing `attendees` replaces the list; omission preserves it and `[]` removes
+it. Confirmed writes use `sendUpdates=all`, which asks Google to send invitations
+and updates. Delivery and automatic addition to guests' calendars depend on
+Google and recipient settings. The preview shows existing guests for edits;
+large events that cannot be fully previewed must be edited in Google Calendar.
 
 Creation supports one-off timed and all-day events. All-day end dates are
 exclusive. A stable operation key within the originating Discord message

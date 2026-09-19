@@ -116,6 +116,7 @@ describe("Google Calendar host client", () => {
       return json({
         items: [
           { id: "event1", attendees: [{ email: "private@example.com" }] },
+          { id: "event2", attendees: [{ email: "private2@example.com" }] },
         ],
         nextPageToken: "more",
       });
@@ -127,7 +128,7 @@ describe("Google Calendar host client", () => {
     });
     expect(result).toEqual({
       status: "complete",
-      events: [{ id: "event1" }],
+      events: [{ id: "event1" }, { id: "event2" }],
       nextPageToken: "more",
     });
     await client.call("get_calendar_event", { eventId: "../../other" });
@@ -316,4 +317,104 @@ test("rejects malformed keys, foreign identities, and legacy admin credentials",
       context,
     ),
   ).toBeUndefined();
+});
+
+test("OAuth invitations use the selected user and preserve guest lists when omitted", async () => {
+  const calls: { url: string; init: RequestInit }[] = [];
+  let email = "nthusa@gapp.nthu.edu.tw";
+  const request = (async (url: unknown, init: RequestInit = {}) => {
+    calls.push({ url: String(url), init });
+    if (String(url) === "https://oauth2.googleapis.com/token")
+      return json({ access_token: "oauth-access", expires_in: 3600 });
+    if (String(url) === "https://openidconnect.googleapis.com/v1/userinfo")
+      return json({ email, email_verified: true });
+    if (init.method === "POST" || init.method === "PATCH")
+      return json({ id: "event1", ...JSON.parse(String(init.body)) });
+    return json({
+      id: "event1",
+      etag: "v1",
+      attendees: [
+        { email: "existing@example.com", responseStatus: "accepted" },
+      ],
+    });
+  }) as typeof fetch;
+  const oauthEnv = {
+    MINISAGO_GOOGLE_CALENDAR_OAUTH_JSON: JSON.stringify({
+      client_id: "test.apps.googleusercontent.com",
+      client_secret: "secret",
+      refresh_token: "refresh",
+    }),
+  };
+  const client = createGoogleCalendarClient(oauthEnv, context, request)!;
+  expect(
+    (
+      await client.call("create_calendar_event", {
+        ...creation,
+        attendees: ["guest@example.com"],
+      })
+    ).status,
+  ).toBe("complete");
+  expect((calls[0].init.body as URLSearchParams).get("grant_type")).toBe(
+    "refresh_token",
+  );
+  expect((calls[0].init.body as URLSearchParams).has("assertion")).toBe(false);
+  const post = calls.find(
+    (c) => c.init.method === "POST" && c.url.includes("calendar/v3"),
+  )!;
+  expect(JSON.parse(String(post.init.body)).attendees).toEqual([
+    { email: "guest@example.com" },
+  ]);
+  expect(post.url).toContain("sendUpdates=all");
+  const event: any = await client.call("get_calendar_event", {
+    eventId: "event1",
+  });
+  expect(event.event.attendees).toEqual([
+    { email: "existing@example.com", responseStatus: "accepted" },
+  ]);
+  await client.call("edit_calendar_event", {
+    eventId: "event1",
+    etag: "v1",
+    title: "Updated",
+  });
+  expect(
+    JSON.parse(String(calls.find((c) => c.init.method === "PATCH")!.init.body))
+      .attendees,
+  ).toBeUndefined();
+  email = "admin@nthusa.tw";
+  const wrong = createGoogleCalendarClient(oauthEnv, context, request)!;
+  const before = calls.filter((c) => c.url.includes("calendar/v3")).length;
+  expect((await wrong.call("create_calendar_event", creation)).status).toBe(
+    "unavailable",
+  );
+  expect(calls.filter((c) => c.url.includes("calendar/v3"))).toHaveLength(
+    before,
+  );
+});
+
+test("rejects malformed OAuth without falling back and refuses service-account guest invitations", async () => {
+  expect(
+    createGoogleCalendarClient(
+      { ...env, MINISAGO_GOOGLE_CALENDAR_OAUTH_JSON: "{}" },
+      context,
+    ),
+  ).toBeUndefined();
+  const { client, calls } = fixture(() => json({}));
+  expect(
+    (
+      await client.call("create_calendar_event", {
+        ...creation,
+        attendees: ["guest@example.com"],
+      })
+    ).status,
+  ).toBe("unavailable");
+  expect(calls).toHaveLength(0);
+  for (const attendees of [
+    ["invalid"],
+    ["a@example.com", "A@example.com"],
+    Array.from({ length: 51 }, (_, i) => `${i}@example.com`),
+  ])
+    expect(
+      (await client.call("create_calendar_event", { ...creation, attendees }))
+        .status,
+    ).toBe("unavailable");
 });

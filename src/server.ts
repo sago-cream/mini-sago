@@ -1,4 +1,5 @@
 import { handleVoiceDebugRequest } from "./discord/voice-debug/http";
+import { handleCalendarPage } from "./chatbot/calendar-pages";
 import type { Server } from "bun";
 
 import { getChatbotAccessConfig } from "./chatbot/access";
@@ -62,6 +63,8 @@ function buildHealthResponse() {
 
 function handleRequest(request: Request, server: Server<MacAgentSocketData>) {
   const { pathname } = new URL(request.url);
+  const calendarPage = handleCalendarPage(request);
+  if (calendarPage) return calendarPage;
 
   if (
     pathname === "/voice-debug" ||

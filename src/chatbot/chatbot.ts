@@ -1,3 +1,4 @@
+import { withCalendarConfirmation } from "./calendar-confirmation";
 import { searchThreads } from "./threads-search";
 import { randomUUID } from "node:crypto";
 
@@ -1240,7 +1241,20 @@ export async function handleChatbotMention({
       mcpSession = registerChatbotMcpSession({
         searchThreads,
         mediaRegistry,
-        ...(calendar ? { calendar } : {}),
+        ...(calendar
+          ? {
+              calendar: withCalendarConfirmation(
+                calendar,
+                {
+                  guildId: message.guild_id,
+                  channelId: message.channel_id,
+                  messageId: message.id,
+                  requesterId: requesterUserId,
+                },
+                discordRequest,
+              ),
+            }
+          : {}),
         ...(drive ? { drive } : {}),
         getCodexUsage: () => workflow.getCodexUsage(),
         ...(quietTracker

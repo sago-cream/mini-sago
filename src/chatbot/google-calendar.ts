@@ -6,6 +6,12 @@ export const CALENDAR_ID =
   "c_14bf5641071c6089c46061dda50e795027b7bd66885861a4f6d0a72a68cd3703@group.calendar.google.com";
 export const CALENDAR_SERVICE_ACCOUNT =
   "discord-calendar@nthusa-discord-calendar.iam.gserviceaccount.com";
+export const CALENDAR_USER_ACCOUNT = "nthusa@gapp.nthu.edu.tw";
+const oauthSchema = z.object({
+  client_id: z.string().endsWith(".apps.googleusercontent.com"),
+  client_secret: z.string().min(1),
+  refresh_token: z.string().min(1),
+});
 const timezone = "Asia/Taipei";
 const serviceAccountSchema = z.object({
   type: z.literal("service_account"),
@@ -31,6 +37,14 @@ const fields = {
   description: z.string().max(8000),
   location: z.string().max(1000),
   schedule,
+  attendees: z
+    .array(z.email().max(254))
+    .max(50)
+    .refine(
+      (values) =>
+        new Set(values.map((v) => v.toLowerCase())).size === values.length,
+      "Remove duplicate email addresses.",
+    ),
 };
 export const calendarSchemas = {
   list_calendar_events: z
@@ -53,6 +67,7 @@ export const calendarSchemas = {
   create_calendar_event: z
     .object({
       ...fields,
+      attendees: fields.attendees.optional(),
       description: fields.description.optional(),
       location: fields.location.optional(),
       operationKey: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/u),
@@ -66,13 +81,18 @@ export const calendarSchemas = {
       description: fields.description.optional(),
       location: fields.location.optional(),
       schedule: fields.schedule.optional(),
+      attendees: fields.attendees.optional(),
     })
     .strict()
     .refine(
       (input) =>
-        [input.title, input.description, input.location, input.schedule].some(
-          (value) => value !== undefined,
-        ),
+        [
+          input.title,
+          input.description,
+          input.location,
+          input.schedule,
+          input.attendees,
+        ].some((value) => value !== undefined),
       { message: "Provide at least one changed field." },
     ),
 };
@@ -83,41 +103,59 @@ export const calendarDescriptions: Record<CalendarToolName, string> = {
   get_calendar_event:
     "Read an event and its etag before editing. Recurring occurrences can be edited individually; whole recurring series cannot be edited with these tools.",
   create_calendar_event:
-    "Create a one-off event in 學生會辦空間登記 when requested. Use timed RFC3339 timestamps with offsets or all_day dates with an exclusive end date. Use a distinct operationKey for each requested event and reuse that key unchanged on retries. Check existing bookings first; overlaps are allowed by Google Calendar.",
+    "Prepare a one-off booking preview in 學生會辦空間登記. The host posts Confirm/Cancel buttons; only the requester can confirm, and nothing is saved or sent before that click. Tell the user to review the preview and click Confirm; never claim it is already booked. Include attendee emails only when supplied or explicitly selected by the user; never guess emails. Use timed RFC3339 timestamps with offsets or all_day dates with an exclusive end date. Use a distinct operationKey for each requested event and reuse that key unchanged on retries. Check existing bookings first; overlaps are allowed by Google Calendar.",
   edit_calendar_event:
-    "Edit an explicitly requested event using its latest etag from get_calendar_event. Omitted fields stay unchanged; empty description/location clears them. All-day end dates are exclusive. Edits to an individual recurring occurrence are allowed; whole series edits are unsupported. Existing guests are notified of changes. On conflict, reread and reconcile before retrying.",
+    "Prepare an edit preview for the requester to confirm with the posted Discord button before any calendar change or invitation is sent. Do not claim completion before confirmation. Use the latest etag from get_calendar_event. Attendees replaces the guest list; omitted preserves guests, empty removes them. Never guess email addresses. Omitted fields stay unchanged; empty description/location clears them. All-day end dates are exclusive. Edits to an individual recurring occurrence are allowed; whole series edits are unsupported. Existing guests are notified of changes. On conflict, reread and reconcile before retrying.",
 };
 type CalendarEvent = Record<string, any>;
-function compact(event: CalendarEvent) {
-  return Object.fromEntries(
-    [
-      "id",
-      "etag",
-      "summary",
-      "description",
-      "location",
-      "start",
-      "end",
-      "status",
-      "htmlLink",
-      "recurrence",
-      "recurringEventId",
-      "originalStartTime",
-    ]
-      .filter((key) => event[key] !== undefined)
-      .map((key) => [
-        key,
-        typeof event[key] === "string" ? event[key].slice(0, 8000) : event[key],
-      ]),
-  );
+function compact(event: CalendarEvent, includeAttendees = false) {
+  return {
+    ...Object.fromEntries(
+      [
+        "id",
+        "etag",
+        "summary",
+        "description",
+        "location",
+        "start",
+        "end",
+        "status",
+        "htmlLink",
+        "recurrence",
+        "recurringEventId",
+        "originalStartTime",
+      ]
+        .filter((key) => event[key] !== undefined)
+        .map((key) => [
+          key,
+          typeof event[key] === "string"
+            ? event[key].slice(0, 8000)
+            : event[key],
+        ]),
+    ),
+    ...(includeAttendees && Array.isArray(event.attendees)
+      ? {
+          attendeeCount: event.attendees.length,
+          attendees: event.attendees
+            .slice(0, 50)
+            .map((guest: CalendarEvent) => ({
+              email: guest.email,
+              responseStatus: guest.responseStatus,
+            })),
+        }
+      : {}),
+  };
 }
 function eventFields(input: {
   title?: string;
   description?: string;
   location?: string;
   schedule?: z.infer<typeof schedule>;
+  attendees?: string[];
 }) {
   const result: CalendarEvent = {};
+  if (input.attendees !== undefined)
+    result.attendees = input.attendees.map((email) => ({ email }));
   if (input.title !== undefined) result.summary = input.title;
   if (input.description !== undefined) result.description = input.description;
   if (input.location !== undefined) result.location = input.location;
@@ -143,13 +181,18 @@ export function createGoogleCalendarClient(
 ) {
   if (context.guildId !== CALENDAR_GUILD_ID) return undefined;
   const configured = env.MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON;
-  if (!configured) return undefined;
-  let credentials: z.infer<typeof serviceAccountSchema>;
-  let privateKey: ReturnType<typeof createPrivateKey>;
+  const oauthConfigured = env.MINISAGO_GOOGLE_CALENDAR_OAUTH_JSON;
+  if (!configured && !oauthConfigured) return undefined;
+  let oauth: z.infer<typeof oauthSchema> | undefined;
+  let credentials: z.infer<typeof serviceAccountSchema> | undefined;
+  let privateKey: ReturnType<typeof createPrivateKey> | undefined;
   try {
-    credentials = serviceAccountSchema.parse(JSON.parse(configured));
-    privateKey = createPrivateKey(credentials.private_key);
-    if (privateKey.asymmetricKeyType !== "rsa") return undefined;
+    if (oauthConfigured) oauth = oauthSchema.parse(JSON.parse(oauthConfigured));
+    else {
+      credentials = serviceAccountSchema.parse(JSON.parse(configured!));
+      privateKey = createPrivateKey(credentials.private_key);
+      if (privateKey.asymmetricKeyType !== "rsa") return undefined;
+    }
   } catch {
     return undefined;
   }
@@ -159,30 +202,39 @@ export function createGoogleCalendarClient(
     if (token && token.expires > Date.now() + 60000) return token.value;
     if (refreshing) return refreshing;
     refreshing = (async () => {
-      const issuedAt = Math.floor(Date.now() / 1000);
-      const encode = (value: unknown) =>
-        Buffer.from(JSON.stringify(value)).toString("base64url");
-      const unsigned = `${encode({ alg: "RS256", typ: "JWT", kid: credentials.private_key_id })}.${encode(
-        {
-          iss: credentials.client_email,
-          scope: "https://www.googleapis.com/auth/calendar.events",
-          aud: "https://oauth2.googleapis.com/token",
-          iat: issuedAt,
-          exp: issuedAt + 3600,
-        },
-      )}`;
-      const assertion = `${unsigned}.${sign("RSA-SHA256", Buffer.from(unsigned), privateKey).toString("base64url")}`;
-      const response = await request("https://oauth2.googleapis.com/token", {
-        method: "POST",
-        body: new URLSearchParams({
+      let parameters: URLSearchParams;
+      if (oauth)
+        parameters = new URLSearchParams({
+          ...oauth,
+          grant_type: "refresh_token",
+        });
+      else {
+        const issuedAt = Math.floor(Date.now() / 1000);
+        const encode = (value: unknown) =>
+          Buffer.from(JSON.stringify(value)).toString("base64url");
+        const unsigned = `${encode({ alg: "RS256", typ: "JWT", kid: credentials!.private_key_id })}.${encode(
+          {
+            iss: credentials!.client_email,
+            scope: "https://www.googleapis.com/auth/calendar.events",
+            aud: "https://oauth2.googleapis.com/token",
+            iat: issuedAt,
+            exp: issuedAt + 3600,
+          },
+        )}`;
+        const assertion = `${unsigned}.${sign("RSA-SHA256", Buffer.from(unsigned), privateKey!).toString("base64url")}`;
+        parameters = new URLSearchParams({
           assertion,
           grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-        }),
+        });
+      }
+      const response = await request("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        body: parameters,
         signal: AbortSignal.timeout(15000),
       });
       if (!response.ok)
         throw new CalendarError(
-          "Calendar authorization unavailable; an administrator must check the saved service-account credentials.",
+          "Calendar authorization unavailable; an administrator must check the saved calendar credentials.",
         );
       const data = (await response.json()) as Record<string, unknown>;
       if (
@@ -192,6 +244,25 @@ export function createGoogleCalendarClient(
         throw new CalendarError(
           "Calendar authorization returned an invalid response.",
         );
+      if (oauth) {
+        const identity = await request(
+          "https://openidconnect.googleapis.com/v1/userinfo",
+          {
+            headers: { Authorization: `Bearer ${data.access_token}` },
+            signal: AbortSignal.timeout(15000),
+          },
+        );
+        const user = identity.ok
+          ? ((await identity.json()) as Record<string, unknown>)
+          : {};
+        if (
+          user.email !== CALENDAR_USER_ACCOUNT ||
+          user.email_verified !== true
+        )
+          throw new CalendarError(
+            "Calendar authorization belongs to the wrong account. Reconnect the dedicated booking user.",
+          );
+      }
       token = {
         value: data.access_token,
         expires: Date.now() + data.expires_in * 1000,
@@ -222,7 +293,7 @@ export function createGoogleCalendarClient(
   async function body(response: Response): Promise<CalendarEvent> {
     if (!response.ok) {
       const errors: Record<number, string> = {
-        401: "Calendar authorization expired. Ask an administrator to check the service-account key and calendar sharing.",
+        401: "Calendar authorization expired. Ask an administrator to check the calendar authorization and sharing.",
         403: "Calendar access denied. Ask an administrator to check access or quota.",
         404: "Calendar event not found.",
         409: "This operationKey already belongs to a different event request. Read the existing booking before continuing.",
@@ -257,7 +328,9 @@ export function createGoogleCalendarClient(
           const data = await body(await api(`?${params}`));
           return {
             status: "complete",
-            events: (data.items ?? []).map(compact),
+            events: (data.items ?? []).map((event: CalendarEvent) =>
+              compact(event),
+            ),
             nextPageToken: data.nextPageToken,
           };
         }
@@ -265,11 +338,15 @@ export function createGoogleCalendarClient(
           const input = calendarSchemas.get_calendar_event.parse(raw);
           return {
             status: "complete",
-            event: compact(await body(await api(`/${input.eventId}`))),
+            event: compact(await body(await api(`/${input.eventId}`)), true),
           };
         }
         if (name === "create_calendar_event") {
           const input = calendarSchemas.create_calendar_event.parse(raw);
+          if (input.attendees?.length && !oauth)
+            throw new CalendarError(
+              "Invitations require the dedicated booking user to be connected.",
+            );
           const event = eventFields(input);
           const id = digest(
             `${context.guildId}:${context.messageId}:${input.operationKey}`,
@@ -302,6 +379,10 @@ export function createGoogleCalendarClient(
           return { status: "complete", event: compact(await body(response)) };
         }
         const input = calendarSchemas.edit_calendar_event.parse(raw);
+        if (input.attendees !== undefined && !oauth)
+          throw new CalendarError(
+            "Invitations require the dedicated booking user to be connected.",
+          );
         const existing = await body(await api(`/${input.eventId}`));
         if (existing.etag !== input.etag)
           throw new CalendarError(

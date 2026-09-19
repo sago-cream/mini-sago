@@ -12,6 +12,7 @@ export type DiscordApplicationCommandInteraction = {
   channel_id?: string;
   guild_id?: string;
   data?: {
+    custom_id?: string;
     type?: number;
     name?: string;
     options?: Array<{

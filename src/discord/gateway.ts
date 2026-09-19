@@ -1,3 +1,4 @@
+import { handleCalendarConfirmation } from "../chatbot/calendar-confirmation";
 import {
   getInstagramReplyUrls,
   getSocialLinkReplacement,
@@ -442,6 +443,15 @@ class InstagramGatewayClient implements VoiceGateway {
   private async handleInteractionCreate(
     interaction: DiscordApplicationCommandInteraction,
   ) {
+    try {
+      if (await handleCalendarConfirmation(interaction, this.discordRequest))
+        return;
+    } catch {
+      console.error(
+        `Calendar confirmation failed for interaction ${interaction.id}.`,
+      );
+      return;
+    }
     const prompt = getAskPrompt(interaction);
     if (!prompt || !interaction.channel_id) return;
 
