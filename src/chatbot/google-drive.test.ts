@@ -154,6 +154,54 @@ test("search escapes user text, paginates within one drive, and filters foreign 
   });
   expect(result.files).toHaveLength(1);
 });
+test("search and folder reads expose actual ancestry across different drive layouts", async () => {
+  const otherDriveId = Object.keys(APPROVED_DRIVES)[1]!;
+  const folders = [
+    { ...file, id: "folder_35", name: "35", parents: [driveId] },
+    {
+      ...file,
+      id: "folder_minutes",
+      name: "會議紀錄",
+      driveId: otherDriveId,
+      parents: [otherDriveId],
+    },
+  ].map((folder) => ({
+    ...folder,
+    mimeType: "application/vnd.google-apps.folder",
+    capabilities: { canDownload: false },
+  }));
+  const { client, calls } = fixture((url) => {
+    expect(url.searchParams.get("fields")).toContain("parents");
+    if (url.pathname === "/drive/v3/files") {
+      const selected = folders.find(
+        (folder) => folder.driveId === url.searchParams.get("driveId"),
+      )!;
+      expect(url.searchParams.get("q")).toBe("trashed = false");
+      return Response.json({
+        files: [{ ...file, driveId: selected.driveId, parents: [selected.id] }],
+      });
+    }
+    const folder = folders.find((f) => url.pathname.endsWith(`/${f.id}`));
+    expect(folder).toBeDefined();
+    return Response.json(folder);
+  });
+  for (const folder of folders) {
+    const result = await client.call("search_drive_files", {
+      driveId: folder.driveId,
+    });
+    expect(result).toMatchObject({
+      status: "complete",
+      files: [{ parentIds: [folder.id] }],
+    });
+    expect(
+      await client.call("read_drive_file", { fileId: folder.id }),
+    ).toMatchObject({
+      status: "folder",
+      file: { name: folder.name, parentIds: [folder.driveId] },
+    });
+  }
+  expect(calls).toHaveLength(5);
+});
 test("invalid inputs cannot select foreign drives, raw queries, URLs or API endpoints", async () => {
   const { client, calls } = fixture(() => {
     throw new Error("unexpected");

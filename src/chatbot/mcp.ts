@@ -13,6 +13,7 @@ import {
 import {
   driveSchemas,
   driveDescriptions,
+  driveContextDescription,
   type DriveToolName,
   type GoogleDriveClient,
 } from "./google-drive";
@@ -548,7 +549,8 @@ function availableCapabilities(
       category: "context",
       availability: "available",
       description:
-        "Search approved NTHUSA shared drives and read meeting minutes with source links.",
+        "Search approved NTHUSA shared drives and read meeting minutes with source links. " +
+        driveContextDescription,
       tools: Object.keys(driveSchemas),
     });
   }
