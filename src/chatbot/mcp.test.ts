@@ -1106,3 +1106,49 @@ test("exposes on-demand Threads search and validates extra keywords", async () =
   await client.close();
   session.revoke();
 });
+
+test("Drive tools are conditional, read-only, and preserve strict schemas through MCP", async () => {
+  const emptySession = registerChatbotMcpSession(handlers());
+  const absent = await connect(emptySession.token);
+  expect(
+    (await absent.listTools()).tools.some((t) => t.name.includes("drive")),
+  ).toBe(false);
+  const calls: unknown[] = [];
+  const session = registerChatbotMcpSession({
+    ...handlers(),
+    drive: {
+      call: async (name, input) => {
+        calls.push({ name, input });
+        return { status: "complete" };
+      },
+    },
+  });
+  expect(
+    session.capabilities.find((c) => c.id === "nthusa_drive")?.tools,
+  ).toHaveLength(3);
+  const client = await connect(session.token);
+  const listing = (await client.listTools()).tools.filter((t) =>
+    t.name.includes("drive"),
+  );
+  expect(listing).toHaveLength(3);
+  for (const tool of listing)
+    expect(tool.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+    });
+  await client.callTool({
+    name: "read_drive_file",
+    arguments: { fileId: "file_1" },
+  });
+  expect(calls).toHaveLength(1);
+  const bad = await client.callTool({
+    name: "read_drive_file",
+    arguments: { fileId: "file_1", url: "https://evil.test" },
+  });
+  expect(bad.isError).toBe(true);
+  expect(calls).toHaveLength(1);
+  await client.close();
+  await absent.close();
+  session.revoke();
+  emptySession.revoke();
+});

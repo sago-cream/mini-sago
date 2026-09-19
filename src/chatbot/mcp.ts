@@ -10,6 +10,12 @@ import {
   type CalendarToolName,
   type GoogleCalendarClient,
 } from "./google-calendar";
+import {
+  driveSchemas,
+  driveDescriptions,
+  type DriveToolName,
+  type GoogleDriveClient,
+} from "./google-drive";
 import { CHATBOT_CONTEXT_LIMITS } from "./context-limits";
 import {
   budgetMessages,
@@ -414,6 +420,7 @@ export type ChatbotMcpSessionHandlers = {
   searchThreads?: (input: {
     additionalKeywords?: string[];
   }) => Promise<Record<string, unknown>>;
+  drive?: GoogleDriveClient;
   readTripPlan?: (input: TripPlanReadInput) => Promise<Record<string, unknown>>;
   editTripPlan?: (input: TripPlanEditInput) => Promise<Record<string, unknown>>;
 };
@@ -533,6 +540,16 @@ function availableCapabilities(
       description:
         "Proactively remember, correct, consolidate, or forget durable knowledge about the current Discord server, especially when a member teaches you something.",
       tools: ["manage_server_memory"],
+    });
+  }
+  if (handlers.drive) {
+    capabilities.push({
+      id: "nthusa_drive",
+      category: "context",
+      availability: "available",
+      description:
+        "Search approved NTHUSA shared drives and read meeting minutes with source links.",
+      tools: Object.keys(driveSchemas),
     });
   }
   if (handlers.calendar) {
@@ -804,6 +821,26 @@ function createServer(session: ChatbotMcpSession) {
           currentReply: "suppressed",
         }),
     );
+  }
+
+  if (session.handlers.drive) {
+    for (const name of Object.keys(driveSchemas) as DriveToolName[]) {
+      server.registerTool(
+        name,
+        {
+          description: driveDescriptions[name],
+          inputSchema: driveSchemas[name],
+          annotations: {
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: true,
+          },
+        },
+        async (input: unknown) =>
+          toolResult(await session.handlers.drive!.call(name, input)),
+      );
+    }
   }
 
   if (session.handlers.calendar) {

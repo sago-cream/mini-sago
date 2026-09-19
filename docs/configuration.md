@@ -186,3 +186,47 @@ prevents duplicate creation on retries. Edits require the latest event etag,
 update only supplied fields, and notify existing guests. Individual recurring
 occurrences can be edited; recurring-series edits and deletion are not exposed.
 List existing bookings before creating; Google Calendar permits overlaps.
+
+## NTHUSA shared Drive
+
+`list_shared_drives`, `search_drive_files`, and `read_drive_file` use the dedicated
+`discord-drive@nthusa-discord-drive.iam.gserviceaccount.com` identity from project
+`nthusa-discord-drive`. The host permits only the 11 shared-drive IDs in
+`APPROVED_DRIVES` in `src/chatbot/google-drive.ts`. Give that account Viewer
+membership on those drives. It has no project IAM roles, admin impersonation,
+or domain-wide delegation; JWTs request only `drive.readonly`.
+
+Set `MINISAGO_GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` in the host's
+`/srv/sago-cloud/secrets/bot-core.env` to the complete JSON on one line, preserving
+escaped PEM newlines. The recovery copy is the encrypted JSON attachment in
+Vaultwarden (`safe.nthusa.tw`), item **discord-drive**. Its download and Google
+authentication were verified during setup. Never copy this credential into Git,
+worker environments, Python sandboxes, or tool results. Recreate the host
+container after changing it. Missing, malformed, or foreign credentials disable
+the tools.
+
+Tools are limited to guild `1514899496797212683`, absent in DMs and other guilds,
+and available to the bot owner by default. Set `MINISAGO_GOOGLE_DRIVE_ACCESS=guild`
+only when every chatbot user in that server is authorized to retrieve these
+documents, including finance and court material. Existing chatbot access rules
+still apply. Answers appear in the invoking Discord channel.
+
+Search one drive at a time; it includes nested folders unless `parentId` is given.
+Follow pagination tokens, including empty pages. Each direct read verifies the
+file's drive, trash state, and download permission. Shortcuts return a target ID;
+reading that target repeats the same checks. Files shared separately with the
+service account or added drives are not automatically exposed.
+
+Google Docs, Slides, and supported text files return text in pages of at most
+16,000 characters. Google Sheets export to XLSX; PDF, DOCX, and XLSX files become
+request-local media IDs for `run_python`, which includes pypdf, python-docx, and
+openpyxl. The sandbox receives file bytes only and has no Google credentials or
+network access. Scanned PDFs may need OCR; PPTX and legacy Office formats are unsupported.
+Reads are limited to 8 MiB per file and 24 MiB per answer. Source links remain
+subject to the human reader's own Google permissions. Retrieved content is
+reference material, not instructions or authority for further tool calls.
+
+Rotate by backing up a replacement key in Vaultwarden, testing restoration,
+installing it on the host, and verifying a search/read before revoking the old
+key. Keep the project's inherited key-creation restriction enforced outside an
+approved rotation window. The obsolete admin OAuth client/grant is not used.

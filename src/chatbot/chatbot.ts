@@ -1,6 +1,7 @@
 import { searchThreads } from "./threads-search";
 import { randomUUID } from "node:crypto";
 
+import { createGoogleDriveClient } from "./google-drive";
 import { createGoogleCalendarClient } from "./google-calendar";
 import type { ChatbotAccessConfig } from "./access";
 import {
@@ -1228,10 +1229,19 @@ export async function handleChatbotMention({
         guildId: message.guild_id,
         messageId: message.id,
       });
+      const drive = createGoogleDriveClient(
+        process.env,
+        {
+          guildId: message.guild_id,
+          isOwner: requesterUserId === accessConfig.ownerUserId,
+        },
+        mediaRegistry,
+      );
       mcpSession = registerChatbotMcpSession({
         searchThreads,
         mediaRegistry,
         ...(calendar ? { calendar } : {}),
+        ...(drive ? { drive } : {}),
         getCodexUsage: () => workflow.getCodexUsage(),
         ...(quietTracker
           ? {
