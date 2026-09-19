@@ -162,18 +162,24 @@ Google requests to 學生會辦空間登記
 (`c_14bf5641071c6089c46061dda50e795027b7bd66885861a4f6d0a72a68cd3703@group.calendar.google.com`)
 and uses `Asia/Taipei`. Existing chatbot access policy still applies.
 
-Set these host-only variables in `/srv/sago-cloud/secrets/bot-core.env`:
+The dedicated identity is
+`discord-calendar@nthusa-discord-calendar.iam.gserviceaccount.com`, in project
+`nthusa-discord-calendar`. It receives **Make changes to events** on this calendar
+only. It has no project IAM roles or domain-wide delegation and does not
+impersonate `admin@nthusa.tw`. The token requests only `calendar.events` access.
 
-- `MINISAGO_GOOGLE_CALENDAR_CLIENT_ID`
-- `MINISAGO_GOOGLE_CALENDAR_CLIENT_SECRET`
-- `MINISAGO_GOOGLE_CALENDAR_REFRESH_TOKEN`
+Set `MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON` in
+`/srv/sago-cloud/secrets/bot-core.env` to the complete downloaded service-account
+JSON serialized on one line (PEM newlines remain escaped inside JSON). Restore
+it from the encrypted notes in Vaultwarden (`safe.nthusa.tw`), entry
+**discord-calendar**. Recreate the host container after updating credentials.
+Never put the key in the worker environment, source code, logs, or Discord
+messages. Invalid or missing credentials leave the calendar tools unavailable.
 
-Restore all three from the encrypted notes in Vaultwarden (`safe.nthusa.tw`),
-entry **discord-calendar**. The Google Cloud project is
-`nthusa-discord-calendar`; OAuth belongs to `admin@nthusa.tw`. The internal OAuth
-app uses `calendar.events.owned` and `calendar.calendarlist.readonly` scopes.
-Restart/recreate the host container after updating credentials. Never put these
-values in the worker environment, source code, logs, or Discord messages.
+Follow the existing application-based account naming: a lowercase, hyphenated
+application name, such as `nthu-chatbot` or `discord-calendar`, in its dedicated
+project. Keep one active runtime key with a verified Vaultwarden recovery copy.
+When rotating, install and verify the replacement before deleting the old key.
 
 Creation supports one-off timed and all-day events. All-day end dates are
 exclusive. A stable operation key within the originating Discord message

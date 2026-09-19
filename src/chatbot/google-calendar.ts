@@ -1,10 +1,18 @@
-import { createHash } from "node:crypto";
+import { createHash, createPrivateKey, sign } from "node:crypto";
 import { z } from "zod";
 
 export const CALENDAR_GUILD_ID = "1514899496797212683";
 export const CALENDAR_ID =
   "c_14bf5641071c6089c46061dda50e795027b7bd66885861a4f6d0a72a68cd3703@group.calendar.google.com";
+export const CALENDAR_SERVICE_ACCOUNT =
+  "discord-calendar@nthusa-discord-calendar.iam.gserviceaccount.com";
 const timezone = "Asia/Taipei";
+const serviceAccountSchema = z.object({
+  type: z.literal("service_account"),
+  client_email: z.literal(CALENDAR_SERVICE_ACCOUNT),
+  private_key_id: z.string().min(1),
+  private_key: z.string().min(1),
+});
 const timestamp = z.iso.datetime({ offset: true });
 const date = z.iso.date();
 const eventId = z.string().regex(/^[a-zA-Z0-9_-]{5,1024}$/u);
@@ -134,29 +142,47 @@ export function createGoogleCalendarClient(
   request: typeof fetch = fetch,
 ) {
   if (context.guildId !== CALENDAR_GUILD_ID) return undefined;
-  const clientId = env.MINISAGO_GOOGLE_CALENDAR_CLIENT_ID;
-  const clientSecret = env.MINISAGO_GOOGLE_CALENDAR_CLIENT_SECRET;
-  const refreshToken = env.MINISAGO_GOOGLE_CALENDAR_REFRESH_TOKEN;
-  if (!clientId || !clientSecret || !refreshToken) return undefined;
+  const configured = env.MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON;
+  if (!configured) return undefined;
+  let credentials: z.infer<typeof serviceAccountSchema>;
+  let privateKey: ReturnType<typeof createPrivateKey>;
+  try {
+    credentials = serviceAccountSchema.parse(JSON.parse(configured));
+    privateKey = createPrivateKey(credentials.private_key);
+    if (privateKey.asymmetricKeyType !== "rsa") return undefined;
+  } catch {
+    return undefined;
+  }
   let token: { value: string; expires: number } | undefined;
   let refreshing: Promise<string> | undefined;
   async function accessToken() {
     if (token && token.expires > Date.now() + 60000) return token.value;
     if (refreshing) return refreshing;
     refreshing = (async () => {
+      const issuedAt = Math.floor(Date.now() / 1000);
+      const encode = (value: unknown) =>
+        Buffer.from(JSON.stringify(value)).toString("base64url");
+      const unsigned = `${encode({ alg: "RS256", typ: "JWT", kid: credentials.private_key_id })}.${encode(
+        {
+          iss: credentials.client_email,
+          scope: "https://www.googleapis.com/auth/calendar.events",
+          aud: "https://oauth2.googleapis.com/token",
+          iat: issuedAt,
+          exp: issuedAt + 3600,
+        },
+      )}`;
+      const assertion = `${unsigned}.${sign("RSA-SHA256", Buffer.from(unsigned), privateKey).toString("base64url")}`;
       const response = await request("https://oauth2.googleapis.com/token", {
         method: "POST",
         body: new URLSearchParams({
-          client_id: clientId!,
-          client_secret: clientSecret!,
-          refresh_token: refreshToken!,
-          grant_type: "refresh_token",
+          assertion,
+          grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
         }),
         signal: AbortSignal.timeout(15000),
       });
       if (!response.ok)
         throw new CalendarError(
-          "Calendar authorization unavailable; an administrator must check the saved OAuth credentials.",
+          "Calendar authorization unavailable; an administrator must check the saved service-account credentials.",
         );
       const data = (await response.json()) as Record<string, unknown>;
       if (
@@ -196,7 +222,7 @@ export function createGoogleCalendarClient(
   async function body(response: Response): Promise<CalendarEvent> {
     if (!response.ok) {
       const errors: Record<number, string> = {
-        401: "Calendar authorization expired. Ask an administrator to reconnect the account.",
+        401: "Calendar authorization expired. Ask an administrator to check the service-account key and calendar sharing.",
         403: "Calendar access denied. Ask an administrator to check access or quota.",
         404: "Calendar event not found.",
         409: "This operationKey already belongs to a different event request. Read the existing booking before continuing.",

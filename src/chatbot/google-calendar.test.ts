@@ -1,14 +1,23 @@
+import { generateKeyPairSync, verify } from "node:crypto";
 import { describe, expect, test } from "bun:test";
 import {
   CALENDAR_GUILD_ID,
+  CALENDAR_SERVICE_ACCOUNT,
   CALENDAR_ID,
   createGoogleCalendarClient,
 } from "./google-calendar";
 
+const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
+const credentials = {
+  type: "service_account",
+  client_email: CALENDAR_SERVICE_ACCOUNT,
+  private_key_id: "test-key",
+  private_key: keys.privateKey
+    .export({ type: "pkcs8", format: "pem" })
+    .toString(),
+};
 const env = {
-  MINISAGO_GOOGLE_CALENDAR_CLIENT_ID: "client-id",
-  MINISAGO_GOOGLE_CALENDAR_CLIENT_SECRET: "secret-never-output",
-  MINISAGO_GOOGLE_CALENDAR_REFRESH_TOKEN: "refresh-never-output",
+  MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON: JSON.stringify(credentials),
 };
 const context = {
   guildId: CALENDAR_GUILD_ID,
@@ -63,7 +72,7 @@ describe("Google Calendar host client", () => {
     ).toBeUndefined();
     expect(
       createGoogleCalendarClient(
-        { ...env, MINISAGO_GOOGLE_CALENDAR_REFRESH_TOKEN: "" },
+        { ...env, MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON: "" },
         context,
         request,
       ),
@@ -236,7 +245,7 @@ describe("Google Calendar host client", () => {
   test("does not expose authorization error bodies", async () => {
     const request = (async () =>
       json(
-        { error: env.MINISAGO_GOOGLE_CALENDAR_REFRESH_TOKEN },
+        { error: env.MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON },
         400,
       )) as unknown as typeof fetch;
     const client = createGoogleCalendarClient(env, context, request)!;
@@ -245,7 +254,66 @@ describe("Google Calendar host client", () => {
     });
     expect(result.status).toBe("unavailable");
     expect(JSON.stringify(result)).not.toContain(
-      env.MINISAGO_GOOGLE_CALENDAR_REFRESH_TOKEN,
+      env.MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON,
     );
   });
+});
+
+test("signs a narrow service-account JWT without impersonation or caller-selected token endpoints", async () => {
+  const { client, calls } = fixture(() => json({ id: "event1" }));
+  await client.call("get_calendar_event", { eventId: "event1" });
+  const params = calls[0].init.body as URLSearchParams;
+  expect(params.get("grant_type")).toBe(
+    "urn:ietf:params:oauth:grant-type:jwt-bearer",
+  );
+  expect(params.has("refresh_token")).toBe(false);
+  const [header, payload, signature] = params.get("assertion")!.split(".");
+  expect(JSON.parse(Buffer.from(header!, "base64url").toString())).toEqual({
+    alg: "RS256",
+    typ: "JWT",
+    kid: "test-key",
+  });
+  const claims = JSON.parse(Buffer.from(payload!, "base64url").toString());
+  expect(claims).toMatchObject({
+    iss: CALENDAR_SERVICE_ACCOUNT,
+    scope: "https://www.googleapis.com/auth/calendar.events",
+    aud: "https://oauth2.googleapis.com/token",
+  });
+  expect(claims.sub).toBeUndefined();
+  expect(claims.exp - claims.iat).toBe(3600);
+  expect(Math.abs(claims.iat - Math.floor(Date.now() / 1000))).toBeLessThan(5);
+  expect(
+    verify(
+      "RSA-SHA256",
+      Buffer.from(`${header}.${payload}`),
+      keys.publicKey,
+      Buffer.from(signature!, "base64url"),
+    ),
+  ).toBe(true);
+});
+
+test("rejects malformed keys, foreign identities, and legacy admin credentials", () => {
+  for (const configured of [
+    "invalid JSON",
+    "{}",
+    JSON.stringify({ ...credentials, client_email: "admin@nthusa.tw" }),
+    JSON.stringify({ ...credentials, private_key: "broken" }),
+  ]) {
+    expect(
+      createGoogleCalendarClient(
+        { MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON: configured },
+        context,
+      ),
+    ).toBeUndefined();
+  }
+  expect(
+    createGoogleCalendarClient(
+      {
+        MINISAGO_GOOGLE_CALENDAR_CLIENT_ID: "old",
+        MINISAGO_GOOGLE_CALENDAR_CLIENT_SECRET: "old",
+        MINISAGO_GOOGLE_CALENDAR_REFRESH_TOKEN: "old",
+      },
+      context,
+    ),
+  ).toBeUndefined();
 });
