@@ -152,3 +152,32 @@ The repository still contains these Hsi-specific defaults:
 Feature coverage and scheduled feed destinations no longer need source changes.
 Feed sources, schedules, and checkpoint settings remain deployment
 configuration. The PR review mapping remains deployment-specific code.
+
+## NTHUSA calendar
+
+MiniSago exposes `list_calendar_events`, `get_calendar_event`,
+`create_calendar_event`, and `edit_calendar_event` to all chatbot users in guild
+`1514899496797212683`. Tools are absent from other guilds and DMs. The host binds
+Google requests to 學生會辦空間登記
+(`c_14bf5641071c6089c46061dda50e795027b7bd66885861a4f6d0a72a68cd3703@group.calendar.google.com`)
+and uses `Asia/Taipei`. Existing chatbot access policy still applies.
+
+Set these host-only variables in `/srv/sago-cloud/secrets/bot-core.env`:
+
+- `MINISAGO_GOOGLE_CALENDAR_CLIENT_ID`
+- `MINISAGO_GOOGLE_CALENDAR_CLIENT_SECRET`
+- `MINISAGO_GOOGLE_CALENDAR_REFRESH_TOKEN`
+
+Restore all three from the encrypted notes in Vaultwarden (`safe.nthusa.tw`),
+entry **discord-calendar**. The Google Cloud project is
+`nthusa-discord-calendar`; OAuth belongs to `admin@nthusa.tw`. The internal OAuth
+app uses `calendar.events.owned` and `calendar.calendarlist.readonly` scopes.
+Restart/recreate the host container after updating credentials. Never put these
+values in the worker environment, source code, logs, or Discord messages.
+
+Creation supports one-off timed and all-day events. All-day end dates are
+exclusive. A stable operation key within the originating Discord message
+prevents duplicate creation on retries. Edits require the latest event etag,
+update only supplied fields, and notify existing guests. Individual recurring
+occurrences can be edited; recurring-series edits and deletion are not exposed.
+List existing bookings before creating; Google Calendar permits overlaps.

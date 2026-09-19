@@ -1030,3 +1030,42 @@ describe("MiniSago MCP server", () => {
     session.revoke();
   });
 });
+
+test("calendar tools are conditional and preserve strict calendar schemas through MCP", async () => {
+  const absent = await connect(registerChatbotMcpSession(handlers()).token);
+  expect(
+    (await absent.listTools()).tools.some((tool) =>
+      tool.name.includes("calendar"),
+    ),
+  ).toBe(false);
+  const calls: unknown[] = [];
+  const session = registerChatbotMcpSession({
+    ...handlers(),
+    calendar: {
+      call: async (name, input) => {
+        calls.push({ name, input });
+        return { status: "complete" };
+      },
+    },
+  });
+  const client = await connect(session.token);
+  const listing = await client.listTools();
+  expect(
+    listing.tools.filter((tool) => tool.name.includes("calendar")),
+  ).toHaveLength(4);
+  await client.callTool({
+    name: "get_calendar_event",
+    arguments: { eventId: "event1" },
+  });
+  expect(calls).toEqual([
+    { name: "get_calendar_event", input: { eventId: "event1" } },
+  ]);
+  const bad = await client.callTool({
+    name: "get_calendar_event",
+    arguments: { eventId: "event1", calendarId: "foreign" },
+  });
+  expect(bad.isError).toBe(true);
+  expect(calls).toHaveLength(1);
+  await client.close();
+  await absent.close();
+});

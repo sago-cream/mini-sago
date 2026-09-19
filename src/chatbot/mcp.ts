@@ -4,6 +4,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
 
+import {
+  calendarSchemas,
+  calendarDescriptions,
+  type CalendarToolName,
+  type GoogleCalendarClient,
+} from "./google-calendar";
 import { CHATBOT_CONTEXT_LIMITS } from "./context-limits";
 import {
   budgetMessages,
@@ -404,6 +410,7 @@ export type ChatbotMcpSessionHandlers = {
     action: "add" | "replace" | "remove";
     entryId: string;
   }>;
+  calendar?: GoogleCalendarClient;
   readTripPlan?: (input: TripPlanReadInput) => Promise<Record<string, unknown>>;
   editTripPlan?: (input: TripPlanEditInput) => Promise<Record<string, unknown>>;
 };
@@ -523,6 +530,16 @@ function availableCapabilities(
       description:
         "Proactively remember, correct, consolidate, or forget durable knowledge about the current Discord server, especially when a member teaches you something.",
       tools: ["manage_server_memory"],
+    });
+  }
+  if (handlers.calendar) {
+    capabilities.push({
+      id: "nthusa_calendar",
+      category: "system",
+      availability: "available",
+      description:
+        "Read, create, and edit 學生會辦空間登記 bookings in Asia/Taipei for this server.",
+      tools: Object.keys(calendarSchemas),
     });
   }
   if (handlers.readTripPlan) {
@@ -774,6 +791,27 @@ function createServer(session: ChatbotMcpSession) {
           currentReply: "suppressed",
         }),
     );
+  }
+
+  if (session.handlers.calendar) {
+    for (const name of Object.keys(calendarSchemas) as CalendarToolName[]) {
+      server.registerTool(
+        name,
+        {
+          description: calendarDescriptions[name],
+          inputSchema: calendarSchemas[name],
+          annotations: {
+            readOnlyHint:
+              name === "list_calendar_events" || name === "get_calendar_event",
+            destructiveHint: name === "edit_calendar_event",
+            idempotentHint: true,
+            openWorldHint: true,
+          },
+        },
+        async (input: unknown) =>
+          toolResult(await session.handlers.calendar!.call(name, input)),
+      );
+    }
   }
 
   if (session.handlers.readTripPlan) {

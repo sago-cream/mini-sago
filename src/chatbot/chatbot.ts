@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { createGoogleCalendarClient } from "./google-calendar";
 import type { ChatbotAccessConfig } from "./access";
 import {
   macAgentBridge,
@@ -1222,8 +1223,13 @@ export async function handleChatbotMention({
         ? createTripPlannerClient(process.env, `minisago-${message.id}`)
         : undefined;
 
+      const calendar = createGoogleCalendarClient(process.env, {
+        guildId: message.guild_id,
+        messageId: message.id,
+      });
       mcpSession = registerChatbotMcpSession({
         mediaRegistry,
+        ...(calendar ? { calendar } : {}),
         getCodexUsage: () => workflow.getCodexUsage(),
         ...(quietTracker
           ? {
