@@ -57,7 +57,8 @@ posts authored by that official account and ignores posts it retweets.
 The `search_threads` MCP tool reads public Recent search pages through Jina
 Reader only when the requester asks to search Threads. It searches `清大`,
 `NTHU`, and `學生會` by default; `additionalKeywords` adds up to ten keywords
-for the current request. Results include post text, authors, source links,
+for the current request. Mentioning the bot with `海巡脆` searches the defaults;
+`海巡脆 加上校慶` also searches `校慶`. Results include post text, authors, source links,
 matched queries, and any per-query errors. It does not poll or repost.
 
 ## Workers

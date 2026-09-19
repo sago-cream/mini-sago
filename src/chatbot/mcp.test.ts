@@ -1084,6 +1084,12 @@ test("exposes on-demand Threads search and validates extra keywords", async () =
     (tool) => tool.name === "search_threads",
   );
   expect(tool?.description).toContain("only when explicitly asked");
+  expect(tool?.description).toContain("海巡脆");
+  expect(
+    session.capabilities.find(
+      (capability) => capability.id === "threads_search",
+    )?.description,
+  ).toContain("海巡脆");
   expect(calls).toHaveLength(0);
   await client.callTool({ name: "search_threads", arguments: {} });
   await client.callTool({
