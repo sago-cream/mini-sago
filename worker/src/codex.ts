@@ -73,6 +73,10 @@ export const CHANNEL_QUIET_MCP_APPROVAL_CONFIG =
   'mcp_servers.minisago.tools.pause_channel_activity.approval_mode="approve"';
 export const TRIP_PLAN_EDIT_MCP_APPROVAL_CONFIG =
   'mcp_servers.minisago.tools.edit_trip_plan.approval_mode="approve"';
+export const CALENDAR_CREATE_MCP_APPROVAL_CONFIG =
+  'mcp_servers.minisago.tools.create_calendar_event.approval_mode="approve"';
+export const CALENDAR_EDIT_MCP_APPROVAL_CONFIG =
+  'mcp_servers.minisago.tools.edit_calendar_event.approval_mode="approve"';
 export const CHAT_LOCAL_TOOLS_CONFIG = "features.shell_tool=false";
 
 export function minisagoMcpApprovalMode(
@@ -990,6 +994,10 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
         CHANNEL_QUIET_MCP_APPROVAL_CONFIG,
         "--config",
         TRIP_PLAN_EDIT_MCP_APPROVAL_CONFIG,
+        "--config",
+        CALENDAR_CREATE_MCP_APPROVAL_CONFIG,
+        "--config",
+        CALENDAR_EDIT_MCP_APPROVAL_CONFIG,
         "--config",
         "mcp_servers.minisago.startup_timeout_sec=10",
         "--config",

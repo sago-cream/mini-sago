@@ -48,6 +48,8 @@ import {
   SOCIAL_ACTION_PROFILE,
   StreamingReplyParser,
   TRIP_PLAN_EDIT_MCP_APPROVAL_CONFIG,
+  CALENDAR_CREATE_MCP_APPROVAL_CONFIG,
+  CALENDAR_EDIT_MCP_APPROVAL_CONFIG,
   usesOuterSeatbelt,
   VOICE_CHATBOT_PROFILE,
   VOICE_ANSWER_OUTPUT_SCHEMA,
@@ -199,6 +201,15 @@ describe("Codex chatbot runner", () => {
     );
     expect(TRIP_PLAN_EDIT_MCP_APPROVAL_CONFIG).toBe(
       'mcp_servers.minisago.tools.edit_trip_plan.approval_mode="approve"',
+    );
+  });
+
+  test("pre-approves calendar mutations scoped by the host for community members", () => {
+    expect(CALENDAR_CREATE_MCP_APPROVAL_CONFIG).toBe(
+      'mcp_servers.minisago.tools.create_calendar_event.approval_mode="approve"',
+    );
+    expect(CALENDAR_EDIT_MCP_APPROVAL_CONFIG).toBe(
+      'mcp_servers.minisago.tools.edit_calendar_event.approval_mode="approve"',
     );
   });
 
