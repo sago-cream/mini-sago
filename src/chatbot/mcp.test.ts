@@ -1069,3 +1069,34 @@ test("calendar tools are conditional and preserve strict calendar schemas throug
   await client.close();
   await absent.close();
 });
+
+test("exposes on-demand Threads search and validates extra keywords", async () => {
+  const calls: unknown[] = [];
+  const session = registerChatbotMcpSession({
+    ...handlers(),
+    searchThreads: async (input) => {
+      calls.push(input);
+      return { status: "complete", posts: [] };
+    },
+  });
+  const client = await connect(session.token);
+  const tool = (await client.listTools()).tools.find(
+    (tool) => tool.name === "search_threads",
+  );
+  expect(tool?.description).toContain("only when explicitly asked");
+  expect(calls).toHaveLength(0);
+  await client.callTool({ name: "search_threads", arguments: {} });
+  await client.callTool({
+    name: "search_threads",
+    arguments: { additionalKeywords: ["校慶"] },
+  });
+  expect(calls).toEqual([{}, { additionalKeywords: ["校慶"] }]);
+  const invalid = await client.callTool({
+    name: "search_threads",
+    arguments: { additionalKeywords: Array(11).fill("x") },
+  });
+  expect(invalid.isError).toBe(true);
+  expect(calls).toHaveLength(2);
+  await client.close();
+  session.revoke();
+});

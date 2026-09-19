@@ -10,7 +10,6 @@ export const MANAGED_SERVICE_DEFINITIONS = {
   x_posts_primary: "Primary X account reposts",
   x_posts_thsottiaux: "@thsottiaux X reposts",
   x_posts_hololive_dreams: "@hololive_dreams X reposts",
-  threads_search: "Threads keyword search reposts",
   toefl_vocab: "Daily TOEFL vocabulary",
 } as const;
 
@@ -54,8 +53,6 @@ const DEFAULT_X_POST_CHANNEL_ID = "1527893157168283668";
 const THSOTTIAUX_CHANNEL_ID = "1515569479541854218";
 const THSOTTIAUX_GUILD_ID = "917436845187563610";
 const HOLOLIVE_DREAMS_CHANNEL_ID = "1290252977621176361";
-const THREADS_SEARCH_CHANNEL_ID = "1543897041350950982";
-const THREADS_SEARCH_GUILD_ID = "1514899496797212683";
 
 function configuredId(value: string | undefined, fallback: string) {
   const resolved = value?.trim() || fallback;
@@ -97,12 +94,6 @@ export function defaultServiceSubscriptions(
       ],
       x_posts_hololive_dreams: [
         { guildId: TARGET_GUILD_ID, channelId: HOLOLIVE_DREAMS_CHANNEL_ID },
-      ],
-      threads_search: [
-        {
-          guildId: THREADS_SEARCH_GUILD_ID,
-          channelId: THREADS_SEARCH_CHANNEL_ID,
-        },
       ],
       toefl_vocab:
         toeflChannelId && DISCORD_SNOWFLAKE.test(toeflChannelId)

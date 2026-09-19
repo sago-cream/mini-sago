@@ -11,11 +11,12 @@ Codex-powered chat with server context, emote creation and cross-server migratio
 - Answers member and configured role mentions using conversation context, attachments, public web search, and accessible Discord history.
 - Joins Discord voice channels for spoken conversations. **WIP and far from usable:** recognition, response latency, and turn-taking still need work.
 - Performs expression management on demand, including adding emojis or stickers from attachments and moving emojis to other servers.
-- Publishes daily TOEFL vocabulary, AniGamer forum voucher code updates, Threads keyword matches, and Codex news on X to configured channels.
+- Publishes daily TOEFL vocabulary, AniGamer forum voucher code updates, and Codex news on X to configured channels.
 - Improves Instagram and Twitter/X embeds with `kkinstagram.com` and `fxtwitter.com` links.
 - Creates reminders when asked to and pings you when the reminder expires.
 - Listen to GitHub activities and maintains PR review threads for certain repo in configured server.
 - Find files in my Mac and send it in chat when asked by me.
+- Searches Threads on request for 清大, NTHU, 學生會 plus optional extra keywords.
 - Runs coding tasks in dedicated Discord threads with progress reports,
   steering, stop, and continuation, then publishes a draft PR when authorized.
 

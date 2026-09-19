@@ -1,3 +1,4 @@
+import { searchThreads } from "./threads-search";
 import { randomUUID } from "node:crypto";
 
 import { createGoogleCalendarClient } from "./google-calendar";
@@ -1228,6 +1229,7 @@ export async function handleChatbotMention({
         messageId: message.id,
       });
       mcpSession = registerChatbotMcpSession({
+        searchThreads,
         mediaRegistry,
         ...(calendar ? { calendar } : {}),
         getCodexUsage: () => workflow.getCodexUsage(),

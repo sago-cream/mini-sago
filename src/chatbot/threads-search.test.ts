@@ -2,13 +2,11 @@ import { describe, expect, test } from "bun:test";
 
 import {
   buildThreadsReaderUrl,
-  buildThreadsSearchMessage,
   buildThreadsSearchUrl,
-  getThreadsSearchMonitorConfig,
   parseThreadsSearchPosts,
-  parseThreadsSearchQueries,
+  searchThreads,
   THREADS_SEARCH_READER_HEADERS,
-} from "./threads-search-monitor";
+} from "./threads-search";
 
 const sampleSearch = `Title: Search • Threads
 
@@ -42,7 +40,7 @@ Translate
 9
 `;
 
-describe("Threads search monitor", () => {
+describe("Threads search", () => {
   test("uses Jina Reader with the public recent-search URL", () => {
     expect(buildThreadsSearchUrl("清大")).toBe(
       "https://www.threads.com/search?q=%E6%B8%85%E5%A4%A7&serp_type=default&filter=recent",
@@ -76,38 +74,36 @@ describe("Threads search monitor", () => {
     ]);
   });
 
-  test("builds a mention-safe Discord repost", () => {
-    const [post] = parseThreadsSearchPosts(sampleSearch);
-    expect(buildThreadsSearchMessage(post!, ["清大", "NTHU"])).toEqual({
-      content:
-        "脆海巡命中：清大、NTHU\n@alice · 08/31/26\n\n清大今天開學，NTHU 的大家早安。\nhttps://www.threads.com/@alice/post/Dexample1",
-      allowed_mentions: { parse: [] },
-    });
-  });
-
-  test("defaults and deduplicates search queries", () => {
-    expect(parseThreadsSearchQueries(undefined)).toEqual([
-      "清大",
-      "NTHU",
-      "學生會",
-    ]);
-    expect(parseThreadsSearchQueries(" 清大, NTHU,清大 ")).toEqual([
-      "清大",
-      "NTHU",
-    ]);
-  });
-
-  test("keeps the service disabled without a bot token", () => {
-    expect(getThreadsSearchMonitorConfig({})).toBeNull();
-    expect(
-      getThreadsSearchMonitorConfig({
-        DISCORD_BOT_TOKEN: "test-token",
-        THREADS_SEARCH_STATE_FILE: "/app/state/threads.json",
-      }),
-    ).toMatchObject({
-      queries: ["清大", "NTHU", "學生會"],
-      stateFile: "/app/state/threads.json",
-      checkIntervalMs: 900_000,
-    });
+  test("adds keywords, deduplicates posts, and reports partial failures", async () => {
+    const originalFetch = globalThis.fetch;
+    const urls: string[] = [];
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      urls.push(String(url));
+      return String(url).includes("extra")
+        ? new Response("failed", { status: 503 })
+        : new Response(sampleSearch);
+    }) as typeof fetch;
+    try {
+      const result = await searchThreads({
+        additionalKeywords: ["extra", " NTHU "],
+      });
+      expect(result.queries).toEqual(["清大", "NTHU", "學生會", "extra"]);
+      expect(urls).toHaveLength(4);
+      expect(result.status).toBe("partial");
+      expect(result.posts).toHaveLength(2);
+      expect(result.posts[0]?.matchedQueries).toEqual([
+        "清大",
+        "NTHU",
+        "學生會",
+      ]);
+      expect(result.errors[0]?.query).toBe("extra");
+      expect((await searchThreads()).queries).toEqual([
+        "清大",
+        "NTHU",
+        "學生會",
+      ]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

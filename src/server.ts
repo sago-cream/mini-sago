@@ -22,7 +22,6 @@ import {
 import { handleMediaAccessNotificationRequest } from "./discord/jobs/media-access-notifications";
 import { startToeflVocabScheduler } from "./discord/jobs/toefl-vocab";
 import { startXPostMonitor } from "./discord/jobs/x-post-monitor";
-import { startThreadsSearchMonitor } from "./discord/jobs/threads-search-monitor";
 import {
   configureChatbotReminderScheduler,
   type Reminder,
@@ -138,7 +137,6 @@ if (process.env.DISCORD_GATEWAY_DISABLED !== "true") {
 startToeflVocabScheduler();
 startGamerForumMonitor();
 startXPostMonitor();
-startThreadsSearchMonitor();
 startDeploymentNotificationMonitor();
 
 console.log(`MiniSago listening on http://${server.hostname}:${server.port}`);

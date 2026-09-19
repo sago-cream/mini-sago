@@ -29,12 +29,6 @@ describe("service subscriptions", () => {
       "423456789012345678",
     );
     expect(snapshot.services.x_posts_thsottiaux).toHaveLength(1);
-    expect(snapshot.services.threads_search).toEqual([
-      {
-        guildId: "1514899496797212683",
-        channelId: "1543897041350950982",
-      },
-    ]);
   });
 
   test("persists subscription changes", async () => {
@@ -72,17 +66,15 @@ describe("service subscriptions", () => {
     const directory = await mkdtemp(join(tmpdir(), "minisago-services-"));
     const filePath = join(directory, "subscriptions.json");
     const legacy = defaultServiceSubscriptions({});
-    delete (legacy.services as Partial<typeof legacy.services>).threads_search;
+    delete (legacy.services as Partial<typeof legacy.services>)
+      .x_posts_thsottiaux;
     await writeFile(filePath, JSON.stringify(legacy));
 
     const store = new ServiceSubscriptionStore(filePath, {});
 
-    expect(store.destinations("threads_search")).toEqual([
-      {
-        guildId: "1514899496797212683",
-        channelId: "1543897041350950982",
-      },
-    ]);
+    expect(store.destinations("x_posts_thsottiaux")).toEqual(
+      defaultServiceSubscriptions({}).services.x_posts_thsottiaux,
+    );
   });
 
   test("formats destinations as clickable Discord channels", () => {

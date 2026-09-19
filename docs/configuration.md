@@ -41,7 +41,7 @@ live in [Discord setup](discord-setup.md) and [Workers](workers.md).
 | `TOEFL_VOCAB_TIMEZONE`                 | No        | IANA timezone for vocabulary posting                    |
 | `TOEFL_VOCAB_STATE_FILE`               | No        | Persistent daily-send state                             |
 | `GAMER_FORUM_*`                        | No        | Forum source, destination, schedule, reader, and state  |
-| `THREADS_SEARCH_*`                     | No        | Threads queries, reader, polling interval, and state    |
+| `THREADS_SEARCH_READER_BASE_URL`       | No        | Reader URL for on-demand Threads MCP searches           |
 | `X_POST_*`                             | No        | X feed source, destination, polling interval, and state |
 
 See `.env.production.example` for production state paths and the complete
@@ -54,12 +54,11 @@ stores an isolated checkpoint beside `X_POST_STATE_FILE` and validates its
 destination guild independently. The `@hololive_dreams` pipe only forwards
 posts authored by that official account and ignores posts it retweets.
 
-The Threads search monitor reads the public Recent search pages through Jina
-Reader, using `清大,NTHU,學生會` by default. Its managed service initially
-reposts to channel `1543897041350950982`; the destination can be changed at
-runtime through the existing service-subscription tool. The first successful
-result set for each query becomes its checkpoint, so enabling the service does
-not repost the existing search backlog.
+The `search_threads` MCP tool reads public Recent search pages through Jina
+Reader only when the requester asks to search Threads. It searches `清大`,
+`NTHU`, and `學生會` by default; `additionalKeywords` adds up to ten keywords
+for the current request. Results include post text, authors, source links,
+matched queries, and any per-query errors. It does not poll or repost.
 
 ## Workers
 
@@ -106,7 +105,6 @@ Production state must live under `/app/state` on the persistent
 - `GITHUB_PR_THREAD_STATE_FILE`
 - `TOEFL_VOCAB_STATE_FILE`
 - `GAMER_FORUM_STATE_FILE`
-- `THREADS_SEARCH_STATE_FILE`
 - `X_POST_STATE_FILE`
 - `MINISAGO_REMINDER_STATE_FILE`
 - `MINISAGO_GUILD_MEMORY_DIRECTORY`
@@ -136,7 +134,7 @@ planner. Always-on capabilities do not appear in this policy.
 
 Background-service subscriptions default to
 `.data/service-subscriptions.json`. The initial destination list comes from the
-existing Gamer Forum, X repost, Threads search, and TOEFL settings. After the owner changes a
+existing Gamer Forum, X repost, and TOEFL settings. After the owner changes a
 subscription, the file becomes the source of truth. MiniSago can list the
 services and their clickable Discord channel mentions, then subscribe or
 unsubscribe an exact channel without a deployment. Running jobs read the list
