@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { routeWithJev } from "./jev-routing";
+import { jevRequest, routeWithJev } from "./jev-routing";
 import type { ExecutionRouteJob } from "../../contracts/worker-contract";
 const job: ExecutionRouteJob = {
   id: "route-test",
@@ -31,12 +31,6 @@ function response(route: string, confidence = 1) {
         choice: route,
         confidence,
         probabilities: { chat: 1, mac: 0, oracle: 0 },
-      },
-      repository: {
-        type: "choice",
-        choice: "unknown",
-        confidence: 1,
-        probabilities: { unknown: 1, "sago-cream/mini-sago": 0 },
       },
     },
   };
@@ -78,4 +72,24 @@ test("Jev accepts confident chat/Mac and falls back for uncertain, repository, m
       },
     }),
   ).toBeUndefined();
+});
+
+test("compact routing retains follow-up context without message identifiers", () => {
+  const request = jevRequest({
+    ...job,
+    request: "send this from my Mac",
+    requestMessage: {
+      ...job.requestMessage!,
+      referencedMessage: {
+        ...job.requestMessage!,
+        content: "Use the PDF in Downloads",
+      },
+    },
+    messages: [{ ...job.requestMessage!, content: "The file is on my Mac" }],
+  });
+  const state = JSON.stringify(request.state);
+  expect(state).toContain("Use the PDF in Downloads");
+  expect(state).toContain("The file is on my Mac");
+  expect(state).not.toContain("2026-09-20");
+  expect(Object.keys(request.questions)).toEqual(["route"]);
 });
