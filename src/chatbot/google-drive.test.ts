@@ -586,3 +586,114 @@ test("permission API failure returns no file content and tool arguments cannot c
   ).toBe("unavailable");
   expect(calls).toHaveLength(before);
 });
+
+test("contact lookup reads only configured CSV identity columns, rechecks access, and excludes the sensitive drive", async () => {
+  const table = [
+    [
+      "Last Name",
+      "Middle Name",
+      "First Name",
+      "Nickname",
+      "Organization Name",
+      "Labels",
+      "E-mail 1 - Label",
+      "E-mail 1 - Value",
+    ],
+    ["王", "", "小明", "小明", "資訊處", "", "work", "ming@example.com"],
+  ];
+  let revoked = false;
+  let moved = false;
+  let permissionReads = 0;
+  const requests: URL[] = [];
+  const request = (async (url: unknown, init: RequestInit = {}) => {
+    const u = new URL(String(url));
+    requests.push(u);
+    if (u.hostname === "oauth2.googleapis.com")
+      return Response.json({ access_token: "test-token", expires_in: 3600 });
+    expect(init.method ?? "GET").toBe("GET");
+    expect(init.redirect).toBe("error");
+    if (u.pathname.endsWith("/permissions")) {
+      permissionReads++;
+      return Response.json({
+        permissions:
+          revoked && permissionReads % 2 === 0
+            ? []
+            : [
+                {
+                  id: DRIVE_ROLE_MAPPINGS[0].groupId,
+                  type: "group",
+                  role: "reader",
+                },
+              ],
+      });
+    }
+    if (u.hostname === "www.googleapis.com")
+      return Response.json({
+        ...file,
+        id: "contacts_book",
+        mimeType: "application/vnd.google-apps.spreadsheet",
+        driveId: moved ? excludedRightsDriveId : driveId,
+      });
+    expect(u.hostname).toBe("sheets.googleapis.com");
+    if (u.pathname.includes("/values/")) {
+      expect(decodeURIComponent(u.pathname.split("/values/")[1]!)).toBe(
+        "'csv'!A1:H3",
+      );
+      return Response.json({ values: table });
+    }
+    return Response.json({
+      sheets: [
+        {
+          properties: {
+            sheetId: 42,
+            title: "csv",
+            gridProperties: { rowCount: 3, columnCount: 26 },
+          },
+        },
+      ],
+    });
+  }) as typeof fetch;
+  const client = createGoogleDriveClient(
+    {
+      ...env,
+      DISCORD_CONTACTS_SPREADSHEET_ID: "contacts_book",
+      DISCORD_CONTACTS_SHEET_ID: "42",
+    },
+    context,
+    new ChatbotMediaRegistry(),
+    request,
+  )!;
+  const result = await client.call("lookup_calendar_contacts", {
+    query: "王小明",
+  });
+  expect(result).toMatchObject({
+    status: "complete",
+    matches: [{ name: "王 小明", email: "ming@example.com" }],
+    requiresSelection: false,
+  });
+  expect(permissionReads).toBe(2);
+  revoked = true;
+  expect(
+    (await client.call("lookup_calendar_contacts", { query: "王小明" })).status,
+  ).toBe("unavailable");
+  moved = true;
+  const before = requests.filter(
+    (u) => u.hostname === "sheets.googleapis.com",
+  ).length;
+  expect(
+    (await client.call("lookup_calendar_contacts", { query: "王小明" })).status,
+  ).toBe("unavailable");
+  expect(
+    requests.filter((u) => u.hostname === "sheets.googleapis.com"),
+  ).toHaveLength(before);
+  const all = requests.length;
+  expect(
+    (
+      await client.call("lookup_calendar_contacts", {
+        query: "王小明",
+        spreadsheetId: "foreign",
+      })
+    ).status,
+  ).toBe("unavailable");
+  expect(requests).toHaveLength(all);
+});

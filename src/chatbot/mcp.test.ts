@@ -1,3 +1,4 @@
+import { calendarSettings } from "./calendar-settings";
 import { afterEach, describe, expect, test } from "bun:test";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -1042,6 +1043,9 @@ test("calendar tools are conditional and preserve strict calendar schemas throug
   const session = registerChatbotMcpSession({
     ...handlers(),
     calendar: {
+      config: calendarSettings({
+        DISCORD_CALENDAR_ID: "events_test@group.calendar.google.com",
+      })!,
       call: async (name, input) => {
         calls.push({ name, input });
         return { status: "complete" };
@@ -1052,7 +1056,7 @@ test("calendar tools are conditional and preserve strict calendar schemas throug
   const listing = await client.listTools();
   expect(
     listing.tools.filter((tool) => tool.name.includes("calendar")),
-  ).toHaveLength(4);
+  ).toHaveLength(5);
   await client.callTool({
     name: "get_calendar_event",
     arguments: { eventId: "event1" },
@@ -1125,7 +1129,7 @@ test("Drive tools are conditional, read-only, and preserve strict schemas throug
   });
   expect(
     session.capabilities.find((c) => c.id === "nthusa_drive")?.tools,
-  ).toHaveLength(3);
+  ).toHaveLength(4);
   const client = await connect(session.token);
   const listing = (await client.listTools()).tools.filter((t) =>
     t.name.includes("drive"),

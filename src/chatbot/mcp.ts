@@ -549,7 +549,7 @@ function availableCapabilities(
       category: "context",
       availability: "available",
       description:
-        "Search approved NTHUSA shared drives and read meeting minutes with source links. " +
+        "Search approved NTHUSA shared drives, read meeting minutes with source links, and look up named Calendar invitees in the configured contact directory. " +
         driveContextDescription,
       tools: Object.keys(driveSchemas),
     });
@@ -560,7 +560,7 @@ function availableCapabilities(
       category: "system",
       availability: "available",
       description:
-        "Read, create, and edit 學生會辦空間登記 bookings in Asia/Taipei for this server.",
+        "Manage confirmed events and cancellations in discord-calendar. Read office availability, invite the office when requested, and report its actual acceptance status. Resolve named guests with lookup_calendar_contacts.",
       tools: Object.keys(calendarSchemas),
     });
   }
@@ -855,7 +855,9 @@ function createServer(session: ChatbotMcpSession) {
           annotations: {
             readOnlyHint:
               name === "list_calendar_events" || name === "get_calendar_event",
-            destructiveHint: name === "edit_calendar_event",
+            destructiveHint:
+              name === "edit_calendar_event" ||
+              name === "delete_calendar_event",
             idempotentHint: true,
             openWorldHint: true,
           },

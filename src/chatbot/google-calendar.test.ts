@@ -3,10 +3,11 @@ import { describe, expect, test } from "bun:test";
 import {
   CALENDAR_GUILD_ID,
   CALENDAR_SERVICE_ACCOUNT,
-  CALENDAR_ID,
+  CALENDAR_ID as OFFICE_ID,
   createGoogleCalendarClient,
 } from "./google-calendar";
 
+const CALENDAR_ID = "events_test@group.calendar.google.com";
 const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const credentials = {
   type: "service_account",
@@ -17,6 +18,7 @@ const credentials = {
     .toString(),
 };
 const env = {
+  DISCORD_CALENDAR_ID: CALENDAR_ID,
   MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON: JSON.stringify(credentials),
 };
 const context = {
@@ -128,7 +130,11 @@ describe("Google Calendar host client", () => {
     });
     expect(result).toEqual({
       status: "complete",
-      events: [{ id: "event1" }, { id: "event2" }],
+      calendar: "events",
+      events: [
+        { id: "event1", officeReservation: "not_requested" },
+        { id: "event2", officeReservation: "not_requested" },
+      ],
       nextPageToken: "more",
     });
     await client.call("get_calendar_event", { eventId: "../../other" });
@@ -302,7 +308,7 @@ test("rejects malformed keys, foreign identities, and legacy admin credentials",
   ]) {
     expect(
       createGoogleCalendarClient(
-        { MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON: configured },
+        { ...env, MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON: configured },
         context,
       ),
     ).toBeUndefined();
@@ -339,6 +345,7 @@ test("OAuth invitations use the selected user and preserve guest lists when omit
     });
   }) as typeof fetch;
   const oauthEnv = {
+    DISCORD_CALENDAR_ID: CALENDAR_ID,
     MINISAGO_GOOGLE_CALENDAR_OAUTH_JSON: JSON.stringify({
       client_id: "test.apps.googleusercontent.com",
       client_secret: "secret",
@@ -417,4 +424,247 @@ test("rejects malformed OAuth without falling back and refuses service-account g
       (await client.call("create_calendar_event", { ...creation, attendees }))
         .status,
     ).toBe("unavailable");
+});
+
+function eventWorkflow(overrides: Record<string, string> = {}) {
+  const settings: Record<string, string> = {
+    DISCORD_CALENDAR_ID: CALENDAR_ID,
+    DISCORD_OFFICE_CALENDAR_ID: OFFICE_ID,
+    DISCORD_CALENDAR_OAUTH_JSON: JSON.stringify({
+      client_id: "test.apps.googleusercontent.com",
+      client_secret: "secret",
+      refresh_token: "refresh",
+    }),
+    ...overrides,
+  };
+  const stored = new Map<string, any>();
+  const requests: { url: URL; init: RequestInit }[] = [];
+  let conflicts: any[] = [];
+  let lostDelete = false;
+  const request = (async (url: unknown, init: RequestInit = {}) => {
+    const u = new URL(String(url));
+    requests.push({ url: u, init });
+    if (u.hostname === "oauth2.googleapis.com")
+      return json({ access_token: "test-token", expires_in: 3600 });
+    if (u.hostname === "openidconnect.googleapis.com")
+      return json({
+        email: settings.DISCORD_CALENDAR_ACCOUNT || "nthusa@gapp.nthu.edu.tw",
+        email_verified: true,
+      });
+    const target = decodeURIComponent(u.pathname.split("/")[4]!);
+    const eventId = u.pathname.split("/")[6]!;
+    expect([
+      settings.DISCORD_CALENDAR_ID,
+      settings.DISCORD_OFFICE_CALENDAR_ID,
+    ]).toContain(target);
+    if (target === settings.DISCORD_OFFICE_CALENDAR_ID) {
+      expect(init.method ?? "GET").toBe("GET");
+      return json({ items: conflicts });
+    }
+    if (init.method === "POST") {
+      const data = JSON.parse(String(init.body));
+      if (stored.has(data.id)) return json({}, 409);
+      const event = {
+        ...data,
+        etag: "v1",
+        iCalUID: "uid-" + data.id,
+        organizer: { email: settings.DISCORD_CALENDAR_ID },
+      };
+      stored.set(data.id, event);
+      return json(event);
+    }
+    const event = stored.get(eventId);
+    if (!event) return json({}, 404);
+    if (init.method === "DELETE") {
+      expect(init.headers).toMatchObject({ "If-Match": event.etag });
+      expect(u.searchParams.get("sendUpdates")).toBe("all");
+      stored.delete(eventId);
+      if (lostDelete) throw Error("Lost response");
+      return new Response(null, { status: 204 });
+    }
+    if (init.method === "PATCH") {
+      expect(init.headers).toMatchObject({ "If-Match": event.etag });
+      const changed = {
+        ...event,
+        ...JSON.parse(String(init.body)),
+        etag: "v" + (Number(event.etag.slice(1)) + 1),
+      };
+      stored.set(eventId, changed);
+      return json(changed);
+    }
+    return json(event);
+  }) as typeof fetch;
+  const client = createGoogleCalendarClient(
+    settings,
+    {
+      ...context,
+      guildId: settings.DISCORD_CALENDAR_GUILD_ID || context.guildId,
+    },
+    request,
+  )!;
+  return {
+    client,
+    stored,
+    requests,
+    settings,
+    request,
+    setConflicts: (v: any[]) => {
+      conflicts = v;
+    },
+    loseDelete: () => {
+      lostDelete = true;
+    },
+  };
+}
+
+test("office invitation is explicit; remote events never touch office and raw calendar recipients are rejected", async () => {
+  const f = eventWorkflow();
+  const remote = await f.client.call("create_calendar_event", {
+    ...creation,
+    location: "Online",
+    attendees: ["guest@example.com"],
+  });
+  expect(remote.status).toBe("complete");
+  expect(remote.officeReservation).toBe("not_requested");
+  expect((remote.event as any).location).toBe("Online");
+  expect(
+    f.requests.some((r) =>
+      decodeURIComponent(r.url.pathname).includes(OFFICE_ID),
+    ),
+  ).toBe(false);
+  const before = f.requests.length;
+  expect(
+    (
+      await f.client.call("create_calendar_event", {
+        ...creation,
+        attendees: [OFFICE_ID],
+      })
+    ).status,
+  ).toBe("unavailable");
+  expect(f.requests).toHaveLength(before);
+  const office = await f.client.call("create_calendar_event", {
+    ...creation,
+    operationKey: "office",
+    useOffice: true,
+    attendees: ["guest@example.com"],
+  });
+  expect(office.status).toBe("complete");
+  expect(office.officeReservation).toBe("pending");
+  const event = f.stored.get((office.event as any).id);
+  expect(event.attendees).toEqual([
+    { email: "guest@example.com" },
+    { email: OFFICE_ID },
+  ]);
+  event.attendees[1].responseStatus = "accepted";
+  f.setConflicts([event]);
+  expect(
+    await f.client.call("create_calendar_event", {
+      ...creation,
+      operationKey: "office",
+      useOffice: true,
+      attendees: ["guest@example.com"],
+    }),
+  ).toMatchObject({
+    status: "complete",
+    reused: true,
+    officeReservation: "accepted",
+  });
+  expect(f.stored.size).toBe(2);
+});
+
+test("conflicts block booking; editing people preserves the office and switching locations removes it", async () => {
+  const f = eventWorkflow();
+  f.setConflicts([{ id: "occupied", status: "confirmed" }]);
+  expect(
+    (
+      await f.client.call("create_calendar_event", {
+        ...creation,
+        useOffice: true,
+      })
+    ).error,
+  ).toContain("overlapping");
+  expect(f.stored.size).toBe(0);
+  f.setConflicts([]);
+  const made: any = await f.client.call("create_calendar_event", {
+    ...creation,
+    useOffice: true,
+  });
+  const id = made.event.id;
+  f.setConflicts([{ iCalUID: made.event.iCalUID, status: "confirmed" }]);
+  const changed: any = await f.client.call("edit_calendar_event", {
+    eventId: id,
+    etag: "v1",
+    attendees: ["new@example.com"],
+    schedule: creation.schedule,
+  });
+  expect(changed.status).toBe("complete");
+  expect(f.stored.get(id).attendees).toEqual([
+    { email: "new@example.com" },
+    { email: OFFICE_ID },
+  ]);
+  const remote: any = await f.client.call("edit_calendar_event", {
+    eventId: id,
+    etag: changed.event.etag,
+    location: "Online",
+    useOffice: false,
+  });
+  expect(remote.officeReservation).toBe("not_requested");
+  expect(f.stored.get(id).attendees).toEqual([{ email: "new@example.com" }]);
+  expect(
+    f.requests
+      .filter((r) => r.init.method === "PATCH")
+      .every((r) => decodeURIComponent(r.url.pathname).includes(CALENDAR_ID)),
+  ).toBe(true);
+});
+
+test("deletion uses the etag and cancellation notifications and recovers a lost response", async () => {
+  const f = eventWorkflow();
+  const made: any = await f.client.call("create_calendar_event", creation);
+  const id = made.event.id;
+  expect(
+    (
+      await f.client.call("delete_calendar_event", {
+        eventId: id,
+        etag: "stale",
+      })
+    ).error,
+  ).toContain("changed");
+  expect(f.stored.size).toBe(1);
+  f.loseDelete();
+  expect(
+    (await f.client.call("delete_calendar_event", { eventId: id, etag: "v1" }))
+      .status,
+  ).toBe("unavailable");
+  expect(
+    await f.client.call("delete_calendar_event", { eventId: id, etag: "v1" }),
+  ).toMatchObject({ status: "complete", deleted: true, reused: true });
+  expect(f.requests.filter((r) => r.init.method === "DELETE")).toHaveLength(1);
+});
+
+test("neutral settings work on a fork and never permit the office to be the write calendar", async () => {
+  expect(
+    createGoogleCalendarClient(
+      { ...env, DISCORD_CALENDAR_ID: undefined },
+      context,
+    ),
+  ).toBeUndefined();
+  expect(
+    createGoogleCalendarClient(
+      { ...env, DISCORD_CALENDAR_ID: OFFICE_ID },
+      context,
+    ),
+  ).toBeUndefined();
+  const f = eventWorkflow({
+    DISCORD_CALENDAR_GUILD_ID: "2514899496797212683",
+    DISCORD_CALENDAR_ID: "fork_events@group.calendar.google.com",
+    DISCORD_CALENDAR_ACCOUNT: "calendar@example.com",
+    DISCORD_CALENDAR_NAME: "discord-calendar",
+  });
+  expect((await f.client.call("create_calendar_event", creation)).status).toBe(
+    "complete",
+  );
+  expect(f.client.config.calendarName).toBe("discord-calendar");
+  const body = JSON.stringify([...f.stored.values()]);
+  expect(body).toContain("discordCalendarFingerprint");
+  expect(body).not.toContain("minisago");
 });

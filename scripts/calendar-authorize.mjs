@@ -9,15 +9,18 @@ if (!clientPath || !outputPath) {
   );
   process.exit(1);
 }
-const expectedEmail = "nthusa@gapp.nthu.edu.tw";
+const expectedEmail =
+  process.env.DISCORD_CALENDAR_ACCOUNT || "nthusa@gapp.nthu.edu.tw";
+const expectedProject =
+  process.env.DISCORD_CALENDAR_PROJECT_ID || "nthusa-discord-calendar";
 const client = JSON.parse(readFileSync(clientPath, "utf8")).installed;
 if (
-  client?.project_id !== "nthusa-discord-calendar" ||
+  client?.project_id !== expectedProject ||
   !client.client_id ||
   !client.client_secret
 )
   throw new Error(
-    "Use the downloaded Desktop OAuth client for nthusa-discord-calendar.",
+    `Use the downloaded Desktop OAuth client for ${expectedProject}.`,
   );
 // Reserve a private output file before requesting a new authorization.
 writeFileSync(outputPath, "", { mode: 0o600, flag: "wx" });
@@ -67,9 +70,7 @@ const server = createServer(async (req, res) => {
     );
     const user = identity.ok ? await identity.json() : {};
     if (user.email !== expectedEmail || user.email_verified !== true)
-      throw new Error(
-        "Wrong Google account; authorize nthusa@gapp.nthu.edu.tw.",
-      );
+      throw new Error(`Wrong Google account; authorize ${expectedEmail}.`);
     if (
       !token.refresh_token ||
       !token.scope

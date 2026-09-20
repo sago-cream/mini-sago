@@ -152,79 +152,124 @@ Feature coverage and scheduled feed destinations no longer need source changes.
 Feed sources, schedules, and checkpoint settings remain deployment
 configuration. The PR review mapping remains deployment-specific code.
 
-## NTHUSA calendar
+## Discord calendar and contact directory
 
-MiniSago exposes `list_calendar_events`, `get_calendar_event`,
-`create_calendar_event`, and `edit_calendar_event` to all chatbot users in guild
-`1514899496797212683`. Tools are absent from other guilds and DMs. The host binds
-Google requests to 學生會辦空間登記
-(`c_14bf5641071c6089c46061dda50e795027b7bd66885861a4f6d0a72a68cd3703@group.calendar.google.com`)
-and uses `Asia/Taipei`. Existing chatbot access policy still applies.
+The Calendar integration is shared by the MiniSago trial and the future NTHUSA
+fork. Its Google calendar and OAuth client are named **discord-calendar**.
+Deployments use the same code with host configuration; no bot display name is
+stored in events or confirmation previews.
 
-The booking identity is `nthusa@gapp.nthu.edu.tw`, authorized through the
-`discord-calendar` Desktop OAuth client in project `nthusa-discord-calendar`.
-It needs event-edit permission on the shared calendar. The host verifies its
-Google email before using a token and requests `openid`, `email`, and
-`https://www.googleapis.com/auth/calendar.events`. It does not impersonate an
-administrator or use domain-wide delegation.
+### Calendar destinations
 
-Set `MINISAGO_GOOGLE_CALENDAR_OAUTH_JSON` in
-`/srv/sago-cloud/secrets/bot-core.env` to one-line JSON containing `client_id`,
-`client_secret`, and `refresh_token`. Keep the full recovery JSON in Vaultwarden
-(`safe.nthusa.tw`), entry **discord-calendar**, and verify that the saved copy can
-be restored. Recreate the host container after updating credentials. Never put
-credentials in the worker environment, source code, logs, or Discord messages.
-Malformed OAuth credentials fail closed; the host does not silently switch
-identities.
+Set these host-only values before deployment:
 
-For initial authorization or recovery, set the OAuth audience to External and
-publishing status to Production before authorizing the account. External Testing
-mode expires calendar authorizations after seven days. The app information and
-privacy URLs are `https://bot.hsichen.dev/calendar` and
-`https://bot.hsichen.dev/calendar/privacy`. Download the Desktop client JSON from
-Google Cloud and run on a trusted local computer:
+| Setting                           | Purpose / default                                                                             |
+| --------------------------------- | --------------------------------------------------------------------------------------------- |
+| `DISCORD_CALENDAR_ID`             | Required secondary calendar ID for event creation, edits and deletion. No fallback.           |
+| `DISCORD_CALENDAR_NAME`           | Preview label, default `discord-calendar`.                                                    |
+| `DISCORD_OFFICE_CALENDAR_ID`      | Read-only office calendar and optional invitation recipient; defaults to 學生會辦空間登記.    |
+| `DISCORD_CALENDAR_GUILD_ID`       | Allowed guild, default `1514899496797212683`; DMs and other guilds have no Calendar tools.    |
+| `DISCORD_CALENDAR_ACCOUNT`        | Verified OAuth user, default `nthusa@gapp.nthu.edu.tw`.                                       |
+| `DISCORD_CALENDAR_OAUTH_JSON`     | Host-only compact OAuth JSON; legacy `MINISAGO_GOOGLE_CALENDAR_OAUTH_JSON` remains supported. |
+| `DISCORD_CALENDAR_DRAFTS_FILE`    | Persistent confirmation storage; legacy `MINISAGO_CALENDAR_DRAFTS_FILE` also works.           |
+| `DISCORD_CONTACTS_SPREADSHEET_ID` | Exact directory spreadsheet; defaults to the NTHUSA contact directory.                        |
+| `DISCORD_CONTACTS_SHEET_ID`       | Exact CSV tab ID, default `817689538`.                                                        |
+
+The event and office calendar IDs must differ. Missing or invalid destination
+settings disable Calendar tools. Only the dedicated event calendar accepts
+writes; the office API path rejects every method other than GET.
+
+`list_calendar_events` and `get_calendar_event` select `calendar=events` or
+`calendar=office`. The model cannot supply arbitrary calendar IDs. Use office
+for questions like 「下禮拜有人要用會辦嗎？」.
+
+`create_calendar_event`, `edit_calendar_event`, and `delete_calendar_event`
+post an immutable preview in the originating Discord channel. Only its
+requester can confirm or cancel in the same guild and channel. Creation, edits,
+deletion, invitations and cancellation notices wait for confirmation. Drafts
+expire after 15 minutes and survive restarts. They bind to the destination,
+guild and booking identity; changing deployment settings invalidates pending
+previews. Old previews must be recreated after migration.
+
+Office use is explicit: `useOffice=true` checks the office calendar for conflicts
+and adds its email as an attendee to the event in discord-calendar. Omitted or
+false on creation means no office read or invitation, regardless of the location
+text. On edits, omission preserves the office invitation and false removes it;
+when moving an event to another location, confirm that change and remove its
+office invitation. People in `attendees` are separate from the office recipient.
+Replacing the people list preserves office use unless `useOffice` changes.
+Calendar IDs are not accepted in the people list.
+
+Office invitations use Google Calendar's **Auto-accept invitations that do not
+conflict** setting. A pre-write conflict check cannot eliminate races, so the
+returned `officeReservation` is authoritative: `pending` is not a confirmed
+booking; `declined` requires a different time/location; only `accepted` means
+booked. Creating the event itself can succeed while the office remains pending.
+Read it again to check the response. Updates and cancellation propagate from the
+organizer event; the tools never modify the office copy directly.
+
+All times use Asia/Taipei. Creation supports one-off timed/all-day events;
+all-day end dates are exclusive. Edits and deletion require the current etag
+and use If-Match. Whole recurring-series changes are refused; select one
+occurrence. Creation retries use a stable operation key and neutral event
+metadata; deletion retries handle an already cancelled/missing event. Guests
+receive Google notifications through `sendUpdates=all`, subject to their settings.
+Up to 50 guests including the office are supported, subject to preview length.
+
+### Credentials and recovery
+
+The booking identity uses the discord-calendar Desktop OAuth client in project
+`nthusa-discord-calendar`. The host verifies the Google email on token refresh.
+Scopes are `openid`, `email`, and `calendar.events`; no administrator impersonation
+or domain-wide delegation is used. Keep OAuth audience External and publishing
+status Production before authorization; Google policies or revocation can still
+require reconnecting.
+
+Store compact JSON containing `client_id`, `client_secret`, and `refresh_token`
+in `/srv/sago-cloud/secrets/bot-core.env` (mode 600). Keep and verify the full
+recovery attachment in Vaultwarden (`safe.nthusa.tw`), entry **discord-calendar**.
+Never put credentials in source, worker/sandbox environments, logs or Discord.
+The existing legacy OAuth variable continues to work during the trial. Malformed
+OAuth fails closed rather than switching identities.
+
+To authorize or recover using the downloaded Desktop client on a trusted host:
 
 ```sh
 bun scripts/calendar-authorize.mjs /path/to/client.json /path/to/calendar-oauth.json
 ```
 
-Open the printed Google authorization URL and select `nthusa@gapp.nthu.edu.tw`.
-The script uses a temporary loopback listener, state, and PKCE, checks the account
-and granted scope, and writes a private recovery file without printing tokens.
-Back it up in Vaultwarden before installing it on the host. A returned
-`refresh_token_expires_in` needs investigation before production deployment.
-Production removes the Testing-specific seven-day expiry; account policies and
-revocation can still require reauthorization.
+The script uses a loopback listener, state and PKCE and writes a private file
+without printing tokens. It defaults to the account/project above;
+`DISCORD_CALENDAR_ACCOUNT` and `DISCORD_CALENDAR_PROJECT_ID` can override them.
+Back up and verify the new credentials before host installation. Recreate
+bot-core after changing its environment. Public app/privacy pages are `/calendar`
+and `/calendar/privacy` on the deployment's hostname.
 
-When OAuth is absent, `MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON` supports
-bookings without adding guests using
-`discord-calendar@nthusa-discord-calendar.iam.gserviceaccount.com`. This mode
-uses a fixed service-account identity with no project IAM roles or delegation.
-After a verified OAuth migration, remove that environment value and revoke its
-unused key; keep the key-creation organization restriction enforced.
+### Contact lookup and fork handoff
 
-Create and edit tools post an immutable preview in the originating Discord
-channel. Only the requester can confirm or cancel, in that same guild and
-channel. No calendar write or invitation happens before confirmation. Drafts
-expire after 15 minutes and survive a host restart in `calendar-drafts.json`
-beside `MINISAGO_REMINDER_STATE_FILE`; `MINISAGO_CALENDAR_DRAFTS_FILE` overrides
-the path. Use persistent storage. Cancelled and completed previews cannot be
-executed again. A failed creation retries with the original operation key.
+`lookup_calendar_contacts` uses the existing read-only discord-drive service
+account and the Google Sheets API enabled in `nthusa-discord-drive`. No new
+user OAuth scopes are required. The directory must remain in an approved drive;
+Google file ACLs and fresh Discord role membership are checked before reading
+and again before returning matches. The 學權部 exclusion remains enforced.
 
-Guest addresses must be supplied or explicitly selected by the user. Up to 50
-unique email addresses are supported, subject to the Discord preview length.
-Editing `attendees` replaces the list; omission preserves it and `[]` removes
-it. Confirmed writes use `sendUpdates=all`, which asks Google to send invitations
-and updates. Delivery and automatic addition to guests' calendars depend on
-Google and recipient settings. The preview shows existing guests for edits;
-large events that cannot be fully previewed must be edited in Google Calendar.
+The supplied spreadsheet's CSV tab uses A:H for names, nickname, organization,
+labels and email; Notes and Phone columns I:K are never fetched by this lookup.
+Only matching names, aliases, organization and email are returned, capped at ten.
+The tool reports ambiguity/truncation instead of selecting a person. It never
+invites anyone itself. Ask for selection when names collide, then include the
+chosen addresses in the Calendar preview. Changed headers or oversized tabs
+fail closed and need an administrator to review configuration.
 
-Creation supports one-off timed and all-day events. All-day end dates are
-exclusive. A stable operation key within the originating Discord message
-prevents duplicate creation on retries. Edits require the latest event etag,
-update only supplied fields, and notify existing guests. Individual recurring
-occurrences can be edited; recurring-series edits and deletion are not exposed.
-List existing bookings before creating; Google Calendar permits overlaps.
+For the NTHUSA fork, port the Calendar/settings/confirmation/contact modules,
+the Drive lookup integration, MCP registration/capability descriptions, privacy
+pages and tests together. Restore host secrets from Vaultwarden and set the same
+neutral destination values. Preserve persistent drafts or let the 15-minute
+window expire. Keep one bot deployment responsible for new confirmed mutations
+during cutover; events are shared Google data and are not recreated or copied.
+Test contact matching, non-office creation, office acceptance/conflicts, moving
+away from the office and confirmed deletion before switching traffic. The
+MiniSago trial does not imply the fork has already been deployed.
 
 ## NTHUSA shared Drive
 
