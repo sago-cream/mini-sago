@@ -12,6 +12,7 @@ import {
   checkCodexAuthentication,
   codexProfileForJob,
   PROMPT_VERSION,
+  prewarmChatRuntime,
   runCodexJob,
 } from "./codex";
 import { SessionMonitor } from "./mac/session-monitor";
@@ -159,6 +160,14 @@ export class MacAgentClient {
     if (this.stopped) return;
     if (this.config.headless) {
       this.unlocked = true;
+      void prewarmChatRuntime({
+        ...this.config,
+        appServer: this.appServer,
+      }).catch(() =>
+        console.warn(
+          "Chat runtime prewarm unavailable; the next request will start it.",
+        ),
+      );
       void this.connectWhenReady();
       console.log("MiniSago headless worker started.");
       return;
@@ -194,6 +203,7 @@ export class MacAgentClient {
       codexAuthenticated: this.codexAuthenticated,
       activeJobs: this.currentJobs.size,
       appServer,
+      warmChat: this.appServer.warmStatus(),
       ...(this.skillbook ? { skillbook: this.skillbook.status() } : {}),
     };
   }
@@ -375,6 +385,32 @@ export class MacAgentClient {
   }
 
   private async handleJob(job: ChatbotJob) {
+    // Trace reads must be serviceable while the requesting answer occupies a slot.
+    if (job.purpose === "trace_lookup") {
+      try {
+        const trace = this.traceStore.previousTrace(
+          job.channelId,
+          job.requestMessageId,
+        );
+        this.send({
+          type: "result",
+          jobId: job.id,
+          ok: true,
+          content: JSON.stringify(
+            trace ? { status: "complete", trace } : { status: "not_found" },
+          ),
+        });
+      } catch {
+        this.send({
+          type: "result",
+          jobId: job.id,
+          ok: false,
+          error: "Trace lookup unavailable.",
+          failureKind: "internal",
+        });
+      }
+      return;
+    }
     if (this.currentJobs.size >= this.config.maxConcurrentJobs) {
       this.send({
         type: "result",
@@ -394,45 +430,29 @@ export class MacAgentClient {
     console.log(`Job ${job.id} started.`);
 
     try {
-      const rawContent =
-        job.purpose === "trace_lookup"
-          ? (() => {
-              const trace = this.traceStore.previousTrace(
-                job.channelId,
-                job.requestMessageId,
-              );
-              return JSON.stringify(
-                trace ? { status: "complete", trace } : { status: "not_found" },
-              );
-            })()
-          : await (async () => {
-              const toolCalls: ChatbotMcpTraceCall[] = [];
-              this.traceStore.start(job, startedAt, {
-                model: codexProfileForJob(job, this.config.chatbotAccess).model,
-              });
-              const answer = await runCodexJob(job, {
-                ...this.config,
-                appServer: this.appServer,
-                onMcpToolCall: (call) => toolCalls.push(call),
-                onPromptCompiled: (prompt) =>
-                  this.traceStore.recordPrompt(job.id, prompt),
-                onProgress: (progress) => {
-                  phase = progress.phase;
-                  this.send({ type: "progress", jobId: job.id, progress });
-                },
-                onReplyDelta: (delta) => {
-                  this.send({ type: "answer_delta", jobId: job.id, delta });
-                },
-                signal: controller.signal,
-              });
-              this.traceStore.finish(
-                job.id,
-                answer.content,
-                Date.now(),
-                toolCalls,
-              );
-              return answer;
-            })();
+      const rawContent = await (async () => {
+        const toolCalls: ChatbotMcpTraceCall[] = [];
+        this.traceStore.start(job, startedAt, {
+          model: codexProfileForJob(job, this.config.chatbotAccess).model,
+        });
+        const answer = await runCodexJob(job, {
+          ...this.config,
+          appServer: this.appServer,
+          onMcpToolCall: (call) => toolCalls.push(call),
+          onPromptCompiled: (prompt) =>
+            this.traceStore.recordPrompt(job.id, prompt),
+          onProgress: (progress) => {
+            phase = progress.phase;
+            this.send({ type: "progress", jobId: job.id, progress });
+          },
+          onReplyDelta: (delta) => {
+            this.send({ type: "answer_delta", jobId: job.id, delta });
+          },
+          signal: controller.signal,
+        });
+        this.traceStore.finish(job.id, answer.content, Date.now(), toolCalls);
+        return answer;
+      })();
 
       const outgoing =
         typeof rawContent === "string"
@@ -456,9 +476,7 @@ export class MacAgentClient {
         : error instanceof Error
           ? error.message
           : "Codex failed.";
-      if (job.purpose !== "trace_lookup") {
-        this.traceStore.fail(job.id, cause);
-      }
+      this.traceStore.fail(job.id, cause);
       if (this.authenticated) {
         this.currentJobs.delete(job.id);
         this.send({

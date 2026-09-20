@@ -39,6 +39,7 @@ RUN mkdir -p /opt/minisago-models /opt/minisago-numba-cache \
 RUN chmod -R a+rX /opt/minisago-python /opt/minisago-models /opt/minisago-numba-cache
 
 COPY --chown=bun:bun src/chatbot /app/src/chatbot
+COPY --chown=bun:bun src/observability /app/src/observability
 COPY --chown=bun:bun contracts /app/contracts
 COPY --chown=bun:bun worker/src ./src
 COPY --chown=bun:bun worker/tsconfig.json ./tsconfig.json

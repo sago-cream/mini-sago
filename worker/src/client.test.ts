@@ -31,3 +31,39 @@ describe("worker failure reporting", () => {
     expect(failureKindForCause("Network timeout", true)).toBe("internal");
   });
 });
+
+test("serves lazy trace reads even when all generation slots are occupied", async () => {
+  const { MacAgentClient } = await import("./client");
+  const replies: unknown[] = [];
+  const currentJobs = new Map([["active-answer", new AbortController()]]);
+  const receiver = {
+    config: { maxConcurrentJobs: 1 },
+    currentJobs,
+    traceStore: { previousTrace: () => undefined },
+    send: (message: unknown) => replies.push(message),
+  };
+  const handle = (
+    MacAgentClient.prototype as unknown as {
+      handleJob: (this: typeof receiver, job: ChatbotJob) => Promise<void>;
+    }
+  ).handleJob;
+  await handle.call(receiver, {
+    id: "lazy-read",
+    purpose: "trace_lookup",
+    requesterUserId: "owner",
+    channelId: "channel",
+    requestMessageId: "message",
+    request: "why?",
+    messages: [],
+  });
+  expect(replies).toEqual([
+    {
+      type: "result",
+      jobId: "lazy-read",
+      ok: true,
+      content: '{"status":"not_found"}',
+    },
+  ]);
+  expect(currentJobs.size).toBe(1);
+  expect(currentJobs.has("active-answer")).toBe(true);
+});
