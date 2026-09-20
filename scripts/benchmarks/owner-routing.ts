@@ -74,7 +74,7 @@ export async function readTypesafeKey(path = TYPESAFE_KEY_PATH) {
 }
 
 export { jevRequest, parseJevResponse } from "../../src/chatbot/jev-routing";
-function benchmarkCapabilities() {
+export function benchmarkCapabilities() {
   const unavailable = (): never => {
     throw new Error("Routing benchmark cannot execute tools.");
   };
@@ -169,7 +169,7 @@ async function main() {
       provider === "jev" ? { model: "jev-latest" } : OWNER_ROUTER_PROFILE,
     dryRun,
     method:
-      "Three sequential requests, one per message, no retry or explicit warmup. Codex time includes fresh process startup and cleanup; Jev time includes request construction, HTTPS, inference, and validation. Excludes Discord, bridge dispatch, worker queue, and action execution. Jev selects route and repository; Codex additionally generates a title and reason.",
+      "Three sequential requests, one per message, no retry or explicit warmup. Codex time includes fresh process startup and cleanup; Jev time includes request construction, HTTPS, inference, and validation. Excludes Discord, bridge dispatch, worker queue, and action execution. Jev selects the route; Codex additionally selects a repository and generates a title and reason.",
     environment: {
       platform: process.platform,
       nearbyMessageCount: 0,
@@ -222,20 +222,14 @@ async function main() {
         });
         if (!response.ok)
           throw new Error(`TypeSafe returned HTTP ${response.status}.`);
-        const parsed = parseJevResponse(await response.json(), job);
+        const parsed = parseJevResponse(await response.json());
         const route = parsed.answers.route.choice;
-        const repository =
-          route === "oracle" && parsed.answers.repository.choice !== "unknown"
-            ? parsed.answers.repository.choice
-            : undefined;
         result = {
-          decision: { route, ...(repository ? { repository } : {}) },
+          decision: { route },
           answers: parsed.answers,
           model: parsed.model,
           usage: parsed.usage,
-          correct:
-            route === test.expectedRoute &&
-            (route !== "oracle" || repository === config.chatbotRepository),
+          correct: route === test.expectedRoute,
         };
       } else {
         const response = await runCodexJob(job, config);

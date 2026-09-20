@@ -58,7 +58,9 @@ const warmManager = new CodexAppServerManager();
 const { timing } = await import("../../src/observability/timing");
 const { ChatbotTraceStore } = await import("../../worker/src/trace-store");
 const traceDirectory = await mkdtemp(join(tmpdir(), "minisago-benchmark-"));
-const benchmarkTraces = new ChatbotTraceStore(join(traceDirectory, "traces.sqlite"));
+const benchmarkTraces = new ChatbotTraceStore(
+  join(traceDirectory, "traces.sqlite"),
+);
 const discord = createDiscordRequest(process.env.DISCORD_BOT_TOKEN!);
 const access = getChatbotAccessConfig();
 const [self, channel, original, latest] = await Promise.all([
@@ -380,7 +382,7 @@ async function run(
                   },
                 );
                 if (!response.ok) throw new Error("Jev unavailable");
-                const parsed = parseJevResponse(await response.json(), job);
+                const parsed = parseJevResponse(await response.json());
                 record.jev = {
                   model: parsed.model,
                   route: parsed.answers.route.choice,
@@ -388,20 +390,13 @@ async function run(
                   usage: parsed.usage,
                 };
                 const route = parsed.answers.route;
-                const repo = parsed.answers.repository;
-                if (
-                  route.confidence < 0.8 ||
-                  (route.choice === "oracle" && repo.confidence < 0.8)
-                ) {
-                  record.fallback = "uncertain";
+                if (route.confidence < 0.8 || route.choice === "oracle") {
+                  record.fallback = "codex_required";
                   return undefined;
                 }
                 return JSON.stringify({
                   route: route.choice,
-                  repository:
-                    route.choice === "oracle" && repo.choice !== "unknown"
-                      ? repo.choice
-                      : null,
+                  repository: null,
                   threadTitle: null,
                   reason: "Jev routing",
                 });
