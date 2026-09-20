@@ -1,3 +1,4 @@
+import { routeWithJev } from "../chatbot/jev-routing";
 import { handleCalendarConfirmation } from "../chatbot/calendar-confirmation";
 import {
   getInstagramReplyUrls,
@@ -229,6 +230,7 @@ class InstagramGatewayClient implements VoiceGateway {
   private ambientReactions: AmbientReactionController;
   private channelTasks = new ChannelTaskQueue();
   private conversations = new ChatbotConversationTracker();
+  private latestMessages = new Map<string, string>();
   private quietChannels = new ChannelQuietTracker();
   private quickReplyNudges = new QuickReplyNudgeTracker();
   private heartbeatAcked = true;
@@ -334,6 +336,7 @@ class InstagramGatewayClient implements VoiceGateway {
       void this.handleGatewayPayload(event);
     });
     this.socket.addEventListener("close", (event) => {
+      this.latestMessages.clear();
       this.clearHeartbeat();
 
       if (this.stopped || !this.shouldReconnect(event.code)) {
@@ -426,6 +429,10 @@ class InstagramGatewayClient implements VoiceGateway {
 
     if (payload.t === "MESSAGE_CREATE") {
       const message = payload.d as DiscordMessageCreate;
+      this.latestMessages.delete(message.channel_id);
+      this.latestMessages.set(message.channel_id, message.id);
+      if (this.latestMessages.size > 2000)
+        this.latestMessages.delete(this.latestMessages.keys().next().value!);
       const receivedSequence = this.conversations.recordMessage();
       await this.channelTasks.run(message.channel_id, () =>
         this.handleMessageCreate(message, receivedSequence),
@@ -681,6 +688,12 @@ class InstagramGatewayClient implements VoiceGateway {
           quietTracker: this.quietChannels,
           receivedSequence,
           featureAvailability: this.featureAvailability,
+          executionOptions: {
+            nonBlockingTyping: true,
+            lazyPreviousTrace: true,
+            latestMessageId: () => this.latestMessages.get(message.channel_id),
+            routeRequest: routeWithJev,
+          },
         });
 
         if (handled) {

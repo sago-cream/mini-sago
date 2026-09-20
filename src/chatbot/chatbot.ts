@@ -1,3 +1,4 @@
+import { timing, type TimingSink } from "../observability/timing";
 import { withCalendarConfirmation } from "./calendar-confirmation";
 import { searchThreads } from "./threads-search";
 import { randomUUID } from "node:crypto";
@@ -31,6 +32,7 @@ import type {
   ChatbotExecutionRoute,
   ChatbotOutgoingFile,
   ChatbotJob,
+  ExecutionRouteJob,
   ChatbotMemberResult,
   ChatbotMessage,
   ChatbotTraceContext,
@@ -530,18 +532,22 @@ export async function postChatbotResponse(
   content: string | string[] | null,
   discordRequest: DiscordRequest,
   files: ChatbotOutgoingFile[] = [],
+  latestMessageId?: () => string | undefined,
 ) {
   const contents = Array.isArray(content) ? content : [content];
   let canPostDirectly = false;
 
-  try {
-    const latestMessages = await discordRequest<DiscordMessage[]>(
-      `/channels/${message.channel_id}/messages?limit=1`,
-    );
-    canPostDirectly = latestMessages[0]?.id === message.id;
-  } catch {
-    // A reply keeps the relationship clear when the latest message is unknown.
-  }
+  if (latestMessageId) {
+    canPostDirectly = latestMessageId() === message.id;
+  } else
+    try {
+      const latestMessages = await discordRequest<DiscordMessage[]>(
+        `/channels/${message.channel_id}/messages?limit=1`,
+      );
+      canPostDirectly = latestMessages[0]?.id === message.id;
+    } catch {
+      // A reply keeps the relationship clear when the latest message is unknown.
+    }
 
   for (const [index, content] of contents.entries()) {
     const body =
@@ -900,10 +906,12 @@ async function withTyping<T>(
   channelId: string,
   discordRequest: DiscordRequest,
   task: () => Promise<T>,
+  nonBlocking = false,
 ) {
-  await discordRequest(`/channels/${channelId}/typing`, {
+  const initialTyping = discordRequest(`/channels/${channelId}/typing`, {
     method: "POST",
   }).catch(() => undefined);
+  if (!nonBlocking) await initialTyping;
   const timer = setInterval(() => {
     void discordRequest(`/channels/${channelId}/typing`, {
       method: "POST",
@@ -982,6 +990,15 @@ export async function addGuildExpressionForRequest({
   });
 }
 
+export type ChatbotExecutionOptions = {
+  onTiming?: TimingSink;
+  nonBlockingTyping?: boolean;
+  lazyPreviousTrace?: boolean;
+  /** A gateway cache callback. Unknown state conservatively uses an explicit reply. */
+  latestMessageId?: () => string | undefined;
+  routeRequest?: (job: ExecutionRouteJob) => Promise<string | undefined>;
+};
+
 export async function handleChatbotMention({
   message,
   botUserId,
@@ -993,6 +1010,7 @@ export async function handleChatbotMention({
   receivedSequence,
   invocation,
   featureAvailability,
+  executionOptions = {},
 }: {
   message: ChatbotMention;
   botUserId: string;
@@ -1004,7 +1022,10 @@ export async function handleChatbotMention({
   receivedSequence?: number;
   invocation?: ChatbotInvocation;
   featureAvailability?: FeatureAvailabilityStore;
+  executionOptions?: ChatbotExecutionOptions;
 }) {
+  const clock = timing(executionOptions.onTiming);
+  clock.mark("handler.received");
   const requesterUserId = message.author?.id;
   const respond = (
     content: string | string[] | null,
@@ -1012,7 +1033,13 @@ export async function handleChatbotMention({
   ) =>
     invocation?.respond
       ? invocation.respond(content, files)
-      : postChatbotResponse(message, content, discordRequest, files);
+      : postChatbotResponse(
+          message,
+          content,
+          discordRequest,
+          files,
+          executionOptions.latestMessageId,
+        );
 
   if (!requesterUserId || requesterUserId === botUserId || message.webhook_id) {
     return false;
@@ -1104,6 +1131,7 @@ export async function handleChatbotMention({
           : feature === "trip_planner"
             ? tripPlannerAvailableForGuild(message.guild_id)
             : true;
+      const historyDone = clock.start("host.nearby_history");
       const requestMessage = toChatbotMessage(message, botUserId);
       let messages = invocation?.recentContext
         ? await getRecentHumanMessages({
@@ -1126,12 +1154,15 @@ export async function handleChatbotMention({
               botUserId,
               discordRequest,
             });
+      historyDone();
       const mediaRegistry = new ChatbotMediaRegistry();
       mediaRegistry.registerMessages([requestMessage, ...messages]);
       let serverMemory: ChatbotJob["serverMemory"];
       if (message.guild_id) {
         try {
-          const snapshot = await guildMemoryStore.load(message.guild_id);
+          const snapshot = await clock.span("host.guild_memory", () =>
+            guildMemoryStore.load(message.guild_id!),
+          );
           if (snapshot.entries.length) {
             serverMemory = {
               revision: snapshot.revision,
@@ -1148,19 +1179,46 @@ export async function handleChatbotMention({
       let executionRoute: ChatbotExecutionRoute = "chat";
       let selectedRepository: string | undefined;
       let developerThreadTitle: string | undefined;
-      let previousTrace: {
+      type PreviousTrace = {
         status: "complete" | "not_found" | "unavailable";
         trace?: ChatbotTraceContext;
-      } = { status: "unavailable" };
+      };
+      let previousTracePromise: Promise<PreviousTrace> | undefined;
+      const getPreviousTrace = () =>
+        (previousTracePromise ??= clock.span(
+          "host.previous_trace",
+          async () => {
+            const dispatch = workflow.dispatch({
+              id: randomUUID(),
+              requesterUserId,
+              purpose: "trace_lookup",
+              channelId: message.channel_id,
+              requestMessageId: message.id,
+              request,
+              requestMessage,
+              messages: [],
+            });
+            if (dispatch.status !== "accepted")
+              return { status: "unavailable" as const };
+            const result = await dispatch.result;
+            return result.ok
+              ? parsePreviousTraceLookup(result.content)
+              : { status: "unavailable" as const };
+          },
+        ));
 
       if (message.guild_id && reactionBroker) {
         try {
-          reactionCapabilities = await reactionBroker.discover({
-            guildId: message.guild_id,
-            channelId: message.channel_id,
-            botUserId,
-            discordRequest,
-          });
+          reactionCapabilities = await clock.span(
+            "host.reaction_discovery",
+            () =>
+              reactionBroker.discover({
+                guildId: message.guild_id!,
+                channelId: message.channel_id,
+                botUserId,
+                discordRequest,
+              }),
+          );
         } catch {
           console.warn("Discord reaction capabilities unavailable.");
         }
@@ -1333,18 +1391,19 @@ export async function handleChatbotMention({
                   results: [] as ChatbotMemberResult[],
                 });
 
-          const [history, search, members] = await Promise.all([
+          const [history, search, members, previousTrace] = await Promise.all([
             historyPromise,
             searchPromise,
             membersPromise,
+            includePreviousTrace
+              ? getPreviousTrace()
+              : Promise.resolve({ status: "not_requested" as const }),
           ]);
           return {
             history,
             search,
             members,
-            previousTrace: includePreviousTrace
-              ? previousTrace
-              : { status: "not_requested" as const },
+            previousTrace,
           };
         },
         ...(requesterUserId === accessConfig.ownerUserId && message.guild_id
@@ -1533,15 +1592,28 @@ export async function handleChatbotMention({
             ? { chatbotRepository: workflow.chatbotRepository }
             : {}),
         };
-        const routeDispatch = workflow.dispatch(routeJob);
+        const routeDone = clock.start("host.routing");
+        const fastRoute = executionOptions.routeRequest
+          ? await clock.span("host.jev", () =>
+              executionOptions.routeRequest!(routeJob),
+            )
+          : undefined;
+        const routeDispatch =
+          fastRoute === undefined ? workflow.dispatch(routeJob) : undefined;
         let route = parseExecutionRoute("", workflow.availableRepositories);
-        if (routeDispatch.status === "accepted") {
+        if (fastRoute !== undefined)
+          route = parseExecutionRoute(
+            fastRoute,
+            workflow.availableRepositories,
+          );
+        if (routeDispatch?.status === "accepted") {
           const routeResult = await routeDispatch.result;
           route = parseExecutionRoute(
             routeResult.ok ? routeResult.content : "",
             workflow.availableRepositories,
           );
         }
+        routeDone();
         executionRoute = executionRouteOrChat(route.route);
         selectedRepository = route.repository;
         developerThreadTitle = route.threadTitle;
@@ -1573,22 +1645,7 @@ export async function handleChatbotMention({
         }
       }
 
-      const traceDispatch = workflow.dispatch({
-        id: randomUUID(),
-        requesterUserId,
-        purpose: "trace_lookup",
-        channelId: message.channel_id,
-        requestMessageId: message.id,
-        request,
-        requestMessage,
-        messages: [],
-      });
-      if (traceDispatch.status === "accepted") {
-        const traceResult = await traceDispatch.result;
-        previousTrace = traceResult.ok
-          ? parsePreviousTraceLookup(traceResult.content)
-          : { status: "unavailable" };
-      }
+      if (!executionOptions.lazyPreviousTrace) await getPreviousTrace();
 
       const requestCapabilities = supplementalCapabilities({
         isOwner: requesterUserId === accessConfig.ownerUserId,
@@ -1671,6 +1728,7 @@ export async function handleChatbotMention({
         });
         return { ok: true as const, content: "" };
       }
+      const answerDone = clock.start("host.answer_dispatch");
       const dispatch = workflow.dispatch(job);
 
       if (dispatch.status === "offline") {
@@ -1689,11 +1747,18 @@ export async function handleChatbotMention({
         };
       }
 
-      return dispatch.result;
+      const answerResult = await dispatch.result;
+      answerDone();
+      return answerResult;
     };
     result = invocation?.silent
       ? await execute()
-      : await withTyping(message.channel_id, discordRequest, execute);
+      : await withTyping(
+          message.channel_id,
+          discordRequest,
+          execute,
+          executionOptions.nonBlockingTyping,
+        );
   } catch (error) {
     console.error(`Chatbot request ${message.id} failed:`, error);
     result = {
@@ -1714,13 +1779,15 @@ export async function handleChatbotMention({
   let reply: string | null = null;
   const files = result.ok ? (result.files ?? []) : [];
   if (result.ok) {
-    const decision = await executeChatbotAnswerDecision({
-      content: result.content,
-      message,
-      reactionBroker,
-      reactionCapabilities,
-      discordRequest,
-    });
+    const decision = await clock.span("host.answer_validation", () =>
+      executeChatbotAnswerDecision({
+        content: result.content,
+        message,
+        reactionBroker,
+        reactionCapabilities,
+        discordRequest,
+      }),
+    );
     reply = decision.reply;
     reacted ||= decision.reacted;
   } else {
@@ -1735,7 +1802,8 @@ export async function handleChatbotMention({
   }
   if (reply || files.length > 0) {
     const content = reply ? formatDiscordAnswers(reply) : null;
-    await respond(content, files);
+    await clock.span("host.reply_delivery", () => respond(content, files));
+    clock.mark("handler.completed");
     if (!invocation) {
       conversationTracker?.activate(message.channel_id, requesterUserId);
     }

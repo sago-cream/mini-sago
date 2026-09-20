@@ -45,7 +45,7 @@ test("worker image includes a minimal Python runtime", () => {
   expect(dockerfile).toContain("NUMBA_CACHE_DIR=/opt/minisago-numba-cache");
   expect(dockerfile).toContain("remove(Image.new");
   expect(sandboxRequirements.trim()).toBe(
-    "opencv-python-headless==5.0.0.93\nrembg[cpu]==2.0.76",
+    "opencv-python-headless==5.0.0.93\nrembg[cpu]==2.0.76\npypdf==6.19.0\npython-docx==1.2.0\nopenpyxl==3.1.5",
   );
   expect(pythonRuntime).toContain(
     'PYTHON = "/opt/minisago-python/bin/python3"',

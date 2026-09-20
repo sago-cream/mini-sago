@@ -608,7 +608,8 @@ export class MacAgentBridge {
   ): DispatchResult {
     const workflow = this.workflows.get(workflowId);
     if (!workflow) return { status: "offline" };
-    if (workflow.activeJobId) return { status: "busy" };
+    if (workflow.activeJobId && job.purpose !== "trace_lookup")
+      return { status: "busy" };
     return this.dispatchJob(job, workflow.workerId, workflowId, onProgress);
   }
 
@@ -666,7 +667,8 @@ export class MacAgentBridge {
       this.pendingJobs.set(job.id, pendingJob);
       if (workflowId) {
         const workflow = this.workflows.get(workflowId);
-        if (workflow) workflow.activeJobId = job.id;
+        if (workflow && job.purpose !== "trace_lookup")
+          workflow.activeJobId = job.id;
       }
     });
 

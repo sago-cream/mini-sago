@@ -1,3 +1,4 @@
+import { timing, type TimingSink } from "../../src/observability/timing";
 import { dirname, join } from "node:path";
 
 import {
@@ -109,6 +110,8 @@ export const SOCIAL_ACTION_PROFILE = {
 export const CHATBOT_MODEL_VERBOSITY = "medium";
 
 type CodexRunOptions = {
+  onTiming?: TimingSink;
+  warmChat?: boolean;
   appServer?: CodexAppServerManager;
   chatbotRepository?: string;
   codexHome: string;
@@ -255,9 +258,71 @@ export class StreamingReplyParser {
   }
 }
 
+function recordCodexEventTiming(line: string, sink?: TimingSink) {
+  if (!sink) return;
+  try {
+    const event = JSON.parse(line);
+    const types = [
+      "thread.started",
+      "turn.started",
+      "turn.completed",
+      "turn.failed",
+      "item.started",
+      "item.completed",
+    ];
+    if (!types.includes(event.type)) return;
+    const itemTypes = [
+      "reasoning",
+      "agent_message",
+      "mcp_tool_call",
+      "web_search",
+      "command_execution",
+    ];
+    const item = itemTypes.includes(event.item?.type)
+      ? `.${event.item.type}`
+      : "";
+    timing(sink).mark(`codex.${event.type}${item}`);
+  } catch {
+    /* Non-JSON diagnostics contain no timing events. */
+  }
+}
+
+async function consumeCodexDiagnostics(
+  stream: ReadableStream<Uint8Array>,
+  sink?: TimingSink,
+) {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let output = "",
+    pending = "";
+  const record = (line: string) => {
+    const match = line.match(
+      /^mcp: (minisago|nthusa|minisago_media|mac_files) (starting|ready|failed)\b/,
+    );
+    if (match) timing(sink).mark(`codex.mcp.${match[1]}.${match[2]}`);
+    if (/^mcp startup:/.test(line))
+      timing(sink).mark("codex.mcp.startup_summary");
+  };
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    const text = decoder.decode(value, { stream: true });
+    output += text;
+    pending += text;
+    const lines = pending.split("\n");
+    pending = lines.pop() ?? "";
+    for (const line of lines) record(line);
+  }
+  const tail = decoder.decode();
+  output += tail;
+  record(pending + tail);
+  return output;
+}
+
 async function consumeCodexOutput(
   stream: ReadableStream<Uint8Array>,
   onProgress?: CodexRunOptions["onProgress"],
+  onTiming?: TimingSink,
 ) {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
@@ -272,6 +337,7 @@ async function consumeCodexOutput(
     const lines = pending.split("\n");
     pending = lines.pop() ?? "";
     for (const line of lines) {
+      recordCodexEventTiming(line, onTiming);
       const progress = progressForCodexEvent(line);
       if (progress) onProgress?.(progress);
     }
@@ -280,6 +346,7 @@ async function consumeCodexOutput(
   output += tail;
   pending += tail;
   if (pending) {
+    recordCodexEventTiming(pending, onTiming);
     const progress = progressForCodexEvent(pending);
     if (progress) onProgress?.(progress);
   }
@@ -709,7 +776,9 @@ async function executeCodex({
   onProgress,
   allowDeveloperTools = false,
   onMcpToolCall,
+  onTiming,
 }: {
+  onTiming?: TimingSink;
   codexArguments: string[];
   input: string;
   environment: Record<string, string>;
@@ -727,6 +796,8 @@ async function executeCodex({
         ...codexArguments,
       ]
     : codexArguments;
+  const clock = timing(onTiming);
+  clock.mark("codex.spawn");
   const child = Bun.spawn(command, {
     stdin: "pipe",
     stdout: "pipe",
@@ -740,22 +811,26 @@ async function executeCodex({
 
   try {
     const [stdout, stderr, exitCode] = await Promise.all([
-      consumeCodexOutput(child.stdout, onProgress),
-      new Response(child.stderr).text(),
+      consumeCodexOutput(child.stdout, onProgress, onTiming),
+      consumeCodexDiagnostics(child.stderr, onTiming),
       child.exited,
     ]);
+    clock.mark("codex.exited");
     if (signal.aborted) {
       throw new Error("Codex request was cancelled or timed out.");
     }
     if (exitCode !== 0) {
       throw new Error(codexFailureMessage(stdout, stderr, exitCode));
     }
-    return parseFinalResponse(
+    const parseDone = clock.start("codex.parse_output");
+    const result = parseFinalResponse(
       stdout,
       allowDeveloperTools,
       onMcpToolCall,
       allowDeveloperTools,
     );
+    parseDone();
+    return result;
   } finally {
     signal.removeEventListener("abort", stop);
   }
@@ -836,7 +911,82 @@ async function repairAnswerIdentity(
   return repaired.reply.trim();
 }
 
+function warmProcessOptions(
+  options: Pick<CodexRunOptions, "codexPath" | "codexHome">,
+) {
+  return {
+    command: [
+      options.codexPath,
+      "app-server",
+      "--strict-config",
+      "--config",
+      "mcp_servers={}",
+    ],
+    processCwd: options.codexHome,
+    environment: codexEnvironment(options.codexHome, options.codexPath, false),
+  };
+}
+
+export async function prewarmChatRuntime(options: CodexRunOptions) {
+  if (process.platform !== "linux" || !options.appServer) return;
+  await options.appServer.prewarm({
+    ...warmProcessOptions(options),
+    jobId: "prewarm",
+    taskId: "prewarm",
+    cwd: options.codexHome,
+    model: "",
+    effort: "",
+    developerInstructions: "",
+    prompt: "",
+    imagePaths: [],
+  });
+}
+
+export function warmThreadConfig(
+  arguments_: string[],
+  environment: Record<string, string>,
+) {
+  const config: Record<string, any> = {};
+  const merge = (target: Record<string, any>, source: Record<string, any>) => {
+    for (const [key, value] of Object.entries(source)) {
+      if (value && typeof value === "object" && !Array.isArray(value))
+        merge((target[key] ??= {}), value);
+      else target[key] = value;
+    }
+  };
+  for (let index = 0; index < arguments_.length; index++) {
+    if (arguments_[index] === "--config")
+      merge(config, Bun.TOML.parse(arguments_[++index]!));
+  }
+  for (const server of Object.values(config.mcp_servers ?? {}) as Record<
+    string,
+    any
+  >[]) {
+    if (server.bearer_token_env_var) {
+      server.http_headers = {
+        ...server.http_headers,
+        Authorization: `Bearer ${environment[server.bearer_token_env_var]}`,
+      };
+      delete server.bearer_token_env_var;
+    }
+    if (server.env_vars) {
+      server.env = {
+        ...server.env,
+        ...Object.fromEntries(
+          server.env_vars
+            .filter((key: string) => environment[key] !== undefined)
+            .map((key: string) => [key, environment[key]]),
+        ),
+      };
+      server.env_vars = [];
+    }
+  }
+  return config;
+}
+
 export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
+  const clock = timing(options.onTiming);
+  const jobDone = clock.start("worker.job");
   assertChatbotJobAllowed(job, options.chatbotAccess);
   const profile = codexProfileForJob(job, options.chatbotAccess);
   const hasDeveloperAccess = canUseDeveloperTools(job, options.chatbotAccess);
@@ -856,6 +1006,7 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
     | undefined;
 
   try {
+    const prepareDone = clock.start("worker.attachments_workspace");
     prepared = await prepareAttachments(
       job,
       timeoutController.signal,
@@ -863,6 +1014,8 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
         ? httpMediaClient(options.mcpUrl, job.mcpAccessToken)
         : undefined,
     );
+    prepareDone();
+    const promptDone = clock.start("worker.prompt_config");
     if (hasDeveloperAccess) {
       options.onProgress?.({
         phase: "preparing",
@@ -1070,8 +1223,38 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
       },
     );
 
-    let content: string;
+    promptDone();
+    let content: string | undefined;
     if (
+      options.warmChat !== false &&
+      process.platform === "linux" &&
+      job.purpose === "answer" &&
+      job.executionRoute === "chat" &&
+      !job.streamReply &&
+      options.appServer
+    ) {
+      content = await options.appServer.runWarm({
+        jobId: job.id,
+        taskId: job.id,
+        warm: true,
+        ...warmProcessOptions(options),
+        model: profile.model,
+        effort: profile.reasoningEffort,
+        developerInstructions: prompt.developerInstructions,
+        prompt: `${prompt.taskInstruction}\n\n${prompt.context}`.trim(),
+        imagePaths: prepared.imagePaths,
+        outputSchema: outputSchema as unknown as Record<string, unknown>,
+        threadConfig: warmThreadConfig(codexArguments, runEnvironment),
+        onTiming: options.onTiming,
+        onMcpToolCall: options.onMcpToolCall,
+        signal: timeoutController.signal,
+        // Each thread uses its own workspace even though the server process is stable.
+        cwd: prepared.directory,
+      });
+    }
+    if (content !== undefined) {
+      // The same validation and artifact path below applies to warm answers.
+    } else if (
       job.purpose === "answer" &&
       job.streamReply &&
       options.appServer &&
@@ -1134,11 +1317,13 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
         onProgress: options.onProgress,
         allowDeveloperTools: hasDeveloperAccess,
         onMcpToolCall: options.onMcpToolCall,
+        onTiming: options.onTiming,
       });
     }
     if (job.purpose !== "answer" || hasDeveloperAccess) {
       return { content, files: [] };
     }
+    const validationDone = clock.start("worker.validate_identity");
     const answer = JSON.parse(content) as Record<string, unknown>;
     if (typeof answer.reply === "string") {
       let safeReply = enforceFirstPersonIdentity(answer.reply.trim(), false);
@@ -1159,6 +1344,7 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
       }
       answer.reply = safeReply;
     }
+    validationDone();
     const safeContent = JSON.stringify(answer);
     if (job.streamReply) {
       return {
@@ -1170,13 +1356,18 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
         files: [],
       };
     }
-    return await (hasMacFileAccess
-      ? prepareOutgoingFiles(safeContent, options.macFileRoots)
-      : prepareGeneratedArtifacts(safeContent, prepared.outputsDirectory));
+    return await clock.span("worker.outgoing_artifacts", () =>
+      hasMacFileAccess
+        ? prepareOutgoingFiles(safeContent, options.macFileRoots)
+        : prepareGeneratedArtifacts(safeContent, prepared!.outputsDirectory),
+    );
   } finally {
     clearTimeout(timeout);
     options.signal?.removeEventListener("abort", abort);
-    await developerWorkspace?.cleanup();
-    await prepared?.cleanup();
+    await clock.span("worker.cleanup", async () => {
+      await developerWorkspace?.cleanup();
+      await prepared?.cleanup();
+    });
+    jobDone();
   }
 }

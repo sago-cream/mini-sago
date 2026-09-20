@@ -1,3 +1,4 @@
+import { timing, type TimingSink } from "../../src/observability/timing";
 import type {
   ChatbotMcpTraceCall,
   ChatbotTaskProgress,
@@ -14,6 +15,7 @@ type RunOptions = {
   title?: string;
   command: string[];
   cwd: string;
+  processCwd?: string;
   environment: Record<string, string>;
   model: string;
   effort: string;
@@ -22,6 +24,9 @@ type RunOptions = {
   imagePaths: string[];
   outputSchema?: JsonObject;
   ephemeral?: boolean;
+  warm?: boolean;
+  threadConfig?: JsonObject;
+  onTiming?: TimingSink;
   onAgentMessageDelta?: (delta: string) => void;
   onProgress?: (progress: ChatbotTaskProgress) => void;
   onMcpToolCall?: (call: ChatbotMcpTraceCall) => void;
@@ -80,6 +85,7 @@ class CodexTurnInterruptedError extends Error {}
 
 class CodexAppServerSession {
   private active?: ActiveTurn;
+  private onTiming?: TimingSink;
   private buffer = "";
   private child: Bun.PipedSubprocess;
   private exited = false;
@@ -94,8 +100,10 @@ class CodexAppServerSession {
   private readonly startedAt = performance.now();
 
   constructor(private readonly options: RunOptions) {
+    this.onTiming = options.onTiming;
+    timing(this.onTiming).mark("codex.spawn");
     this.child = Bun.spawn(options.command, {
-      cwd: options.cwd,
+      cwd: options.processCwd ?? options.cwd,
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
@@ -107,8 +115,60 @@ class CodexAppServerSession {
     this.ready = this.initialize();
   }
 
+  async prepare() {
+    await this.ready;
+  }
+
+  get pid() {
+    return this.child.pid;
+  }
+
+  async runFresh(options: RunOptions) {
+    await this.ready;
+    this.onTiming = options.onTiming;
+    if (options.signal?.aborted)
+      throw new CodexTurnInterruptedError("Request cancelled.");
+    const clock = timing(this.onTiming);
+    const done = clock.start("warm.thread_start");
+    try {
+      const response = await this.request("thread/start", {
+        model: options.model,
+        cwd: options.cwd,
+        approvalPolicy: "never",
+        developerInstructions: options.developerInstructions,
+        serviceName: "minisago",
+        // Persist only until thread/delete can synchronously release this session.
+        ephemeral: false,
+        config: options.threadConfig,
+      });
+      const thread = record(response.thread);
+      if (typeof thread?.id !== "string")
+        throw new Error("Missing fresh thread ID.");
+      this.threadId = thread.id;
+      done();
+      clock.mark("codex.thread.started");
+      return await this.run(options);
+    } finally {
+      const threadId = this.threadId;
+      this.threadId = undefined;
+      if (threadId) {
+        const cleanup = clock.start("warm.thread_delete");
+        try {
+          await this.request("thread/delete", { threadId });
+        } catch {
+          this.close();
+        } finally {
+          cleanup();
+        }
+      }
+      this.onTiming = undefined;
+    }
+  }
+
   async run(options: RunOptions) {
     await this.ready;
+    if (options.signal?.aborted)
+      throw new CodexTurnInterruptedError("Request cancelled.");
     if (this.active)
       throw new Error("Codex thread already has an active turn.");
     const input: JsonObject[] = [{ type: "text", text: options.prompt }];
@@ -136,6 +196,7 @@ class CodexAppServerSession {
     options.signal?.addEventListener("abort", interrupt, { once: true });
 
     try {
+      timing(this.onTiming).mark("codex.turn.started");
       const response = await this.request("turn/start", {
         threadId: this.threadId,
         input,
@@ -187,6 +248,7 @@ class CodexAppServerSession {
   }
 
   close() {
+    this.exited = true;
     this.child.kill();
   }
 
@@ -207,6 +269,8 @@ class CodexAppServerSession {
       },
     });
     this.notify("initialized", {});
+    timing(this.onTiming).mark("warm.process_ready");
+    if (this.options.warm) return;
     const threadStartedAt = performance.now();
     const response = await this.request(
       this.options.resumeThreadId ? "thread/resume" : "thread/start",
@@ -251,7 +315,18 @@ class CodexAppServerSession {
       this.pending.set(id, { resolve, reject });
     });
     this.write({ method, id, params });
-    return response;
+    if (!this.options.warm) return response;
+    let timer: ReturnType<typeof setTimeout>;
+    const bounded = Promise.race([
+      response,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          this.pending.delete(id);
+          reject(new Error(`Codex RPC timed out: ${method}`));
+        }, 30000);
+      }),
+    ]);
+    return bounded.finally(() => clearTimeout(timer));
   }
 
   private notify(method: string, params: JsonObject) {
@@ -324,6 +399,11 @@ class CodexAppServerSession {
   private handleNotification(method: string, params: JsonObject) {
     const active = this.active;
     if (!active) return;
+    if (
+      typeof params.threadId === "string" &&
+      params.threadId !== this.threadId
+    )
+      return;
     const turnId =
       typeof params.turnId === "string"
         ? params.turnId
@@ -358,6 +438,7 @@ class CodexAppServerSession {
     }
     if (method !== "turn/completed") return;
 
+    timing(this.onTiming).mark("codex.turn.completed");
     const turn = record(params.turn);
     const status = turn?.status;
     this.active = undefined;
@@ -398,6 +479,7 @@ class CodexAppServerSession {
       return;
     }
     if (item.type === "agentMessage") {
+      timing(this.onTiming).mark("codex.item.completed.agent_message");
       const message = text(item.text).trim();
       if (!message) return;
       active.lastAgentMessage = message;
@@ -443,6 +525,59 @@ class CodexAppServerSession {
 }
 
 export class CodexAppServerManager {
+  private warmSession?: CodexAppServerSession;
+  private warmBusy = false;
+  private warmKey?: string;
+
+  warmStatus() {
+    return {
+      pid: this.warmSession?.pid,
+      healthy: this.warmSession?.isHealthy() ?? false,
+      busy: this.warmBusy,
+    };
+  }
+
+  async prewarm(options: RunOptions) {
+    if (this.warmBusy || this.warmSession?.isHealthy()) return;
+    this.warmBusy = true;
+    try {
+      this.warmSession = new CodexAppServerSession({ ...options, warm: true });
+      this.warmKey = JSON.stringify([options.command, options.environment]);
+      await this.warmSession.prepare();
+    } catch (error) {
+      this.warmSession?.close();
+      this.warmSession = undefined;
+      throw error;
+    } finally {
+      this.warmBusy = false;
+    }
+  }
+
+  async runWarm(options: RunOptions): Promise<string | undefined> {
+    if (this.warmBusy) return undefined;
+    this.warmBusy = true;
+    const key = JSON.stringify([options.command, options.environment]);
+    try {
+      if (!this.warmSession?.isHealthy() || this.warmKey !== key) {
+        this.warmSession?.close();
+        this.warmSession = new CodexAppServerSession({
+          ...options,
+          warm: true,
+        });
+        this.warmKey = key;
+      }
+      this.jobs.set(options.jobId, this.warmSession);
+      return await this.warmSession.runFresh(options);
+    } catch (error) {
+      this.warmSession?.close();
+      this.warmSession = undefined;
+      throw error;
+    } finally {
+      this.jobs.delete(options.jobId);
+      this.warmBusy = false;
+    }
+  }
+
   private jobs = new Map<string, CodexAppServerSession>();
   private sessions = new Map<string, CodexAppServerSession>();
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -502,6 +637,8 @@ export class CodexAppServerManager {
   }
 
   close() {
+    this.warmSession?.close();
+    this.warmSession = undefined;
     for (const timer of this.timers.values()) clearTimeout(timer);
     for (const session of new Set([
       ...this.sessions.values(),
