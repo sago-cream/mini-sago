@@ -1,6 +1,8 @@
 /** Production-host replay, with real Discord REST, Jev, Codex, MCP and loopback WebSocket. */
 import { randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Database } from "bun:sqlite";
 import type { TimingEvent } from "../../src/observability/timing";
 import type { MacAgentSocketData } from "../../src/chatbot/bridge";
@@ -55,9 +57,8 @@ const { CodexAppServerManager } =
 const warmManager = new CodexAppServerManager();
 const { timing } = await import("../../src/observability/timing");
 const { ChatbotTraceStore } = await import("../../worker/src/trace-store");
-const benchmarkTraces = new ChatbotTraceStore(
-  "/tmp/minisago-ab-20260920/benchmark-traces.sqlite",
-);
+const traceDirectory = await mkdtemp(join(tmpdir(), "minisago-benchmark-"));
+const benchmarkTraces = new ChatbotTraceStore(join(traceDirectory, "traces.sqlite"));
 const discord = createDiscordRequest(process.env.DISCORD_BOT_TOKEN!);
 const access = getChatbotAccessConfig();
 const [self, channel, original, latest] = await Promise.all([
@@ -474,7 +475,7 @@ try {
         rssBytes: processes.reduce((a, p) => a + p.rssBytes, 0),
       };
     };
-    // Allow unsubscribed threads and their MCP children to finish retiring.
+    // Allow request cleanup to settle before measuring the idle runtime.
     console.log("Warm runtime idle settling; measuring CPU/RAM next.");
     await Bun.sleep(15000);
     const start = await sample();
@@ -515,5 +516,7 @@ try {
   clearInterval(heartbeat);
   ws.close();
   traceDb.close();
+  benchmarkTraces.close();
   server.stop(true);
+  await rm(traceDirectory, { recursive: true, force: true });
 }

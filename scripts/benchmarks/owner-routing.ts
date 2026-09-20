@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { constants } from "node:fs";
 import { mkdir, open } from "node:fs/promises";
 import { homedir } from "node:os";
