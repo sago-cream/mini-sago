@@ -1,12 +1,14 @@
 import { createHash, createPrivateKey, sign } from "node:crypto";
 import { z } from "zod";
 
-export const CALENDAR_GUILD_ID = "1514899496797212683";
-export const CALENDAR_ID =
-  "c_14bf5641071c6089c46061dda50e795027b7bd66885861a4f6d0a72a68cd3703@group.calendar.google.com";
+import { calendarSettings } from "./calendar-settings";
+export {
+  CALENDAR_GUILD_ID,
+  CALENDAR_USER_ACCOUNT,
+  OFFICE_CALENDAR_ID as CALENDAR_ID,
+} from "./calendar-settings";
 export const CALENDAR_SERVICE_ACCOUNT =
   "discord-calendar@nthusa-discord-calendar.iam.gserviceaccount.com";
-export const CALENDAR_USER_ACCOUNT = "nthusa@gapp.nthu.edu.tw";
 const oauthSchema = z.object({
   client_id: z.string().endsWith(".apps.googleusercontent.com"),
   client_secret: z.string().min(1),
@@ -38,7 +40,16 @@ const fields = {
   location: z.string().max(1000),
   schedule,
   attendees: z
-    .array(z.email().max(254))
+    .array(
+      z
+        .email()
+        .max(254)
+        .refine(
+          (email) =>
+            !email.toLowerCase().endsWith("@group.calendar.google.com"),
+          "Use useOffice for the office invitation, not a calendar ID in attendees.",
+        ),
+    )
     .max(50)
     .refine(
       (values) =>
@@ -49,6 +60,7 @@ const fields = {
 export const calendarSchemas = {
   list_calendar_events: z
     .object({
+      calendar: z.enum(["events", "office"]).optional(),
       start: timestamp,
       end: timestamp,
       query: z.string().trim().min(1).max(200).optional(),
@@ -63,10 +75,16 @@ export const calendarSchemas = {
       },
       { message: "Use a positive date range of at most 366 days." },
     ),
-  get_calendar_event: z.object({ eventId }).strict(),
+  get_calendar_event: z
+    .object({ eventId, calendar: z.enum(["events", "office"]).optional() })
+    .strict(),
+  delete_calendar_event: z
+    .object({ eventId, etag: z.string().min(1).max(256) })
+    .strict(),
   create_calendar_event: z
     .object({
       ...fields,
+      useOffice: z.boolean().optional(),
       attendees: fields.attendees.optional(),
       description: fields.description.optional(),
       location: fields.location.optional(),
@@ -77,6 +95,7 @@ export const calendarSchemas = {
     .object({
       eventId,
       etag: z.string().min(1).max(256),
+      useOffice: z.boolean().optional(),
       title: fields.title.optional(),
       description: fields.description.optional(),
       location: fields.location.optional(),
@@ -87,6 +106,7 @@ export const calendarSchemas = {
     .refine(
       (input) =>
         [
+          input.useOffice,
           input.title,
           input.description,
           input.location,
@@ -99,13 +119,15 @@ export const calendarSchemas = {
 export type CalendarToolName = keyof typeof calendarSchemas;
 export const calendarDescriptions: Record<CalendarToolName, string> = {
   list_calendar_events:
-    "List 學生會辦空間登記 events in a bounded time range. Times require UTC offsets; default local timezone is Asia/Taipei. Follow nextPageToken to get more results.",
+    "Read a bounded time range from calendar=events (the dedicated discord-calendar) or calendar=office (學生會辦空間登記, read-only). For office availability questions explicitly select office. Times require UTC offsets; local timezone is Asia/Taipei. Follow nextPageToken.",
   get_calendar_event:
-    "Read an event and its etag before editing. Recurring occurrences can be edited individually; whole recurring series cannot be edited with these tools.",
+    "Read an event and its etag from events or office. Only the dedicated events calendar supports edits/deletion. The office calendar is read-only. Check officeReservation before claiming an office booking is accepted.",
   create_calendar_event:
-    "Prepare a one-off booking preview in 學生會辦空間登記. The host posts Confirm/Cancel buttons; only the requester can confirm, and nothing is saved or sent before that click. Tell the user to review the preview and click Confirm; never claim it is already booked. Include attendee emails only when supplied or explicitly selected by the user; never guess emails. Use timed RFC3339 timestamps with offsets or all_day dates with an exclusive end date. Use a distinct operationKey for each requested event and reuse that key unchanged on retries. Check existing bookings first; overlaps are allowed by Google Calendar.",
+    "Prepare an event in the dedicated discord-calendar, for the requester to Confirm/Cancel before saving or invitations. Set useOffice=true only when the user explicitly wants the office; this invites the office calendar after checking conflicts and never writes it directly. Other locations leave useOffice false. Resolve named guests with lookup_calendar_contacts; ask the user to choose ambiguous matches, never guess emails. Include only selected/supplied people in attendees, never calendar IDs. Use timed RFC3339 timestamps or all_day dates with exclusive end. Reuse operationKey unchanged for retries. Event creation and office acceptance are separate: never call the office booked unless officeReservation is accepted.",
   edit_calendar_event:
-    "Prepare an edit preview for the requester to confirm with the posted Discord button before any calendar change or invitation is sent. Do not claim completion before confirmation. Use the latest etag from get_calendar_event. Attendees replaces the guest list; omitted preserves guests, empty removes them. Never guess email addresses. Omitted fields stay unchanged; empty description/location clears them. All-day end dates are exclusive. Edits to an individual recurring occurrence are allowed; whole series edits are unsupported. Existing guests are notified of changes. On conflict, reread and reconcile before retrying.",
+    "Prepare an edit on the dedicated events calendar after reading its latest etag. Requester confirmation is required. Office events cannot be edited directly. useOffice=true requests the office, false removes the office invitation; omitted preserves it. Changing location away from the office should explicitly remove its invitation after confirming intent. attendees replaces people, while omitted preserves them; office invitation is controlled separately by useOffice. Resolve names using lookup_calendar_contacts, never guess emails. Recurring instances are supported, whole-series edits are not.",
+  delete_calendar_event:
+    "Prepare cancellation of one event in the dedicated events calendar using its latest etag. The requester must click Confirm before deletion and cancellation notices to guests or the office. Never delete directly from the office calendar. Whole recurring-series deletion is unsupported; choose the intended occurrence.",
 };
 type CalendarEvent = Record<string, any>;
 function compact(event: CalendarEvent, includeAttendees = false) {
@@ -114,6 +136,7 @@ function compact(event: CalendarEvent, includeAttendees = false) {
       [
         "id",
         "etag",
+        "iCalUID",
         "summary",
         "description",
         "location",
@@ -179,9 +202,11 @@ export function createGoogleCalendarClient(
   context: { guildId?: string; messageId: string },
   request: typeof fetch = fetch,
 ) {
-  if (context.guildId !== CALENDAR_GUILD_ID) return undefined;
+  const config = calendarSettings(env);
+  if (!config || context.guildId !== config.guildId) return undefined;
   const configured = env.MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON;
-  const oauthConfigured = env.MINISAGO_GOOGLE_CALENDAR_OAUTH_JSON;
+  const oauthConfigured =
+    env.DISCORD_CALENDAR_OAUTH_JSON || env.MINISAGO_GOOGLE_CALENDAR_OAUTH_JSON;
   if (!configured && !oauthConfigured) return undefined;
   let oauth: z.infer<typeof oauthSchema> | undefined;
   let credentials: z.infer<typeof serviceAccountSchema> | undefined;
@@ -255,10 +280,7 @@ export function createGoogleCalendarClient(
         const user = identity.ok
           ? ((await identity.json()) as Record<string, unknown>)
           : {};
-        if (
-          user.email !== CALENDAR_USER_ACCOUNT ||
-          user.email_verified !== true
-        )
+        if (user.email !== config!.account || user.email_verified !== true)
           throw new CalendarError(
             "Calendar authorization belongs to the wrong account. Reconnect the dedicated booking user.",
           );
@@ -275,11 +297,20 @@ export function createGoogleCalendarClient(
       refreshing = undefined;
     }
   }
-  const base = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events`;
-  async function api(path = "", init: RequestInit = {}) {
+  async function api(
+    path = "",
+    init: RequestInit = {},
+    calendar: "events" | "office" = "events",
+  ) {
+    if (calendar === "office" && (init.method ?? "GET") !== "GET")
+      throw new CalendarError("The office calendar is read-only.");
+    const calendarId =
+      calendar === "office" ? config!.officeCalendarId : config!.calendarId;
+    const base = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
     const bearer = await accessToken();
     const response = await request(base + path, {
       ...init,
+      redirect: "error",
       headers: {
         "Content-Type": "application/json",
         ...init.headers,
@@ -307,12 +338,122 @@ export function createGoogleCalendarClient(
     }
     return (await response.json()) as CalendarEvent;
   }
+  function officeReservation(event: CalendarEvent) {
+    const guest = event.attendees?.find(
+      (a: CalendarEvent) =>
+        a.email?.toLowerCase() === config!.officeCalendarId.toLowerCase(),
+    );
+    return guest
+      ? guest.responseStatus === "accepted"
+        ? "accepted"
+        : guest.responseStatus === "declined"
+          ? "declined"
+          : "pending"
+      : "not_requested";
+  }
+  function result(event: CalendarEvent, includeAttendees = false) {
+    return {
+      status: "complete",
+      calendar: config!.calendarName,
+      event: compact(event, includeAttendees),
+      officeReservation: officeReservation(event),
+    };
+  }
+  function guests(
+    input: { attendees?: string[]; useOffice?: boolean },
+    existing?: CalendarEvent,
+  ) {
+    if (
+      input.attendees?.some((email) =>
+        email.toLowerCase().endsWith("@group.calendar.google.com"),
+      )
+    )
+      throw new CalendarError(
+        "Use useOffice for the office invitation; attendees must contain the selected people, not calendar IDs.",
+      );
+    const hadOffice = officeReservation(existing ?? {}) !== "not_requested";
+    const useOffice = input.useOffice ?? hadOffice;
+    let attendees: CalendarEvent[] =
+      input.attendees?.map((email) => ({ email })) ?? existing?.attendees ?? [];
+    if (
+      input.attendees !== undefined ||
+      input.useOffice !== undefined ||
+      !existing
+    ) {
+      attendees = attendees.filter(
+        (a) =>
+          a.email?.toLowerCase() !== config!.officeCalendarId.toLowerCase(),
+      );
+      if (useOffice)
+        attendees.push(
+          existing?.attendees?.find(
+            (a: CalendarEvent) =>
+              a.email?.toLowerCase() === config!.officeCalendarId.toLowerCase(),
+          ) ?? { email: config!.officeCalendarId },
+        );
+      if (attendees.length > 50)
+        throw new CalendarError(
+          "Use at most 50 guests including the office calendar.",
+        );
+      if (attendees.length && !oauth)
+        throw new CalendarError(
+          "Invitations require the dedicated booking user to be connected.",
+        );
+      return { attendees, useOffice };
+    }
+    return { attendees: undefined, useOffice };
+  }
+  async function checkOffice(event: CalendarEvent, existing?: CalendarEvent) {
+    const start = event.start ?? existing?.start;
+    const end = event.end ?? existing?.end;
+    const timeMin = start?.dateTime ?? `${start?.date}T00:00:00+08:00`;
+    const timeMax = end?.dateTime ?? `${end?.date}T00:00:00+08:00`;
+    if (
+      !Number.isFinite(Date.parse(timeMin)) ||
+      !Number.isFinite(Date.parse(timeMax))
+    )
+      throw new CalendarError(
+        "Read the event's current start and end before requesting the office.",
+      );
+    let pageToken: string | undefined;
+    for (let page = 0; page < 20; page++) {
+      const params = new URLSearchParams({
+        timeMin,
+        timeMax,
+        singleEvents: "true",
+        maxResults: "250",
+        ...(pageToken ? { pageToken } : {}),
+      });
+      const data = await body(await api(`?${params}`, {}, "office"));
+      if (
+        (data.items ?? []).some(
+          (item: CalendarEvent) =>
+            item.status !== "cancelled" &&
+            item.transparency !== "transparent" &&
+            !(existing?.iCalUID && item.iCalUID === existing.iCalUID) &&
+            !item.attendees?.some(
+              (a: CalendarEvent) => a.self && a.responseStatus === "declined",
+            ),
+        )
+      )
+        throw new CalendarError(
+          "The office calendar has an overlapping event. Choose another time or location; no change was saved.",
+        );
+      if (!data.nextPageToken) return;
+      pageToken = data.nextPageToken;
+    }
+    throw new CalendarError(
+      "Office availability could not be checked completely; no change was saved.",
+    );
+  }
   return {
+    config,
     async call(
       name: CalendarToolName,
       raw: unknown,
     ): Promise<Record<string, unknown>> {
       try {
+        calendarSchemas[name].parse(raw);
         if (name === "list_calendar_events") {
           const input = calendarSchemas.list_calendar_events.parse(raw);
           const params = new URLSearchParams({
@@ -325,40 +466,66 @@ export function createGoogleCalendarClient(
           });
           if (input.query) params.set("q", input.query);
           if (input.pageToken) params.set("pageToken", input.pageToken);
-          const data = await body(await api(`?${params}`));
+          const data = await body(await api(`?${params}`, {}, input.calendar));
           return {
             status: "complete",
-            events: (data.items ?? []).map((event: CalendarEvent) =>
-              compact(event),
-            ),
+            calendar: input.calendar ?? "events",
+            events: (data.items ?? []).map((event: CalendarEvent) => ({
+              ...compact(event),
+              officeReservation: officeReservation(event),
+            })),
             nextPageToken: data.nextPageToken,
           };
         }
         if (name === "get_calendar_event") {
           const input = calendarSchemas.get_calendar_event.parse(raw);
+          const event = await body(
+            await api(`/${input.eventId}`, {}, input.calendar),
+          );
           return {
-            status: "complete",
-            event: compact(await body(await api(`/${input.eventId}`)), true),
+            ...result(event, true),
+            calendar: input.calendar ?? "events",
           };
         }
         if (name === "create_calendar_event") {
           const input = calendarSchemas.create_calendar_event.parse(raw);
-          if (input.attendees?.length && !oauth)
-            throw new CalendarError(
-              "Invitations require the dedicated booking user to be connected.",
-            );
-          const event = eventFields(input);
+          const guestList = guests(input);
+          const event = {
+            ...eventFields(input),
+            ...(guestList.attendees?.length
+              ? { attendees: guestList.attendees }
+              : {}),
+          };
           const id = digest(
-            `${context.guildId}:${context.messageId}:${input.operationKey}`,
+            `${config!.calendarId}:${context.guildId}:${context.messageId}:${input.operationKey}`,
           );
           const fingerprint = digest(JSON.stringify(event));
+          // A successful retry must not conflict with its own accepted office invitation.
+          if (guestList.useOffice) {
+            const previous = await api(`/${id}`);
+            if (previous.ok) {
+              const existing = await body(previous);
+              if (
+                existing.status !== "cancelled" &&
+                existing.extendedProperties?.private
+                  ?.discordCalendarFingerprint === fingerprint
+              )
+                return { ...result(existing), reused: true };
+              throw new CalendarError(
+                "This operationKey already belongs to a different or cancelled event.",
+              );
+            }
+            if (previous.status !== 404 && previous.status !== 410)
+              await body(previous);
+            await checkOffice(event);
+          }
           const response = await api("?sendUpdates=all", {
             method: "POST",
             body: JSON.stringify({
               ...event,
               id,
               extendedProperties: {
-                private: { minisagoFingerprint: fingerprint },
+                private: { discordCalendarFingerprint: fingerprint },
               },
             }),
           });
@@ -366,49 +533,74 @@ export function createGoogleCalendarClient(
             const existing = await body(await api(`/${id}`));
             if (
               existing.status !== "cancelled" &&
-              existing.extendedProperties?.private?.minisagoFingerprint ===
-                fingerprint
-            ) {
-              return {
-                status: "complete",
-                reused: true,
-                event: compact(existing),
-              };
-            }
+              existing.extendedProperties?.private
+                ?.discordCalendarFingerprint === fingerprint
+            )
+              return { ...result(existing), reused: true };
           }
-          return { status: "complete", event: compact(await body(response)) };
+          return result(await body(response));
         }
-        const input = calendarSchemas.edit_calendar_event.parse(raw);
-        if (input.attendees !== undefined && !oauth)
-          throw new CalendarError(
-            "Invitations require the dedicated booking user to be connected.",
-          );
-        const existing = await body(await api(`/${input.eventId}`));
+        const input =
+          name === "delete_calendar_event"
+            ? calendarSchemas.delete_calendar_event.parse(raw)
+            : calendarSchemas.edit_calendar_event.parse(raw);
+        const response = await api(`/${input.eventId}`);
+        if (
+          name === "delete_calendar_event" &&
+          (response.status === 404 || response.status === 410)
+        )
+          return { status: "complete", deleted: true, reused: true };
+        const existing = await body(response);
+        if (name === "delete_calendar_event" && existing.status === "cancelled")
+          return { status: "complete", deleted: true, reused: true };
         if (existing.etag !== input.etag)
           throw new CalendarError(
             "Calendar event changed. Read it again and reconcile changes before retrying.",
           );
         if (existing.recurrence)
           throw new CalendarError(
-            "Whole recurring series edits are unsupported. List occurrences and edit the intended instance instead.",
+            "Whole recurring series changes are unsupported. Select the intended occurrence.",
           );
         if (existing.status === "cancelled")
           throw new CalendarError("Cancelled events cannot be edited.");
-        return {
-          status: "complete",
-          event: compact(
-            await body(
-              await api(
-                `/${input.eventId}?sendUpdates=all&conferenceDataVersion=1`,
-                {
-                  method: "PATCH",
-                  headers: { "If-Match": input.etag },
-                  body: JSON.stringify(eventFields(input)),
-                },
-              ),
+        if (
+          existing.organizer?.email &&
+          existing.organizer.email !== config!.calendarId
+        )
+          throw new CalendarError(
+            "Only events organized by the dedicated calendar can be changed.",
+          );
+        if (name === "delete_calendar_event") {
+          const removed = await api(`/${input.eventId}?sendUpdates=all`, {
+            method: "DELETE",
+            headers: { "If-Match": input.etag },
+          });
+          if (!removed.ok && removed.status !== 404 && removed.status !== 410)
+            await body(removed);
+          return { status: "complete", deleted: true };
+        }
+        const edit = calendarSchemas.edit_calendar_event.parse(raw);
+        const guestList = guests(edit, existing);
+        const changed = eventFields(edit);
+        if (guestList.attendees !== undefined)
+          changed.attendees = guestList.attendees;
+        if (
+          guestList.useOffice &&
+          (edit.schedule !== undefined || edit.useOffice === true)
+        )
+          await checkOffice(changed, existing);
+        return result(
+          await body(
+            await api(
+              `/${input.eventId}?sendUpdates=all&conferenceDataVersion=1`,
+              {
+                method: "PATCH",
+                headers: { "If-Match": edit.etag },
+                body: JSON.stringify(changed),
+              },
             ),
           ),
-        };
+        );
       } catch (error) {
         return {
           status: "unavailable",
@@ -417,12 +609,13 @@ export function createGoogleCalendarClient(
               ? error.message
               : error instanceof z.ZodError
                 ? "Invalid calendar input. Check dates, event ID, and required fields."
-                : "Calendar request could not be completed. Reuse the same operationKey for creation retries; read events again before retrying edits.",
+                : "Calendar request could not be completed. Reuse the same operationKey for creation retries; read events again before retrying edits or deletion.",
         };
       }
     },
   };
 }
+
 export type GoogleCalendarClient = NonNullable<
   ReturnType<typeof createGoogleCalendarClient>
 >;

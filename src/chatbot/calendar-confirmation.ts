@@ -5,7 +5,6 @@ import { z } from "zod";
 import type { DiscordRequest } from "../discord/api/request";
 import type { DiscordApplicationCommandInteraction } from "../discord/interactions";
 import {
-  CALENDAR_GUILD_ID,
   calendarSchemas,
   createGoogleCalendarClient,
   type GoogleCalendarClient,
@@ -13,12 +12,17 @@ import {
 
 const draftSchema = z.object({
   id: z.string(),
-  guildId: z.literal(CALENDAR_GUILD_ID),
+  guildId: z.string(),
+  calendarBinding: z.string().optional(),
   channelId: z.string(),
   requesterId: z.string(),
   messageId: z.string(),
   expires: z.number(),
-  name: z.enum(["create_calendar_event", "edit_calendar_event"]),
+  name: z.enum([
+    "create_calendar_event",
+    "edit_calendar_event",
+    "delete_calendar_event",
+  ]),
   input: z.record(z.string(), z.unknown()),
   preview: z.string(),
   result: z.string().optional(),
@@ -32,6 +36,7 @@ type Context = {
 };
 const busy = new Set<string>();
 const statePath = () =>
+  process.env.DISCORD_CALENDAR_DRAFTS_FILE ||
   process.env.MINISAGO_CALENDAR_DRAFTS_FILE ||
   join(
     dirname(process.env.MINISAGO_REMINDER_STATE_FILE || ".data/reminders.json"),
@@ -77,13 +82,33 @@ function scheduleText(start: string, end: string, allDay: boolean) {
 function preview(
   name: Draft["name"],
   input: Record<string, any>,
-  existing?: Record<string, any>,
+  existing: Record<string, any> | undefined,
+  config: GoogleCalendarClient["config"],
 ) {
   const time = input.schedule;
+  const deleting = name === "delete_calendar_event";
+  const hadOffice =
+    existing?.attendees?.some(
+      (a: any) =>
+        a.email?.toLowerCase() === config.officeCalendarId.toLowerCase(),
+    ) ?? false;
+  const useOffice = input.useOffice ?? hadOffice;
+  const people = (
+    input.attendees ??
+    existing?.attendees?.map((a: any) => a.email) ??
+    []
+  ).filter(
+    (email: string) =>
+      email.toLowerCase() !== config.officeCalendarId.toLowerCase(),
+  );
   return [
-    name === "create_calendar_event"
-      ? "**確認會辦預約**"
-      : "**確認修改會辦預約**",
+    deleting
+      ? "**確認刪除活動**"
+      : name === "create_calendar_event"
+        ? "**確認建立活動**"
+        : "**確認修改活動**",
+    `日曆：${safe(config.calendarName)}`,
+    `會辦：${useOffice ? (deleting ? "取消會辦邀請" : "邀請會辦日曆；接受後才算預約成功") : hadOffice ? "取消會辦邀請；不使用" : "不使用"}`,
     `名稱：${safe(input.title ?? existing?.summary)}`,
     `時間：${
       time
@@ -96,8 +121,10 @@ function preview(
     }`,
     `地點：${safe(input.location ?? existing?.location ?? "未指定")}`,
     `說明：${safe(input.description ?? existing?.description ?? "無")}`,
-    `邀請對象：${(input.attendees ?? existing?.attendees?.map((a: any) => a.email) ?? []).map(safe).join("、") || "無"}`,
-    "確認後才會儲存並寄送邀請／更新通知。取消不會更動日曆。此預覽 15 分鐘後失效。",
+    `邀請對象：${people.map(safe).join("、") || "無"}`,
+    deleting
+      ? "確認後才會刪除此活動並通知上述邀請對象。取消不會更動日曆。此預覽 15 分鐘後失效。"
+      : "確認後才會儲存並寄送邀請／更新通知。取消不會更動日曆。此預覽 15 分鐘後失效。",
   ].join("\n");
 }
 
@@ -107,8 +134,9 @@ export function withCalendarConfirmation(
   discord: DiscordRequest,
 ): GoogleCalendarClient {
   return {
+    config: client.config,
     async call(name, raw) {
-      if (context.guildId !== CALENDAR_GUILD_ID)
+      if (context.guildId !== client.config.guildId)
         return {
           status: "unavailable",
           error: "Calendar access is unavailable here.",
@@ -117,8 +145,11 @@ export function withCalendarConfirmation(
         return client.call(name, raw);
       try {
         const input = calendarSchemas[name].parse(raw);
+        const calendarBinding = createHash("sha256")
+          .update(JSON.stringify(client.config))
+          .digest("hex");
         const id = createHash("sha256")
-          .update(JSON.stringify([context, name, input]))
+          .update(JSON.stringify([context, calendarBinding, name, input]))
           .digest("hex")
           .slice(0, 40);
         const old = load().find((d) => d.id === id);
@@ -130,7 +161,10 @@ export function withCalendarConfirmation(
               "A confirmation preview was already posted. Ask the requester to click its button.",
           };
         let existing: Record<string, any> | undefined;
-        if (name === "edit_calendar_event") {
+        if (
+          name === "edit_calendar_event" ||
+          name === "delete_calendar_event"
+        ) {
           const found = await client.call("get_calendar_event", {
             eventId: (input as any).eventId,
           });
@@ -149,7 +183,13 @@ export function withCalendarConfirmation(
                 "The event changed. Read it again before preparing an edit.",
             };
         }
-        const content = preview(name, input, existing);
+        if (existing?.recurrence || existing?.status === "cancelled")
+          return {
+            status: "unavailable",
+            error:
+              "Select a current single event or recurring occurrence; whole-series changes are unsupported.",
+          };
+        const content = preview(name, input, existing, client.config);
         if (content.length > 1800)
           return {
             status: "unavailable",
@@ -159,7 +199,8 @@ export function withCalendarConfirmation(
         const draft: Draft = {
           id,
           ...context,
-          guildId: CALENDAR_GUILD_ID,
+          guildId: client.config.guildId,
+          calendarBinding,
           name,
           input,
           preview: content,
@@ -189,8 +230,9 @@ export function withCalendarConfirmation(
                   components: [
                     {
                       type: 2,
-                      style: 3,
-                      label: "確認預約",
+                      style: name === "delete_calendar_event" ? 4 : 3,
+                      label:
+                        name === "delete_calendar_event" ? "確認刪除" : "確認",
                       custom_id: `calendar:confirm:${id}`,
                     },
                     {
@@ -254,7 +296,7 @@ export async function handleCalendarConfirmation(
   try {
     draft = load().find((d) => d.id === match[2]);
   } catch {
-    await respond("預約確認暫時無法使用，請稍後再試。");
+    await respond("活動確認暫時無法使用，請稍後再試。");
     return true;
   }
   const requester = interaction.member?.user?.id ?? interaction.user?.id;
@@ -265,7 +307,7 @@ export async function handleCalendarConfirmation(
     draft.requesterId !== requester
   ) {
     await respond(
-      "只有原本提出預約的人能確認，且預覽必須尚未過期。請重新提出預約。",
+      "只有原本提出活動的人能確認，且預覽必須尚未過期。請重新提出活動。",
     );
     return true;
   }
@@ -274,11 +316,11 @@ export async function handleCalendarConfirmation(
     return true;
   }
   if (busy.has(draft.id)) {
-    await respond("正在處理這筆預約，請稍候。");
+    await respond("正在處理這筆活動，請稍候。");
     return true;
   }
   if (match[1] === "cancel") {
-    draft.result = "已取消這筆預約草稿，日曆未更動。";
+    draft.result = "已取消這筆活動草稿，日曆未更動。";
     put(draft);
     await discord(
       `/interactions/${interaction.id}/${interaction.token}/callback`,
@@ -307,14 +349,32 @@ export async function handleCalendarConfirmation(
       guildId: draft.guildId,
       messageId: draft.messageId,
     });
-    const result = client
-      ? await client.call(draft.name, draft.input)
-      : { status: "unavailable" };
+    const currentBinding = client
+      ? createHash("sha256").update(JSON.stringify(client.config)).digest("hex")
+      : undefined;
+    const result =
+      client && draft.calendarBinding === currentBinding
+        ? await client.call(draft.name, draft.input)
+        : {
+            status: "unavailable",
+            error: "Calendar configuration changed; prepare a new preview.",
+          };
     const complete = result.status === "complete";
     const event = result.event as { htmlLink?: string } | undefined;
+    const office = result.officeReservation;
+    const officeText =
+      office === "accepted"
+        ? "會辦已接受邀請，預約成功。"
+        : office === "declined"
+          ? "會辦已拒絕邀請，未預約成功；請選擇其他時間或地點。"
+          : office === "pending"
+            ? "已邀請會辦，但尚未接受，不能視為預約成功。"
+            : "";
     const content = complete
-      ? `已${draft.name === "create_calendar_event" ? "登記" : "更新"}會辦預約。${Array.isArray(draft.input.attendees) && draft.input.attendees.length ? "已要求 Google 寄送邀請／更新通知。" : ""}${event?.htmlLink ? `\n${event.htmlLink}` : ""}`
-      : "預約尚未完成，請稍後按確認重試；若活動已變更，請重新讀取後提出修改。";
+      ? draft.name === "delete_calendar_event"
+        ? "已刪除活動，並要求 Google 寄送取消通知。"
+        : `已${draft.name === "create_calendar_event" ? "建立" : "更新"}活動（日曆：${safe(client!.config.calendarName)}）。${officeText}${event?.htmlLink ? `\n${event.htmlLink}` : ""}`
+      : `活動操作尚未完成。${safe(result.error ?? "請稍後重試；如活動或設定已變更，請重新讀取並確認。")}`;
     if (complete) {
       draft.result = content;
       put(draft);

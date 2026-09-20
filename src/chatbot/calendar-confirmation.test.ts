@@ -12,6 +12,10 @@ import {
 } from "./google-calendar";
 import type { DiscordRequest } from "../discord/api/request";
 
+import { calendarSettings } from "./calendar-settings";
+const config = calendarSettings({
+  DISCORD_CALENDAR_ID: "events_test@group.calendar.google.com",
+})!;
 const original = process.env.MINISAGO_CALENDAR_DRAFTS_FILE;
 const dirs: string[] = [];
 afterEach(() => {
@@ -28,6 +32,7 @@ function fixture() {
   const mutations: unknown[] = [];
   const messages: { path: string; body: any }[] = [];
   const client: GoogleCalendarClient = {
+    config,
     call: async (name, input) => {
       if (name === "get_calendar_event")
         return {
@@ -170,6 +175,7 @@ test("a failed Google request can be retried with the original operation key", a
   const f = fixture();
   await f.wrapped.call("create_calendar_event", booking);
   await handleCalendarConfirmation(f.button(), f.discord, {}, () => ({
+    config,
     call: async () => ({ status: "unavailable" }),
   }));
   expect(JSON.parse(readFileSync(f.path, "utf8"))[0].result).toBeUndefined();
@@ -188,6 +194,7 @@ test("concurrent confirmation clicks issue only one calendar write", async () =>
   });
   let writes = 0;
   const slowClient: GoogleCalendarClient = {
+    config,
     call: async () => {
       writes++;
       await pending;
@@ -225,5 +232,92 @@ test("foreign contexts and oversized previews cannot publish actionable drafts",
     ).status,
   ).toBe("unavailable");
   expect(f.messages).toHaveLength(0);
+  expect(f.mutations).toHaveLength(0);
+});
+
+test("deletion previews the exact event and notifies only after requester confirmation", async () => {
+  const f = fixture();
+  const input = { eventId: "event1", etag: "version1" };
+  expect((await f.wrapped.call("delete_calendar_event", input)).status).toBe(
+    "awaiting_confirmation",
+  );
+  expect(f.mutations).toHaveLength(0);
+  expect(f.messages[0].body.content).toContain("確認刪除活動");
+  expect(f.messages[0].body.content).toContain("discord-calendar");
+  expect(f.messages[0].body.content).toContain("existing@example.com");
+  expect(f.messages[0].body.components[0].components[0].style).toBe(4);
+  await handleCalendarConfirmation(f.button(), f.discord, {}, () => f.client);
+  expect(f.mutations).toEqual([{ name: "delete_calendar_event", input }]);
+});
+
+test("office preview distinguishes requesting the room from an accepted reservation", async () => {
+  const f = fixture();
+  await f.wrapped.call("create_calendar_event", {
+    ...booking,
+    useOffice: true,
+  });
+  expect(f.messages[0].body.content).toContain(
+    "邀請會辦日曆；接受後才算預約成功",
+  );
+  await handleCalendarConfirmation(f.button(), f.discord, {}, () => ({
+    ...f.client,
+    call: async () => ({ status: "complete", officeReservation: "pending" }),
+  }));
+  expect(f.messages.at(-1)?.body.content).toContain("不能視為預約成功");
+});
+
+test("configuration changes and legacy drafts cannot be confirmed against another calendar", async () => {
+  const f = fixture();
+  await f.wrapped.call("create_calendar_event", booking);
+  await handleCalendarConfirmation(f.button(), f.discord, {}, () => ({
+    ...f.client,
+    config: { ...config, calendarId: "changed@group.calendar.google.com" },
+  }));
+  expect(f.mutations).toHaveLength(0);
+  const drafts = JSON.parse(readFileSync(f.path, "utf8"));
+  delete drafts[0].calendarBinding;
+  writeFileSync(f.path, JSON.stringify(drafts));
+  await handleCalendarConfirmation(f.button(), f.discord, {}, () => f.client);
+  expect(f.mutations).toHaveLength(0);
+});
+
+test("raw calendar recipients cannot publish a preview and moving away explicitly cancels office use", async () => {
+  const f = fixture();
+  expect(
+    (
+      await f.wrapped.call("create_calendar_event", {
+        ...booking,
+        attendees: [config.officeCalendarId],
+      })
+    ).status,
+  ).toBe("unavailable");
+  expect(f.messages).toHaveLength(0);
+  f.client.call = async () => ({
+    status: "complete",
+    event: {
+      id: "event1",
+      etag: "version1",
+      summary: "Office meeting",
+      start: { date: "2026-09-21" },
+      end: { date: "2026-09-22" },
+      attendees: [
+        { email: config.officeCalendarId },
+        { email: "guest@example.com" },
+      ],
+    },
+  });
+  expect(
+    (
+      await f.wrapped.call("edit_calendar_event", {
+        eventId: "event1",
+        etag: "version1",
+        location: "Online",
+        useOffice: false,
+      })
+    ).status,
+  ).toBe("awaiting_confirmation");
+  expect(f.messages[0].body.content).toContain("取消會辦邀請；不使用");
+  expect(f.messages[0].body.content).toContain("guest@example.com");
+  expect(f.messages[0].body.content).not.toContain(config.officeCalendarId);
   expect(f.mutations).toHaveLength(0);
 });
