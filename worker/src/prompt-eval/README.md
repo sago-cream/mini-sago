@@ -17,7 +17,7 @@ From the repository root:
 ```bash
 bun run eval:prompts
 bun run eval:prompts -- --case recover-bounded-action
-bun run eval:prompts -- --model gpt-5.6-luna --output /tmp/prompt-results.json
+bun run eval:prompts -- --model gpt-6-luna --output /tmp/prompt-results.json
 ```
 
 The command exits with status 1 when any expectation fails. A failed case is evidence to inspect, not proof from one sample. Rerun relevant cases after changing a prompt, and use more than one attempt before judging style frequency.

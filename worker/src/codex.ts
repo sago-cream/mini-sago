@@ -88,23 +88,23 @@ export function minisagoMcpApprovalMode(
 }
 
 export const COMMUNITY_CHATBOT_PROFILE = {
-  model: "gpt-5.6-luna",
+  model: "gpt-6-luna",
   reasoningEffort: "high",
 } as const;
 export const VOICE_CHATBOT_PROFILE = {
-  model: "gpt-5.6-luna",
+  model: "gpt-6-luna",
   reasoningEffort: "low",
 } as const;
 export const OWNER_CHATBOT_PROFILE = {
-  model: "gpt-5.6-sol",
-  reasoningEffort: "medium",
+  model: "gpt-6-astra",
+  reasoningEffort: "low",
 } as const;
 export const OWNER_ROUTER_PROFILE = {
-  model: "gpt-5.6-luna",
+  model: "gpt-6-luna",
   reasoningEffort: "low",
 } as const;
 export const SOCIAL_ACTION_PROFILE = {
-  model: "gpt-5.6-luna",
+  model: "gpt-6-luna",
   reasoningEffort: "low",
 } as const;
 export const CHATBOT_MODEL_VERBOSITY = "medium";
