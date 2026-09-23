@@ -347,26 +347,26 @@ describe("Codex chatbot runner", () => {
     );
   });
 
-  test("uses Luna for chat and routing, then Sol medium for owner dev work", () => {
+  test("uses GPT-6 Luna for chat and routing, then Astra low for owner dev work", () => {
     expect(CHATBOT_MODEL_VERBOSITY).toBe("medium");
     expect(COMMUNITY_CHATBOT_PROFILE).toEqual({
-      model: "gpt-5.6-luna",
+      model: "gpt-6-luna",
       reasoningEffort: "high",
     });
     expect(OWNER_CHATBOT_PROFILE).toEqual({
-      model: "gpt-5.6-sol",
-      reasoningEffort: "medium",
+      model: "gpt-6-astra",
+      reasoningEffort: "low",
     });
     expect(VOICE_CHATBOT_PROFILE).toEqual({
-      model: "gpt-5.6-luna",
+      model: "gpt-6-luna",
       reasoningEffort: "low",
     });
     expect(OWNER_ROUTER_PROFILE).toEqual({
-      model: "gpt-5.6-luna",
+      model: "gpt-6-luna",
       reasoningEffort: "low",
     });
     expect(SOCIAL_ACTION_PROFILE).toEqual({
-      model: "gpt-5.6-luna",
+      model: "gpt-6-luna",
       reasoningEffort: "low",
     });
     expect(EXECUTION_ROUTE_OUTPUT_SCHEMA.required).toContain("route");

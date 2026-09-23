@@ -31,7 +31,7 @@ function options(argv: string[]): Options {
     return index >= 0 ? argv[index + 1] : undefined;
   };
   return {
-    model: value("--model") ?? "gpt-5.6-luna",
+    model: value("--model") ?? "gpt-6-luna",
     codexPath:
       value("--codex") ?? process.env.MINISAGO_CODEX_PATH ?? defaultCodexPath,
     caseIds: new Set(
