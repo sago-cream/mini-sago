@@ -2,8 +2,11 @@ FROM oven/bun:1.3.9-debian
 WORKDIR /app/ccxp
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
 COPY ccxp/package.json ccxp/bun.lock ./
-RUN bun install --frozen-lockfile \
-  && bunx playwright install --with-deps --no-shell chromium
+# Playwright's installer forks Node child processes for download and extraction.
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs ca-certificates \
+  && bun install --frozen-lockfile \
+  && NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt \
+    /usr/bin/node node_modules/playwright/cli.js install --with-deps --no-shell chromium
 
 # The same released local inference extension used in Chrome; no captcha service.
 ADD https://github.com/sago-cream/ccxp-lite/releases/download/v1.11.0/ccxpLite-crx-v1.11.0.zip /tmp/ccxplite.zip
