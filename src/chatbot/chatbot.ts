@@ -1,3 +1,4 @@
+import { createCcxpSyncClient } from "./ccxp-sync";
 import { createCcxpMeetingsClient } from "./ccxp-meetings";
 import { timing, type TimingSink } from "../observability/timing";
 import { withCalendarConfirmation } from "./calendar-confirmation";
@@ -1310,7 +1311,18 @@ export async function handleChatbotMention({
         { guildId: message.guild_id },
         featureAvailability,
       );
+      const ccxpSync = createCcxpSyncClient(
+        process.env,
+        {
+          guildId: message.guild_id,
+          requesterId: requesterUserId,
+          ownerId: accessConfig.ownerUserId,
+          messageId: message.id,
+        },
+        featureAvailability,
+      );
       mcpSession = registerChatbotMcpSession({
+        ...(ccxpSync ? { ccxpSync } : {}),
         ...(ccxpMeetings ? { ccxpMeetings } : {}),
         searchThreads,
         mediaRegistry,

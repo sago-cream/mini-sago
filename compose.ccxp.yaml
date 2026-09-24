@@ -1,5 +1,7 @@
 # Add the ccxp-index volume read-only to bot-core at /ccxp-index and set
 # MINISAGO_CCXP_INDEX_PATH=/ccxp-index/meetings.sqlite in the core environment.
+# Also mount ccxp-control read-write in core at /ccxp-control and set
+# MINISAGO_CCXP_SYNC_QUEUE_PATH=/ccxp-control/requests.sqlite.
 services:
   ccxp-collector:
     build:
@@ -18,8 +20,11 @@ services:
       - ${CCXP_SECRETS_DIR:?Set CCXP_SECRETS_DIR}:/run/secrets:ro
       - ccxp-session:/state
       - ccxp-index:/index
+      - ccxp-control:/control
 
 volumes:
   ccxp-session:
   ccxp-index:
     name: minisago-ccxp-index
+  ccxp-control:
+    name: minisago-ccxp-control

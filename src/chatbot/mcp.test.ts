@@ -1223,3 +1223,42 @@ test("CCXP tools are conditional and reject arbitrary URLs through MCP", async (
   await other.close();
   absent.revoke();
 });
+
+test("CCXP maintenance tools expose explicit queued/status actions separately from read-only retrieval", async () => {
+  const calls: string[] = [];
+  const session = registerChatbotMcpSession({
+    ...handlers(),
+    ccxpSync: {
+      call: async (name) => {
+        calls.push(name);
+        return { status: name === "request_ccxp_sync" ? "queued" : "complete" };
+      },
+    },
+  });
+  expect(
+    session.capabilities.find((c) => c.id === "ccxp_sync")?.description,
+  ).toContain("explicitly");
+  const client = await connect(session.token);
+  const tools = (await client.listTools()).tools;
+  expect(
+    tools.find((t) => t.name === "request_ccxp_sync")?.annotations,
+  ).toMatchObject({ readOnlyHint: false, idempotentHint: true });
+  expect(
+    tools.find((t) => t.name === "get_ccxp_sync_status")?.annotations
+      ?.readOnlyHint,
+  ).toBe(true);
+  const request = await client.callTool({
+    name: "request_ccxp_sync",
+    arguments: {},
+  });
+  expect(JSON.stringify(request)).toContain("queued");
+  await client.callTool({ name: "get_ccxp_sync_status", arguments: {} });
+  const bad = await client.callTool({
+    name: "request_ccxp_sync",
+    arguments: { force: true, url: "https://evil.test" },
+  });
+  expect(bad.isError).toBe(true);
+  expect(calls).toEqual(["request_ccxp_sync", "get_ccxp_sync_status"]);
+  await client.close();
+  session.revoke();
+});

@@ -22,6 +22,7 @@ export type MeetingLink = {
   title: string;
   url: string;
   sourceUrl: string;
+  revision: string;
 };
 export const documentId = (category: string, title: string) =>
   createHash("sha256")
@@ -61,7 +62,13 @@ export function meetingLink(
   )
     return;
   const cleanTitle = title.replace(/\s+/gu, " ").trim();
+  // Session parameters change on login; only the attachment identity is hashed.
+  // Neither its opaque document key nor the session URL is persisted.
+  const identity = publicAcademicAttachment(url, category)
+    ? url.href
+    : `${url.origin}${url.pathname}?l=${url.searchParams.get("l")}`;
   return {
+    revision: createHash("sha256").update(identity).digest("hex"),
     id: documentId(category, cleanTitle),
     category,
     title: cleanTitle,

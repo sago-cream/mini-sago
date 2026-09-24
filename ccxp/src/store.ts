@@ -8,6 +8,31 @@ import {
   type CcxpCoverage,
 } from "../../contracts/ccxp-meetings";
 
+export type ListingManifest = Record<
+  string,
+  {
+    revision: string;
+    fetchedRevision?: string;
+    fresh: boolean;
+  }
+>;
+
+export function readManifest(path: string): ListingManifest | undefined {
+  if (!Bun.file(path).size) return;
+  const db = new Database(path, { readonly: true });
+  try {
+    const row = db
+      .query<
+        { value: string },
+        []
+      >("SELECT value FROM metadata WHERE key='listings'")
+      .get();
+    return row ? (JSON.parse(row.value) as ListingManifest) : undefined;
+  } finally {
+    db.close();
+  }
+}
+
 export function readDocuments(path: string): CcxpDocument[] {
   if (!Bun.file(path).size) return [];
   const db = new Database(path, { readonly: true });
@@ -36,6 +61,7 @@ export async function publishIndex(
   path: string,
   documents: CcxpDocument[],
   coverage: CcxpCoverage,
+  listings?: ListingManifest,
 ) {
   await mkdir(dirname(path), { recursive: true, mode: 0o750 });
   const temporary = `${path}.next`;
@@ -53,6 +79,10 @@ export async function publishIndex(
       db.query("INSERT INTO metadata VALUES ('coverage', ?)").run(
         JSON.stringify(coverage),
       );
+      if (listings)
+        db.query("INSERT INTO metadata VALUES ('listings', ?)").run(
+          JSON.stringify(listings),
+        );
       const insertDoc = db.query(
         "INSERT INTO documents VALUES (?,?,?,?,?,?,?,?)",
       );

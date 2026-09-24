@@ -1,3 +1,9 @@
+import {
+  ccxpSyncSchemas,
+  ccxpSyncDescription,
+  type CcxpSyncClient,
+  type CcxpSyncToolName,
+} from "./ccxp-sync";
 import { randomBytes } from "node:crypto";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -430,6 +436,7 @@ export type ChatbotMcpSessionHandlers = {
   }) => Promise<Record<string, unknown>>;
   drive?: GoogleDriveClient;
   ccxpMeetings?: CcxpMeetingsClient;
+  ccxpSync?: CcxpSyncClient;
   readTripPlan?: (input: TripPlanReadInput) => Promise<Record<string, unknown>>;
   editTripPlan?: (input: TripPlanEditInput) => Promise<Record<string, unknown>>;
 };
@@ -549,6 +556,15 @@ function availableCapabilities(
       description:
         "Proactively remember, correct, consolidate, or forget durable knowledge about the current Discord server, especially when a member teaches you something.",
       tools: ["manage_server_memory"],
+    });
+  }
+  if (handlers.ccxpSync) {
+    capabilities.push({
+      id: "ccxp_sync",
+      category: "system",
+      availability: "available",
+      description: ccxpSyncDescription,
+      tools: Object.keys(ccxpSyncSchemas),
     });
   }
   if (handlers.ccxpMeetings) {
@@ -840,6 +856,26 @@ function createServer(session: ChatbotMcpSession) {
           currentReply: "suppressed",
         }),
     );
+  }
+
+  if (session.handlers.ccxpSync) {
+    for (const name of Object.keys(ccxpSyncSchemas) as CcxpSyncToolName[]) {
+      server.registerTool(
+        name,
+        {
+          description: ccxpSyncDescription,
+          inputSchema: ccxpSyncSchemas[name],
+          annotations: {
+            readOnlyHint: name === "get_ccxp_sync_status",
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: name === "request_ccxp_sync",
+          },
+        },
+        async (input: unknown) =>
+          toolResult(await session.handlers.ccxpSync!.call(name, input)),
+      );
+    }
   }
 
   if (session.handlers.ccxpMeetings) {
