@@ -65,16 +65,49 @@ searchable; whitespace-separated keywords must all appear on the same page
 or in its title. Search returns at most ten snippets, and reads return at most
 12,000 characters at a time. There is no caller-supplied URL or filesystem path.
 
-Each pass attempts at most 100 downloads, interleaving categories newest-first.
-Initial backfill continues every
-15 minutes until complete, then sync runs every six hours. The ten newest
-records in each category are refreshed daily; older records every 30 days.
+The collector checks all eleven listings nightly at **03:00 Asia/Taipei**
+(19:00 UTC). The schedule is persisted across restarts; after downtime, an
+overdue run executes once. Initial setup, upgrading to this schedule, and
+credential rotation also start a pass. **While records remain pending, additional
+backfill batches run every 15 minutes**, so initial archive ingestion does not wait
+for successive nights. Once pending work clears, only nightly and manual runs
+remain. Each pass attempts at most 100 downloads.
+New or changed attachment identities take priority over historical backfill;
+remaining budget fills the archive newest-first across categories. Listing
+fingerprints and pending freshness work are published atomically with the index.
+An unchanged listing reuses its cached document. Session-token rotation does
+not make an attachment appear changed. Once backfill is complete, ordinary
+nightly checks usually download nothing. Documents are revalidated after 30 days
+to catch edits that retain the same attachment URL; listing change detection
+cannot discover those edits immediately.
+
 Every successful listing refresh removes withdrawn records from that category.
 Listing/authentication failures preserve the previous snapshot. Failed
 downloads retain old text and increase the pending count. Results report the
 listing check time, per-document fetch time, pending/unsupported/empty counts,
 and whether the listing check is over 48 hours old. Empty results must never
 be described as proof that a topic was not discussed.
+
+## Manual sync through chat
+
+In a registered guild, the bot owner can ask **“Sync the CCXP meeting records
+now”** or **“Check CCXP sync status.”** The host exposes `request_ccxp_sync` and
+`get_ccxp_sync_status` only to that owner. Existing chat permissions still apply.
+These tools accept no URLs, paths, credentials, or scope overrides. Guild
+revocation is rechecked on every call. Ordinary member searches use only the
+published cache.
+
+The request is durably queued in a separate shared control volume. The collector
+checks it every minute and runs one bounded pass before the next scheduled run.
+Concurrent requests coalesce, retries of the same Discord message are deduplicated,
+and new requests have a five-minute cooldown. Status reports queued, running,
+completed, failed, or auth_required, plus the collector's coverage and next run.
+A completed pass can still leave historical records pending. Ask for status again
+to check completion; the sync does not post a completion message by itself.
+The last published index stays available during the job. Collector restarts
+resume interrupted requests. Failed runs retry on the backfill cadence when work was already pending, or at
+the next nightly run otherwise; an explicit manual request can retry sooner.
+Rejected credentials remain paused until the file changes.
 
 ## Install on Oracle
 
@@ -105,7 +138,12 @@ port. `compose.ccxp.yaml` sets a one-CPU, 2 GiB limit and persistent volumes.
 3. In the bot-core deployment, mount external volume `minisago-ccxp-index`
    read-only at `/ccxp-index`. Set
    `MINISAGO_CCXP_INDEX_PATH=/ccxp-index/meetings.sqlite` and restart the core
-   through its normal release workflow. The reader runs as UID 1000; preserve
+   through its normal release workflow. Also mount external volume
+   `minisago-ccxp-control` read-write at `/ccxp-control` and set
+   `MINISAGO_CCXP_SYNC_QUEUE_PATH=/ccxp-control/requests.sqlite` to enable manual
+   requests. Start the collector first so it initializes volume ownership.
+   This volume contains only request metadata; the meeting index stays read-only.
+   The reader runs as UID 1000; preserve
    matching volume ownership. Do not mount the session volume into the core
    or a Codex worker.
 
@@ -121,8 +159,9 @@ port. `compose.ccxp.yaml` sets a one-CPU, 2 GiB limit and persistent volumes.
 
 The collector reads `CCXP_CREDENTIALS_FILE` (default `/run/secrets/ccxp.env`),
 `CCXP_STATE_DIR` (`/state`), `CCXP_INDEX_PATH` (`/index/meetings.sqlite`), and
-`CCXP_EXTENSION_PATH` (`/opt/ccxplite`). `CCXP_FORCE_SYNC=true` is a diagnostic
-override; do not leave it enabled on the recurring process. Only one collector
+`CCXP_EXTENSION_PATH` (`/opt/ccxplite`), and `CCXP_SYNC_QUEUE_PATH`
+(`/control/requests.sqlite`). `CCXP_FORCE_SYNC=true` is a diagnostic schedule
+override that still respects the rejected-credential pause; do not leave it enabled on the recurring process. Only one collector
 may write a given index/session volume.
 
 ## Password rotation and owner notices
@@ -152,7 +191,8 @@ secret boundary. Protected meeting text must not be saved in guild memory.
 ```bash
 bun install --cwd ccxp --frozen-lockfile
 bun run --cwd ccxp build
-bun test src/chatbot/ccxp-meetings.test.ts src/chatbot/mcp.test.ts \
+bun test src/chatbot/ccxp-sync.test.ts ccxp/src/main.test.ts \
+  src/chatbot/ccxp-meetings.test.ts src/chatbot/mcp.test.ts \
   src/discord/jobs/ccxp-auth-notifications.test.ts ccxp/src/sync.test.ts
 docker build -f Dockerfile.ccxp -t minisago-ccxp:test .
 docker run --rm --init --shm-size=256m \

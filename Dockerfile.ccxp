@@ -17,13 +17,13 @@ RUN echo '80c223cc5c0dd6cd21282ff9ee470f6c383d6e739a62f90a608a0e9c8e477781  /tmp
   && rm /tmp/ccxplite.zip
 # The collector only needs content scripts; omit the extension's analytics worker.
 RUN bun -e 'const p="/opt/ccxplite/manifest.json"; const m=await Bun.file(p).json(); delete m.background; await Bun.write(p,JSON.stringify(m));'
-COPY contracts/ccxp-meetings.ts /app/contracts/ccxp-meetings.ts
+COPY contracts/ccxp-meetings.ts contracts/ccxp-sync.ts /app/contracts/
 COPY ccxp/src ./src
 COPY ccxp/tsconfig.json ./
 COPY ccxp/test-fixtures ./test-fixtures
 RUN bun run build \
-  && mkdir /index /state \
-  && chown bun:bun /index /state \
-  && chmod 700 /state && chmod 750 /index
+  && mkdir /index /state /control \
+  && chown bun:bun /index /state /control \
+  && chmod 700 /state && chmod 750 /index /control
 USER bun
 CMD ["bun", "src/main.ts"]

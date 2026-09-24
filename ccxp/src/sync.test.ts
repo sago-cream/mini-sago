@@ -1,3 +1,4 @@
+import { Database } from "bun:sqlite";
 import { test, expect } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -84,7 +85,7 @@ test("sync preserves good data on expiry, reports partial coverage, and removes 
     expired = true;
     await expect(
       syncMeetings(source, path, {
-        now: new Date("2026-09-26"),
+        now: new Date("2026-10-26"),
         categories: ["1"],
       }),
     ).rejects.toThrow(AuthRequired);
@@ -196,6 +197,71 @@ test("PDF downloads become searchable pages with correct provenance", async () =
       pageKind: "page",
       pages: ["Campus budget approved."],
     });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("new and changed attachments precede backfill, persist freshness after failure, and ignore session rotation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "ccxp-freshness-"));
+  try {
+    const path = join(root, "index.sqlite");
+    const link = (n: number, attachment = String(n), session = "secret") =>
+      meetingLink(
+        "1",
+        `record ${n}`,
+        `view.php?l=${attachment}&ACIXSTORE=${session}`,
+        base,
+      )!;
+    let links = [link(1), link(2), link(3)];
+    let broken = false;
+    const fetched: string[] = [];
+    const source = {
+      list: async () => links,
+      download: async (l: ReturnType<typeof link>) => {
+        fetched.push(l.title);
+        if (broken && l.title === "record 4")
+          throw new Error("transient download failure");
+        return {
+          bytes: new TextEncoder().encode("<p>text</p>"),
+          contentType: "text/html; charset=utf-8",
+        };
+      },
+    };
+    const options = {
+      categories: ["1"] as ["1"],
+      now: new Date("2026-09-24"),
+      budget: 1,
+    };
+    await syncMeetings(source, path, options);
+    expect(fetched.splice(0)).toEqual(["record 1"]);
+    // A new record deep in a listing must beat its older uncached entries.
+    links = [link(1, "1", "rotated"), link(2), link(3), link(4)];
+    broken = true;
+    await syncMeetings(source, path, options);
+    expect(fetched.splice(0)).toEqual(["record 4"]);
+    broken = false;
+    await syncMeetings(source, path, options);
+    expect(fetched.splice(0)).toEqual(["record 4"]);
+    links[0] = link(1, "revised-attachment", "new-session");
+    await syncMeetings(source, path, options);
+    expect(fetched.splice(0)).toEqual(["record 1"]);
+    await syncMeetings(source, path, { ...options, budget: 10 });
+    expect(fetched.splice(0)).toEqual(["record 2", "record 3"]);
+    await syncMeetings(source, path, {
+      ...options,
+      now: new Date("2026-09-25"),
+    });
+    expect(fetched).toEqual([]);
+    const db = new Database(path, { readonly: true });
+    const manifest = db
+      .query<
+        { value: string },
+        []
+      >("SELECT value FROM metadata WHERE key='listings'")
+      .get()!.value;
+    db.close();
+    expect(manifest).not.toMatch(/secret|session|ACIXSTORE|revised-attachment/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

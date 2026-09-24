@@ -50,7 +50,8 @@ scheduled-monitor variable names.
 `MINISAGO_CCXP_INDEX_PATH` enables read-only CCXP meeting retrieval in guilds
 registered under the owner-managed `ccxp_meetings` feature. Initial registrations
 are `1394943277836402779` and `1000249491494019092`. The separate Oracle collector and owner password
-rotation notices are documented in [CCXP meeting retrieval](ccxp-meetings.md).
+rotation notices, the nightly schedule, and owner-only manual sync via
+`MINISAGO_CCXP_SYNC_QUEUE_PATH` are documented in [CCXP meeting retrieval](ccxp-meetings.md).
 
 The X monitor keeps the configurable primary pipe and also reposts
 `@thsottiaux` to Discord channel `1515569479541854218` and

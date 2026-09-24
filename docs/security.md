@@ -23,7 +23,9 @@ on matching phrases in the request.
 CCXP meeting tools require an explicit owner-managed guild registration and a
 configured read-only index mount. DMs and unregistered guilds have no access,
 even for the bot owner. Registration uses the persistent `ccxp_meetings`
-feature policy; revocation is checked again on every tool call. A separate collector holds the CCXP account,
+feature policy; revocation is checked again on every tool call. Owner-only manual
+sync tools write request metadata to a separate shared control volume; they cannot
+write the index, access credentials, or override the rejected-password pause. A separate collector holds the CCXP account,
 browser profile, and session; these are never exposed to core or Codex. MCP
 results contain bounded text and session-free category links. Password changes
 remain manual, with deduplicated owner DMs when login requires attention. See
