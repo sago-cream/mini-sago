@@ -206,11 +206,16 @@ test("new and changed attachments precede backfill, persist freshness after fail
   const root = await mkdtemp(join(tmpdir(), "ccxp-freshness-"));
   try {
     const path = join(root, "index.sqlite");
-    const link = (n: number, attachment = String(n), session = "secret") =>
+    const link = (
+      n: number,
+      attachment = String(n),
+      session = "secret",
+      endpoint = "view.php",
+    ) =>
       meetingLink(
         "1",
         `record ${n}`,
-        `view.php?l=${attachment}&ACIXSTORE=${session}`,
+        `${endpoint}?l=${attachment}&ACIXSTORE=${session}`,
         base,
       )!;
     let links = [link(1), link(2), link(3)];
@@ -236,14 +241,19 @@ test("new and changed attachments precede backfill, persist freshness after fail
     await syncMeetings(source, path, options);
     expect(fetched.splice(0)).toEqual(["record 1"]);
     // A new record deep in a listing must beat its older uncached entries.
-    links = [link(1, "1", "rotated"), link(2), link(3), link(4)];
+    links = [
+      link(1, "different-randomized-key", "rotated"),
+      link(2),
+      link(3),
+      link(4),
+    ];
     broken = true;
     await syncMeetings(source, path, options);
     expect(fetched.splice(0)).toEqual(["record 4"]);
     broken = false;
     await syncMeetings(source, path, options);
     expect(fetched.splice(0)).toEqual(["record 4"]);
-    links[0] = link(1, "revised-attachment", "new-session");
+    links[0] = link(1, "revised-attachment", "new-session", "view4.php");
     await syncMeetings(source, path, options);
     expect(fetched.splice(0)).toEqual(["record 1"]);
     await syncMeetings(source, path, { ...options, budget: 10 });
@@ -265,4 +275,77 @@ test("new and changed attachments precede backfill, persist freshness after fail
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("upgrading randomized-key fingerprints preserves cached text and advances backfill", async () => {
+  const root = await mkdtemp(join(tmpdir(), "ccxp-manifest-upgrade-"));
+  try {
+    const path = join(root, "index.sqlite");
+    let iteration = 0;
+    const downloads: string[] = [];
+    const source = {
+      list: async () =>
+        [1, 2].map(
+          (n) =>
+            meetingLink(
+              "1",
+              `record ${n}`,
+              `view.php?l=random-${++iteration}&ACIXSTORE=session`,
+              base,
+            )!,
+        ),
+      download: async (link: { title: string }) => {
+        downloads.push(link.title);
+        return {
+          bytes: new TextEncoder().encode("<p>text</p>"),
+          contentType: "text/html; charset=utf-8",
+        };
+      },
+    };
+    const options = { categories: ["1"] as ["1"], budget: 1 };
+    await syncMeetings(source, path, options);
+    const db = new Database(path);
+    db.query("DELETE FROM metadata WHERE key='listingsVersion'").run();
+    db.query("UPDATE metadata SET value=? WHERE key='listings'").run(
+      JSON.stringify({
+        [readDocuments(path)[0].id]: {
+          revision: "old-randomized-key",
+          fresh: true,
+        },
+      }),
+    );
+    db.close();
+    expect(await syncMeetings(source, path, options)).toMatchObject({
+      indexed: 2,
+      pending: 0,
+    });
+    expect(downloads).toEqual(["record 1", "record 2"]);
+    await syncMeetings(source, path, options);
+    expect(downloads).toHaveLength(2);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("listing fingerprints ignore private ciphertext but track public PDF URLs", () => {
+  const a = meetingLink(
+    "1",
+    "record",
+    "view.php?l=random-a&ACIXSTORE=one",
+    base,
+  )!;
+  const b = meetingLink(
+    "1",
+    "record",
+    "view.php?l=random-b&ACIXSTORE=two",
+    base,
+  )!;
+  expect(a.id).toBe(b.id);
+  expect(a.revision).toBe(b.revision);
+  const publicBase =
+    "https://academic.site.nthu.edu.tw/var/file/7/1007/img/4647/";
+  const c = meetingLink("13", "record", publicBase + "one.pdf", base)!;
+  const d = meetingLink("13", "record", publicBase + "two.pdf", base)!;
+  expect(c.id).toBe(d.id);
+  expect(c.revision).not.toBe(d.revision);
 });
