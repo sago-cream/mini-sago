@@ -72,14 +72,16 @@ credential rotation also start a pass. **While records remain pending, additiona
 backfill batches run every 15 minutes**, so initial archive ingestion does not wait
 for successive nights. Once pending work clears, only nightly and manual runs
 remain. Each pass attempts at most 100 downloads.
-New or changed attachment identities take priority over historical backfill;
+New or changed listings take priority over historical backfill;
 remaining budget fills the archive newest-first across categories. Listing
 fingerprints and pending freshness work are published atomically with the index.
-An unchanged listing reuses its cached document. Session-token rotation does
-not make an attachment appear changed. Once backfill is complete, ordinary
+An unchanged listing reuses its cached document. Protected links contain a
+randomized encrypted document key on every listing response, so fingerprints
+use the title, category, and view endpoint; public academic PDFs use their stable
+URL. Changes to encrypted keys or session tokens do not trigger downloads. Once backfill is complete, ordinary
 nightly checks usually download nothing. Documents are revalidated after 30 days
-to catch edits that retain the same attachment URL; listing change detection
-cannot discover those edits immediately.
+to catch edits that retain the same listing metadata (or public attachment URL);
+listing change detection cannot discover those edits immediately.
 
 Every successful listing refresh removes withdrawn records from that category.
 Listing/authentication failures preserve the previous snapshot. Failed

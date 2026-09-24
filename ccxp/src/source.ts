@@ -62,11 +62,11 @@ export function meetingLink(
   )
     return;
   const cleanTitle = title.replace(/\s+/gu, " ").trim();
-  // Session parameters change on login; only the attachment identity is hashed.
-  // Neither its opaque document key nor the session URL is persisted.
+  // Protected links contain randomized ciphertext in `l`, even within one session.
+  // Fingerprint stable listing metadata; only public attachments have stable URLs.
   const identity = publicAcademicAttachment(url, category)
     ? url.href
-    : `${url.origin}${url.pathname}?l=${url.searchParams.get("l")}`;
+    : `${url.origin}${url.pathname}\n${category}\n${cleanTitle}`;
   return {
     revision: createHash("sha256").update(identity).digest("hex"),
     id: documentId(category, cleanTitle),

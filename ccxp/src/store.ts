@@ -21,6 +21,14 @@ export function readManifest(path: string): ListingManifest | undefined {
   if (!Bun.file(path).size) return;
   const db = new Database(path, { readonly: true });
   try {
+    const version = db
+      .query<
+        { value: string },
+        []
+      >("SELECT value FROM metadata WHERE key='listingsVersion'")
+      .get();
+    // Older fingerprints included CCXP's randomized document ciphertext.
+    if (version?.value !== "2") return;
     const row = db
       .query<
         { value: string },
@@ -79,10 +87,12 @@ export async function publishIndex(
       db.query("INSERT INTO metadata VALUES ('coverage', ?)").run(
         JSON.stringify(coverage),
       );
-      if (listings)
+      if (listings) {
+        db.query("INSERT INTO metadata VALUES ('listingsVersion', '2')").run();
         db.query("INSERT INTO metadata VALUES ('listings', ?)").run(
           JSON.stringify(listings),
         );
+      }
       const insertDoc = db.query(
         "INSERT INTO documents VALUES (?,?,?,?,?,?,?,?)",
       );
