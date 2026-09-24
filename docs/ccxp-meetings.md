@@ -68,7 +68,10 @@ or in its title. Search returns at most ten snippets, and reads return at most
 The collector checks all eleven listings nightly at **03:00 Asia/Taipei**
 (19:00 UTC). The schedule is persisted across restarts; after downtime, an
 overdue run executes once. Initial setup, upgrading to this schedule, and
-credential rotation also start a pass. Each pass attempts at most 100 downloads.
+credential rotation also start a pass. **While records remain pending, additional
+backfill batches run every 15 minutes**, so initial archive ingestion does not wait
+for successive nights. Once pending work clears, only nightly and manual runs
+remain. Each pass attempts at most 100 downloads.
 New or changed attachment identities take priority over historical backfill;
 remaining budget fills the archive newest-first across categories. Listing
 fingerprints and pending freshness work are published atomically with the index.
@@ -95,15 +98,16 @@ revocation is rechecked on every call. Ordinary member searches use only the
 published cache.
 
 The request is durably queued in a separate shared control volume. The collector
-checks it every minute and runs one bounded pass before the next nightly run.
+checks it every minute and runs one bounded pass before the next scheduled run.
 Concurrent requests coalesce, retries of the same Discord message are deduplicated,
 and new requests have a five-minute cooldown. Status reports queued, running,
 completed, failed, or auth_required, plus the collector's coverage and next run.
 A completed pass can still leave historical records pending. Ask for status again
 to check completion; the sync does not post a completion message by itself.
 The last published index stays available during the job. Collector restarts
-resume interrupted requests. Failed runs wait for the next nightly run or an
-explicit manual retry; rejected credentials remain paused until the file changes.
+resume interrupted requests. Failed runs retry on the backfill cadence when work was already pending, or at
+the next nightly run otherwise; an explicit manual request can retry sooner.
+Rejected credentials remain paused until the file changes.
 
 ## Install on Oracle
 

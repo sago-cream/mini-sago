@@ -61,7 +61,7 @@ export function createCcxpSyncClient(
           .json()
           .catch(() => null)) as CcxpCollectorStatus | null;
         const schedule =
-          "Nightly at 03:00 Asia/Taipei; manual requests are checked every minute.";
+          "Nightly at 03:00 Asia/Taipei, plus 15-minute batches while work is pending; manual requests are checked every minute.";
         if (name === "request_ccxp_sync") {
           if (collector?.state === "auth_required")
             return { status: "auth_required", collector, schedule };

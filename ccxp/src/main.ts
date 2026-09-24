@@ -18,6 +18,10 @@ export function nextNightly(now: number) {
   return next.getTime();
 }
 
+function nextSync(now: number, pending: number) {
+  return Math.min(nextNightly(now), pending ? now + 15 * 60000 : Infinity);
+}
+
 async function readJson(path: string) {
   try {
     return JSON.parse(await readFile(path, "utf8"));
@@ -75,7 +79,7 @@ export async function collectOnce(
     let source: Source | undefined;
     let fingerprint = "missing";
     let health: CcxpCollectorStatus;
-    let nextRunAt = nextNightly(now());
+    let nextRunAt = nextSync(now(), previous?.coverage?.pending ?? 0);
     const request = queue.active();
     try {
       const text = await readFile(credentialsPath, "utf8").catch(() => "");
@@ -133,7 +137,7 @@ export async function collectOnce(
         updatedAt: new Date(now()).toISOString(),
         episode: randomUUID(),
       };
-      nextRunAt = nextNightly(now());
+      nextRunAt = nextSync(now(), coverage.pending);
       console.log(JSON.stringify({ event: "ccxp_sync", ...coverage }));
     } catch (error) {
       const auth = error instanceof AuthRequired;

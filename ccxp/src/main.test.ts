@@ -109,7 +109,7 @@ test("nightly schedule survives polls/restarts and downtime; manual sync runs ea
           checkedAt: new Date(time).toISOString(),
           listed: 3,
           indexed: 1,
-          pending: 2,
+          pending: 0,
           empty: 0,
           unsupported: 0,
         };
@@ -121,7 +121,7 @@ test("nightly schedule survives polls/restarts and downtime; manual sync runs ea
     expect((await status()).nextRunAt).toBe("2026-09-24T19:00:00.000Z");
     time += 16 * 60000;
     await collectOnce(options);
-    expect(syncs).toBe(1); // Pending backfill no longer triggers a 15-minute run.
+    expect(syncs).toBe(1); // With no backlog, polling does not trigger an extra run.
     time = Date.parse("2026-09-24T18:59:59Z");
     await collectOnce(options);
     expect(syncs).toBe(1);
@@ -135,7 +135,7 @@ test("nightly schedule survives polls/restarts and downtime; manual sync runs ea
     await collectOnce(options);
     expect(syncs).toBe(3);
     expect(queue.latest()?.state).toBe("completed");
-    expect((await status()).coverage.pending).toBe(2);
+    expect((await status()).coverage.pending).toBe(0);
     await collectOnce(options);
     expect(syncs).toBe(3);
     time = Date.parse("2026-09-28T12:00:00Z");
@@ -184,6 +184,65 @@ test("manual requests cannot resubmit rejected credentials, even with the diagno
     if (previousForce === undefined) delete process.env.CCXP_FORCE_SYNC;
     else process.env.CCXP_FORCE_SYNC = previousForce;
     queue.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("pending work continues in 15-minute batches and settles to nightly when the archive is ready", async () => {
+  const root = await mkdtemp(join(tmpdir(), "ccxp-backfill-"));
+  try {
+    let time = Date.parse("2026-09-24T10:00:00Z"),
+      pending = 100,
+      syncs = 0;
+    const indexPath = join(root, "index.sqlite"),
+      credentialsPath = join(root, "ccxp.env");
+    await writeFile(credentialsPath, "CCXP_ACCOUNT=test\nCCXP_PASSWORD=test\n");
+    const options = {
+      indexPath,
+      credentialsPath,
+      queuePath: join(root, "requests.sqlite"),
+      stateDir: join(root, "state"),
+      now: () => time,
+      openSource: async () => ({
+        list: async () => [],
+        download: async () => ({ bytes: new Uint8Array(), contentType: "" }),
+        close: async () => {},
+      }),
+      sync: async () => {
+        syncs++;
+        return {
+          checkedAt: new Date(time).toISOString(),
+          listed: 200,
+          indexed: 200 - pending,
+          pending,
+          empty: 0,
+          unsupported: 0,
+        };
+      },
+    };
+    const status = () => Bun.file(`${indexPath}.status.json`).json();
+    await collectOnce(options);
+    expect((await status()).nextRunAt).toBe("2026-09-24T10:15:00.000Z");
+    time += 14 * 60000;
+    await collectOnce(options);
+    expect(syncs).toBe(1);
+    time += 60000;
+    pending = 0;
+    await collectOnce(options);
+    expect(syncs).toBe(2);
+    expect((await status()).nextRunAt).toBe("2026-09-24T19:00:00.000Z");
+    time += 15 * 60000;
+    await collectOnce(options);
+    expect(syncs).toBe(2);
+    // A pending batch near the nightly boundary must not postpone that run.
+    time = Date.parse("2026-09-24T18:55:00Z");
+    pending = 1;
+    const queue = new CcxpSyncQueue(options.queuePath);
+    queue.enqueue("manual", time);
+    queue.close();
+    await collectOnce(options);
+    expect((await status()).nextRunAt).toBe("2026-09-24T19:00:00.000Z");
+  } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
