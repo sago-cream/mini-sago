@@ -1,0 +1,25 @@
+# Add the ccxp-index volume read-only to bot-core at /ccxp-index and set
+# MINISAGO_CCXP_INDEX_PATH=/ccxp-index/meetings.sqlite in the core environment.
+services:
+  ccxp-collector:
+    build:
+      context: .
+      dockerfile: Dockerfile.ccxp
+    image: ghcr.io/sago-cream/minisago-ccxp:main
+    restart: unless-stopped
+    init: true
+    mem_limit: 2g
+    cpus: 1
+    shm_size: 256m
+    environment:
+      CCXP_CREDENTIALS_FILE: /run/secrets/ccxp.env
+    volumes:
+      # Mount the directory so atomic replacement of ccxp.env is visible.
+      - ${CCXP_SECRETS_DIR:?Set CCXP_SECRETS_DIR}:/run/secrets:ro
+      - ccxp-session:/state
+      - ccxp-index:/index
+
+volumes:
+  ccxp-session:
+  ccxp-index:
+    name: minisago-ccxp-index

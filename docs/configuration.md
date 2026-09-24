@@ -47,6 +47,10 @@ live in [Discord setup](discord-setup.md) and [Workers](workers.md).
 See `.env.production.example` for production state paths and the complete
 scheduled-monitor variable names.
 
+`MINISAGO_CCXP_INDEX_PATH` enables read-only CCXP meeting retrieval only in
+guild `1394943277836402779`. The separate Oracle collector and owner password
+rotation notices are documented in [CCXP meeting retrieval](ccxp-meetings.md).
+
 The X monitor keeps the configurable primary pipe and also reposts
 `@thsottiaux` to Discord channel `1515569479541854218` and
 `@hololive_dreams` to channel `1290252977621176361`. Each additional pipe

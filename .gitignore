@@ -9,3 +9,8 @@ workspace/
 npm-debug.log*
 *.tsbuildinfo
 .DS_Store
+
+.env.ccxp
+ccxp/.state/
+ccxp/.index/
+ccxp/.extension/
