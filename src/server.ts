@@ -1,3 +1,4 @@
+import { startCcxpAuthNotificationMonitor } from "./discord/jobs/ccxp-auth-notifications";
 import { handleVoiceDebugRequest } from "./discord/voice-debug/http";
 import { handleCalendarPage } from "./chatbot/calendar-pages";
 import type { Server } from "bun";
@@ -141,5 +142,6 @@ startToeflVocabScheduler();
 startGamerForumMonitor();
 startXPostMonitor();
 startDeploymentNotificationMonitor();
+startCcxpAuthNotificationMonitor();
 
 console.log(`MiniSago listening on http://${server.hostname}:${server.port}`);

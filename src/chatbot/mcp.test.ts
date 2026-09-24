@@ -142,6 +142,7 @@ describe("MiniSago MCP server", () => {
           chatbot: policy,
           ambient_reactions: policy,
           trip_planner: policy,
+          ccxp_meetings: policy,
         },
       }),
       configureFeatureAvailability: async (input) => {
@@ -185,6 +186,26 @@ describe("MiniSago MCP server", () => {
     expect(result.structuredContent).toMatchObject({
       status: "complete",
       feature: "trip_planner",
+    });
+
+    const registered = await client.callTool({
+      name: "configure_feature_availability",
+      arguments: {
+        feature: "ccxp_meetings",
+        scope: "guild",
+        targetId: "1000249491494019092",
+        action: "enable",
+      },
+    });
+    expect(configured.at(-1)).toEqual({
+      feature: "ccxp_meetings",
+      scope: "guild",
+      targetId: "1000249491494019092",
+      action: "enable",
+    });
+    expect(registered.structuredContent).toMatchObject({
+      status: "complete",
+      feature: "ccxp_meetings",
     });
 
     await client.close();
@@ -1155,4 +1176,50 @@ test("Drive tools are conditional, read-only, and preserve strict schemas throug
   await absent.close();
   session.revoke();
   emptySession.revoke();
+});
+
+test("CCXP tools are conditional and reject arbitrary URLs through MCP", async () => {
+  const calls: unknown[] = [];
+  const session = registerChatbotMcpSession({
+    ...handlers(),
+    ccxpMeetings: {
+      call: async (name, input) => {
+        calls.push({ name, input });
+        return { status: "complete" };
+      },
+    },
+  });
+  expect(
+    session.capabilities.find((c) => c.id === "ccxp_meetings")?.description,
+  ).toContain("proactively");
+  const client = await connect(session.token);
+  const listing = (await client.listTools()).tools.filter((t) =>
+    t.name.includes("ccxp"),
+  );
+  expect(listing).toHaveLength(2);
+  for (const tool of listing)
+    expect(tool.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+    });
+  await client.callTool({
+    name: "search_ccxp_meetings",
+    arguments: { query: "宿舍 預算" },
+  });
+  expect(calls).toHaveLength(1);
+  const bad = await client.callTool({
+    name: "read_ccxp_meeting",
+    arguments: { documentId: "a".repeat(32), url: "https://evil.test" },
+  });
+  expect(bad.isError).toBe(true);
+  expect(calls).toHaveLength(1);
+  await client.close();
+  session.revoke();
+  const absent = registerChatbotMcpSession(handlers());
+  const other = await connect(absent.token);
+  expect(
+    (await other.listTools()).tools.some((t) => t.name.includes("ccxp")),
+  ).toBe(false);
+  await other.close();
+  absent.revoke();
 });

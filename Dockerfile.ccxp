@@ -1,0 +1,26 @@
+FROM oven/bun:1.3.9-debian
+WORKDIR /app/ccxp
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
+COPY ccxp/package.json ccxp/bun.lock ./
+RUN bun install --frozen-lockfile \
+  && bunx playwright install --with-deps --no-shell chromium
+
+# The same released local inference extension used in Chrome; no captcha service.
+ADD https://github.com/sago-cream/ccxp-lite/releases/download/v1.11.0/ccxpLite-crx-v1.11.0.zip /tmp/ccxplite.zip
+RUN echo '80c223cc5c0dd6cd21282ff9ee470f6c383d6e739a62f90a608a0e9c8e477781  /tmp/ccxplite.zip' | sha256sum -c - \
+  && mkdir /opt/ccxplite \
+  && apt-get update && apt-get install -y --no-install-recommends unzip \
+  && unzip -q /tmp/ccxplite.zip -d /opt/ccxplite \
+  && rm /tmp/ccxplite.zip
+# The collector only needs content scripts; omit the extension's analytics worker.
+RUN bun -e 'const p="/opt/ccxplite/manifest.json"; const m=await Bun.file(p).json(); delete m.background; await Bun.write(p,JSON.stringify(m));'
+COPY contracts/ccxp-meetings.ts /app/contracts/ccxp-meetings.ts
+COPY ccxp/src ./src
+COPY ccxp/tsconfig.json ./
+COPY ccxp/test-fixtures ./test-fixtures
+RUN bun run build \
+  && mkdir /index /state \
+  && chown bun:bun /index /state \
+  && chmod 700 /state && chmod 750 /index
+USER bun
+CMD ["bun", "src/main.ts"]

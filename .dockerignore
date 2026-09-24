@@ -10,3 +10,7 @@ node_modules
 workspace
 npm-debug.log*
 *.tsbuildinfo
+
+ccxp/.state
+ccxp/.index
+ccxp/.extension
