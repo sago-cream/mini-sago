@@ -1305,9 +1305,11 @@ export async function handleChatbotMention({
         },
         mediaRegistry,
       );
-      const ccxpMeetings = createCcxpMeetingsClient(process.env, {
-        guildId: message.guild_id,
-      });
+      const ccxpMeetings = createCcxpMeetingsClient(
+        process.env,
+        { guildId: message.guild_id },
+        featureAvailability,
+      );
       mcpSession = registerChatbotMcpSession({
         ...(ccxpMeetings ? { ccxpMeetings } : {}),
         searchThreads,

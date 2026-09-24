@@ -47,8 +47,9 @@ live in [Discord setup](discord-setup.md) and [Workers](workers.md).
 See `.env.production.example` for production state paths and the complete
 scheduled-monitor variable names.
 
-`MINISAGO_CCXP_INDEX_PATH` enables read-only CCXP meeting retrieval only in
-guild `1394943277836402779`. The separate Oracle collector and owner password
+`MINISAGO_CCXP_INDEX_PATH` enables read-only CCXP meeting retrieval in guilds
+registered under the owner-managed `ccxp_meetings` feature. Initial registrations
+are `1394943277836402779` and `1000249491494019092`. The separate Oracle collector and owner password
 rotation notices are documented in [CCXP meeting retrieval](ccxp-meetings.md).
 
 The X monitor keeps the configurable primary pipe and also reposts
@@ -134,8 +135,10 @@ environment lists and built-in behavior. After that, the file is the source of
 truth. An owner can ask MiniSago to list, enable, disable, or restore inherited
 availability for a feature in an exact server or channel. Channel rules
 override server rules, and server rules override the feature default. The
-scoped features are chatbot access, ambient reactions, and the trip
-planner. Always-on capabilities do not appear in this policy.
+scoped features are chatbot access, ambient reactions, the trip planner, and
+CCXP meeting retrieval. CCXP accepts only explicit guild registrations and
+always defaults to disabled; DMs cannot use it. Always-on capabilities do not
+appear in this policy.
 
 Background-service subscriptions default to
 `.data/service-subscriptions.json`. The initial destination list comes from the

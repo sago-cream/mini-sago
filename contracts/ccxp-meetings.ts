@@ -1,4 +1,3 @@
-export const CCXP_GUILD_ID = "1394943277836402779";
 export const CCXP_ORIGIN = "https://www.ccxp.nthu.edu.tw";
 export const CCXP_LOGIN = `${CCXP_ORIGIN}/ccxp/INQUIRE/`;
 export const CCXP_MEETINGS_PATH = "/ccxp/INQUIRE/OT/SCRT/2/";

@@ -158,6 +158,7 @@ describe("Discord chatbot", () => {
           chatbot: featurePolicy,
           ambient_reactions: featurePolicy,
           trip_planner: featurePolicy,
+          ccxp_meetings: featurePolicy,
         },
       }),
       configure: async () => featurePolicy,

@@ -2,12 +2,15 @@ import { Database } from "bun:sqlite";
 import { z } from "zod";
 import {
   CCXP_CATEGORIES,
-  CCXP_GUILD_ID,
   CCXP_LOGIN,
   meetingTokens,
   normalizeMeetingText,
   type CcxpCoverage,
 } from "../../contracts/ccxp-meetings";
+import {
+  getFeatureAvailabilityStore,
+  type FeatureAvailabilityStore,
+} from "../discord/feature-availability";
 
 const category = z.enum(Object.keys(CCXP_CATEGORIES) as [string, ...string[]]);
 export const ccxpSchemas = {
@@ -50,15 +53,23 @@ type PageRow = {
 export function createCcxpMeetingsClient(
   env: Record<string, string | undefined>,
   context: { guildId?: string },
+  availability: Pick<
+    FeatureAvailabilityStore,
+    "isEnabled"
+  > = getFeatureAvailabilityStore(),
 ) {
-  if (context.guildId !== CCXP_GUILD_ID || !env.MINISAGO_CCXP_INDEX_PATH)
-    return undefined;
+  const guildId = context.guildId;
+  const isRegistered = () =>
+    Boolean(guildId && availability.isEnabled("ccxp_meetings", { guildId }));
+  if (!isRegistered() || !env.MINISAGO_CCXP_INDEX_PATH) return undefined;
   const path = env.MINISAGO_CCXP_INDEX_PATH;
   return {
     async call(
       name: CcxpToolName,
       raw: unknown,
     ): Promise<Record<string, unknown>> {
+      // Revocation also applies to MCP sessions created before the policy change.
+      if (!isRegistered()) return { status: "forbidden" };
       // Validate before opening the file; caller cannot supply paths or URLs.
       const input = ccxpSchemas[name].parse(raw);
       let db: Database | undefined;

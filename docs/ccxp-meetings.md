@@ -1,12 +1,42 @@
 # CCXP meeting retrieval
 
-MiniSago searches the login-protected NTHU meeting archive in guild
-`1394943277836402779` (115學年度學生議會暨學代議題討論群). Other guilds and DMs
-never receive these tools, including owner requests outside that guild.
+MiniSago searches the login-protected NTHU meeting archive in owner-registered
+guilds. Initial registrations are `1394943277836402779`
+(115學年度學生議會暨學代議題討論群) and `1000249491494019092`. Unregistered guilds
+and DMs never receive these tools, including requests from the bot owner.
 Related policy, governance, budget, curriculum, and campus-planning questions
 instruct the answer worker to search automatically, read matching pages, and
 cite the meeting title, page, and CCXP category link. This is retrieval during
 an answer, not an unsolicited background posting service.
+
+## Guild registration
+
+CCXP uses the existing persistent feature policy (`ccxp_meetings`). The bot
+owner can ask MiniSago to register a guild, revoke its access, or list registered
+guilds. For example: “Enable CCXP meeting access in guild 1000249491494019092.”
+The owner-only `configure_feature_availability` tool uses:
+
+```json
+{
+  "feature": "ccxp_meetings",
+  "scope": "guild",
+  "targetId": "1000249491494019092",
+  "action": "enable"
+}
+```
+
+Use `disable` or `inherit` to revoke access; the feature default is always
+disabled. Channel registrations are rejected. Guild members cannot register
+their own guild. The host verifies that the bot can access the requested guild
+before changing the policy. Registration requires no deployment or restart;
+new requests use the updated policy, and revoked guilds lose access even through
+existing MCP sessions. Normal chatbot access is configured separately.
+
+Registrations are stored in `MINISAGO_FEATURE_AVAILABILITY_FILE` (normally
+`/app/state/feature-availability.json` in production). Existing feature files
+without CCXP receive the two initial registrations on upgrade. Once a CCXP
+policy exists, its saved decisions, including an empty list, take precedence.
+The collector and configured index are still required before retrieval works.
 
 ## Architecture
 

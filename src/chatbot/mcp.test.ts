@@ -142,6 +142,7 @@ describe("MiniSago MCP server", () => {
           chatbot: policy,
           ambient_reactions: policy,
           trip_planner: policy,
+          ccxp_meetings: policy,
         },
       }),
       configureFeatureAvailability: async (input) => {
@@ -185,6 +186,26 @@ describe("MiniSago MCP server", () => {
     expect(result.structuredContent).toMatchObject({
       status: "complete",
       feature: "trip_planner",
+    });
+
+    const registered = await client.callTool({
+      name: "configure_feature_availability",
+      arguments: {
+        feature: "ccxp_meetings",
+        scope: "guild",
+        targetId: "1000249491494019092",
+        action: "enable",
+      },
+    });
+    expect(configured.at(-1)).toEqual({
+      feature: "ccxp_meetings",
+      scope: "guild",
+      targetId: "1000249491494019092",
+      action: "enable",
+    });
+    expect(registered.structuredContent).toMatchObject({
+      status: "complete",
+      feature: "ccxp_meetings",
     });
 
     await client.close();

@@ -720,7 +720,7 @@ function createServer(session: ChatbotMcpSession) {
       "configure_feature_availability",
       {
         description:
-          "Change one MiniSago feature's availability for an exact Discord guild or channel ID. Use enable or disable to add an override. Use inherit to remove the override and fall back to the guild or feature default. Only call when the owner explicitly asks to change feature coverage.",
+          "Change one MiniSago feature's availability for an exact Discord guild or channel ID. Use enable or disable to add an override. Use inherit to remove the override and fall back to the guild or feature default. CCXP meeting access (ccxp_meetings) requires guild scope: enable registers an approved guild; disable or inherit removes access. Only call when the owner explicitly asks to change feature coverage.",
         inputSchema: {
           feature: z.enum(
             Object.keys(SCOPED_FEATURE_DEFINITIONS) as [

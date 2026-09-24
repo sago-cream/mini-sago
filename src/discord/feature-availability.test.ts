@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -66,7 +66,92 @@ describe("feature availability", () => {
       "chatbot",
       "ambient_reactions",
       "trip_planner",
+      "ccxp_meetings",
     ]);
+  });
+
+  test("registers approved CCXP guilds and preserves revocation after restart", async () => {
+    const { directory, store: availability } = await store();
+    for (const guildId of ["1394943277836402779", "1000249491494019092"])
+      expect(availability.isEnabled("ccxp_meetings", { guildId })).toBe(true);
+    const guildId = "917436845187563610";
+    expect(availability.isEnabled("ccxp_meetings", { guildId })).toBe(false);
+    expect(availability.isEnabled("ccxp_meetings", {})).toBe(false);
+    await expect(
+      availability.configure({
+        feature: "ccxp_meetings",
+        scope: "channel",
+        targetId: guildId,
+        action: "enable",
+      }),
+    ).rejects.toThrow("guild scope");
+    await availability.configure({
+      feature: "ccxp_meetings",
+      scope: "guild",
+      targetId: guildId,
+      action: "enable",
+    });
+    expect(
+      new FeatureAvailabilityStore(
+        join(directory, "features.json"),
+        {},
+      ).isEnabled("ccxp_meetings", { guildId }),
+    ).toBe(true);
+    await availability.configure({
+      feature: "ccxp_meetings",
+      scope: "guild",
+      targetId: guildId,
+      action: "inherit",
+    });
+    await availability.configure({
+      feature: "ccxp_meetings",
+      scope: "guild",
+      targetId: "1000249491494019092",
+      action: "disable",
+    });
+    const reloaded = new FeatureAvailabilityStore(
+      join(directory, "features.json"),
+      {},
+    );
+    expect(reloaded.isEnabled("ccxp_meetings", { guildId })).toBe(false);
+    expect(
+      reloaded.isEnabled("ccxp_meetings", { guildId: "1000249491494019092" }),
+    ).toBe(false);
+  });
+
+  test("migrates existing feature files without replacing saved CCXP decisions", async () => {
+    const { directory } = await store();
+    const file = join(directory, "legacy.json");
+    const snapshot = defaultFeatureAvailability({});
+    const { ccxp_meetings, ...legacyFeatures } = snapshot.features;
+    await writeFile(
+      file,
+      JSON.stringify({ version: 1, features: legacyFeatures }),
+    );
+    const migrated = new FeatureAvailabilityStore(file, {});
+    expect(migrated.list().features.ccxp_meetings).toEqual(ccxp_meetings);
+    expect(migrated.list().features.chatbot).toEqual(legacyFeatures.chatbot);
+
+    snapshot.features.ccxp_meetings.rules = [];
+    await writeFile(file, JSON.stringify(snapshot));
+    expect(
+      new FeatureAvailabilityStore(file, {}).isEnabled("ccxp_meetings", {
+        guildId: "1394943277836402779",
+      }),
+    ).toBe(false);
+    snapshot.features.ccxp_meetings.defaultEnabled = true;
+    await writeFile(file, JSON.stringify(snapshot));
+    expect(() => new FeatureAvailabilityStore(file, {})).toThrow(
+      "explicit guild registrations",
+    );
+    snapshot.features.ccxp_meetings.defaultEnabled = false;
+    snapshot.features.ccxp_meetings.rules = [
+      { scope: "channel", targetId: "1000249491494019092", enabled: true },
+    ];
+    await writeFile(file, JSON.stringify(snapshot));
+    expect(() => new FeatureAvailabilityStore(file, {})).toThrow(
+      "explicit guild registrations",
+    );
   });
 
   test("uses channel rules before guild rules and persists changes", async () => {

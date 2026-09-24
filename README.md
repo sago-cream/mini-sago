@@ -17,7 +17,7 @@ Codex-powered chat with server context, emote creation and cross-server migratio
 - Listen to GitHub activities and maintains PR review threads for certain repo in configured server.
 - Find files in my Mac and send it in chat when asked by me.
 - Searches Threads on request for 清大, NTHU, 學生會 plus optional extra keywords.
-- Retrieves relevant CCXP meeting records during discussions in the configured student-representative server; runs independently on Oracle and DMs the owner when login needs attention.
+- Retrieves relevant CCXP meeting records during discussions in owner-registered servers; runs independently on Oracle and DMs the owner when login needs attention.
 - Runs coding tasks in dedicated Discord threads with progress reports,
   steering, stop, and continuation, then publishes a draft PR when authorized.
 

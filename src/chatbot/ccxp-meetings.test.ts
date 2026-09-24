@@ -3,22 +3,60 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { publishIndex } from "../../ccxp/src/store";
-import {
-  CCXP_GUILD_ID,
-  type CcxpDocument,
-} from "../../contracts/ccxp-meetings";
+import type { CcxpDocument } from "../../contracts/ccxp-meetings";
+import { FeatureAvailabilityStore } from "../discord/feature-availability";
 import { createCcxpMeetingsClient } from "./ccxp-meetings";
 
-test("CCXP is restricted to the requested guild, including direct reads", () => {
-  const env = { MINISAGO_CCXP_INDEX_PATH: "/private/index.sqlite" };
-  for (const guildId of [undefined, "other", "1514899496797212683"])
-    expect(createCcxpMeetingsClient(env, { guildId })).toBeUndefined();
-  expect(
-    createCcxpMeetingsClient({}, { guildId: CCXP_GUILD_ID }),
-  ).toBeUndefined();
-  expect(
-    createCcxpMeetingsClient(env, { guildId: CCXP_GUILD_ID }),
-  ).toBeDefined();
+test("CCXP registration is required and revocation closes existing clients", async () => {
+  const root = await mkdtemp(join(tmpdir(), "ccxp-access-"));
+  try {
+    const availability = new FeatureAvailabilityStore(
+      join(root, "features.json"),
+      {},
+    );
+    const env = { MINISAGO_CCXP_INDEX_PATH: "/private/index.sqlite" };
+    for (const guildId of [undefined, "other", "1514899496797212683"])
+      expect(
+        createCcxpMeetingsClient(env, { guildId }, availability),
+      ).toBeUndefined();
+    expect(
+      createCcxpMeetingsClient(
+        {},
+        { guildId: "1394943277836402779" },
+        availability,
+      ),
+    ).toBeUndefined();
+    for (const guildId of ["1394943277836402779", "1000249491494019092"])
+      expect(
+        createCcxpMeetingsClient(env, { guildId }, availability),
+      ).toBeDefined();
+    const guildId = "1514899496797212683";
+    await availability.configure({
+      feature: "ccxp_meetings",
+      scope: "guild",
+      targetId: guildId,
+      action: "enable",
+    });
+    const client = createCcxpMeetingsClient(env, { guildId }, availability)!;
+    expect(client).toBeDefined();
+    await availability.configure({
+      feature: "ccxp_meetings",
+      scope: "guild",
+      targetId: guildId,
+      action: "disable",
+    });
+    expect(
+      createCcxpMeetingsClient(env, { guildId }, availability),
+    ).toBeUndefined();
+    expect(
+      await client.call("search_ccxp_meetings", { query: "校務" }),
+    ).toEqual({ status: "forbidden" });
+    expect(
+      await client.call("read_ccxp_meeting", { documentId: "a".repeat(32) }),
+    ).toEqual({ status: "forbidden" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("Chinese bigram search, page reads, freshness, and snapshot replacement", async () => {
@@ -27,7 +65,8 @@ test("Chinese bigram search, page reads, freshness, and snapshot replacement", a
     const path = join(root, "meetings.sqlite");
     const client = createCcxpMeetingsClient(
       { MINISAGO_CCXP_INDEX_PATH: path },
-      { guildId: CCXP_GUILD_ID },
+      { guildId: "1394943277836402779" },
+      new FeatureAvailabilityStore(join(root, "features.json"), {}),
     )!;
     expect(
       (await client.call("search_ccxp_meetings", { query: "宿舍" })).status,

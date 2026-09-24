@@ -20,8 +20,10 @@ The hosted service checks requester identity before dispatch. The worker checks
 the declared capabilities again before Codex runs. Authorization never depends
 on matching phrases in the request.
 
-CCXP meeting tools are restricted to guild `1394943277836402779` and require a
-configured read-only index mount. A separate collector holds the CCXP account,
+CCXP meeting tools require an explicit owner-managed guild registration and a
+configured read-only index mount. DMs and unregistered guilds have no access,
+even for the bot owner. Registration uses the persistent `ccxp_meetings`
+feature policy; revocation is checked again on every tool call. A separate collector holds the CCXP account,
 browser profile, and session; these are never exposed to core or Codex. MCP
 results contain bounded text and session-free category links. Password changes
 remain manual, with deduplicated owner DMs when login requires attention. See
