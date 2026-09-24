@@ -3,7 +3,7 @@ WORKDIR /app/ccxp
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
 COPY ccxp/package.json ccxp/bun.lock ./
 RUN bun install --frozen-lockfile \
-  && bunx playwright install --with-deps chromium
+  && bunx playwright install --with-deps --no-shell chromium
 
 # The same released local inference extension used in Chrome; no captcha service.
 ADD https://github.com/sago-cream/ccxp-lite/releases/download/v1.11.0/ccxpLite-crx-v1.11.0.zip /tmp/ccxplite.zip

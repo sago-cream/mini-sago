@@ -25,6 +25,7 @@ jobs:
 
   ccxp:
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - run: docker build -f Dockerfile.ccxp -t minisago-ccxp:test .
