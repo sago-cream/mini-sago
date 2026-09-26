@@ -1,3 +1,4 @@
+import { recoverDeveloperTasks } from "./chatbot/chatbot";
 import { startCcxpAuthNotificationMonitor } from "./discord/jobs/ccxp-auth-notifications";
 import { handleVoiceDebugRequest } from "./discord/voice-debug/http";
 import { handleCalendarPage } from "./chatbot/calendar-pages";
@@ -106,7 +107,13 @@ function handleRequest(request: Request, server: Server<MacAgentSocketData>) {
 
 const port = Number(process.env.PORT ?? 3000);
 const hostname = process.env.HOSTNAME || "0.0.0.0";
-getChatbotAccessConfig();
+const developerTaskOwner = getChatbotAccessConfig().ownerUserId;
+if (process.env.DISCORD_BOT_TOKEN && developerTaskOwner) {
+  recoverDeveloperTasks(
+    createDiscordRequest(process.env.DISCORD_BOT_TOKEN),
+    developerTaskOwner,
+  );
+}
 const server = Bun.serve({
   port,
   hostname,

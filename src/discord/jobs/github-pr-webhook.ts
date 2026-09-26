@@ -1,3 +1,4 @@
+import { reconcileDeveloperTaskEvent } from "../../chatbot/chatbot";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { createDiscordRequest } from "../api/request";
@@ -447,6 +448,19 @@ export async function handleGithubWebhookRequest(
   }
 
   const event = request.headers.get("X-GitHub-Event");
+  try {
+    reconcileDeveloperTaskEvent(
+      event ?? "",
+      JSON.parse(body),
+      request.headers.get("X-GitHub-Delivery") ?? "",
+    );
+  } catch (error) {
+    console.error("Developer task webhook reconciliation failed:", error);
+    return Response.json(
+      { ok: false, error: "Development event could not be queued." },
+      { status: error instanceof SyntaxError ? 400 : 500 },
+    );
+  }
 
   if (event === "push") {
     let payload: PushPayload;

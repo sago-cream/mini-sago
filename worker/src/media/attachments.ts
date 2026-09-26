@@ -292,8 +292,11 @@ export async function prepareAttachments(
   job: CodexJob,
   signal?: AbortSignal,
   mediaClient?: MediaClient,
+  persistentRoot?: string,
 ): Promise<PreparedAttachments> {
-  const directory = await mkdtemp(join(tmpdir(), "minisago-chatbot-"));
+  const directory = await mkdtemp(
+    join(persistentRoot ?? tmpdir(), "minisago-chatbot-"),
+  );
   const outputsDirectory = join(directory, "outputs");
   await mkdir(outputsDirectory);
   const mediaManifestPath = join(directory, "media-manifest.json");
@@ -408,7 +411,10 @@ export async function prepareAttachments(
     outputsDirectory,
     textBlocks,
     ignored,
-    cleanup: () => rm(directory, { recursive: true, force: true }),
+    cleanup: () =>
+      persistentRoot
+        ? Promise.resolve()
+        : rm(directory, { recursive: true, force: true }),
   };
 }
 

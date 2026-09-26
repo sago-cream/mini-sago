@@ -450,14 +450,17 @@ export class MacAgentClient {
           },
           signal: controller.signal,
         });
-        this.traceStore.finish(job.id, answer.content, Date.now(), toolCalls);
+        this.traceStore.finish(
+          job.id,
+          answer.content,
+          Date.now(),
+          toolCalls,
+          answer.taskOutcome,
+        );
         return answer;
       })();
 
-      const outgoing =
-        typeof rawContent === "string"
-          ? { content: rawContent, files: [] }
-          : rawContent;
+      const outgoing = rawContent;
 
       if (!controller.signal.aborted && this.authenticated) {
         this.currentJobs.delete(job.id);
@@ -466,6 +469,9 @@ export class MacAgentClient {
           jobId: job.id,
           ok: true,
           content: outgoing.content,
+          ...(outgoing.taskOutcome
+            ? { taskOutcome: outgoing.taskOutcome }
+            : {}),
           ...(outgoing.files.length ? { files: outgoing.files } : {}),
         });
       }

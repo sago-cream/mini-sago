@@ -69,6 +69,8 @@ describe("developer workspace", () => {
     expect(workspace.sandboxReadPaths).not.toContain(workspace.directory);
     expect(workspace.sandboxWritePaths).toEqual([
       join(workspace.directory, ".git"),
+      workspace.temporaryDirectory,
+      workspace.artifactsDirectory,
     ]);
     await workspace.cleanup();
   });
@@ -95,7 +97,7 @@ describe("developer workspace", () => {
     expect(commands[1]!.command.at(-1)).toBe("minisago/job-123");
   });
 
-  test("exposes only the configured deployment socket to coding jobs", async () => {
+  test("never supplies the deployment socket as a writable directory", async () => {
     const workspace = await prepareDeveloperWorkspace(
       job(),
       {
@@ -106,13 +108,11 @@ describe("developer workspace", () => {
       async () => undefined,
     );
 
-    expect(workspace.environment.MINISAGO_DEPLOY_SOCKET).toBe(
-      "/run/sago-cloud/minisago-deploy.sock",
-    );
-    expect(workspace.environment.MINISAGO_DISCORD_CHANNEL_ID).toBe("channel-1");
+    expect(workspace.environment.MINISAGO_DEPLOY_SOCKET).toBeUndefined();
     expect(workspace.sandboxWritePaths).toEqual([
       join(workspace.directory, ".git"),
-      "/run/sago-cloud/minisago-deploy.sock",
+      workspace.temporaryDirectory,
+      workspace.artifactsDirectory,
     ]);
   });
 
@@ -132,6 +132,8 @@ describe("developer workspace", () => {
     expect(workspace.environment.MINISAGO_DEPLOY_SOCKET).toBeUndefined();
     expect(workspace.sandboxWritePaths).toEqual([
       join(workspace.directory, ".git"),
+      workspace.temporaryDirectory,
+      workspace.artifactsDirectory,
     ]);
   });
 
@@ -192,6 +194,21 @@ describe("developer workspace", () => {
       stderr: "ignore",
     });
     expect(await draftPr.exited).toBe(0);
+    for (const args of [
+      ["pr", "edit", "12"],
+      ["pr", "ready", "12"],
+      ["pr", "comment", "12"],
+      ["pr", "review", "12", "--comment"],
+      ["run", "rerun", "123", "--failed"],
+    ]) {
+      expect(
+        await Bun.spawn([gh, ...args], {
+          env: environment,
+          stdout: "ignore",
+          stderr: "ignore",
+        }).exited,
+      ).toBe(0);
+    }
     const allowed = Bun.spawn([gh, "issue", "comment", "12"], {
       env: environment,
       stdout: "pipe",
@@ -233,4 +250,39 @@ describe("developer workspace", () => {
       ),
     ).rejects.toThrow("not available on this worker");
   });
+});
+
+test("retains dirty files, scratch files and artifacts when a turn never produced a session", async () => {
+  const opts = await options();
+  const taskJob = { ...job(), developerTask: { id: "task-no-session" } };
+  const first = await prepareDeveloperWorkspace(
+    taskJob,
+    opts,
+    async (command) => {
+      if (command[0] === "gh") await mkdir(command[4]!, { recursive: true });
+    },
+  );
+  await Bun.write(join(first.directory, "uncommitted.txt"), "keep my work");
+  await Bun.write(join(first.temporaryDirectory, "scratch"), "scratch");
+  await Bun.write(join(first.artifactsDirectory, "preview.html"), "preview");
+  await first.cleanup();
+  const second = await prepareDeveloperWorkspace(
+    { ...taskJob, id: "turn-two" },
+    opts,
+    async () => {
+      throw new Error("Must not clone or reset an existing workspace");
+    },
+  );
+  expect(await Bun.file(join(second.directory, "uncommitted.txt")).text()).toBe(
+    "keep my work",
+  );
+  expect(
+    await Bun.file(join(second.temporaryDirectory, "scratch")).text(),
+  ).toBe("scratch");
+  expect(
+    await Bun.file(join(second.artifactsDirectory, "preview.html")).text(),
+  ).toBe("preview");
+  await expect(
+    prepareDeveloperWorkspace({ ...job(), developerTask: { id: ".." } }, opts),
+  ).rejects.toThrow("filesystem-safe");
 });

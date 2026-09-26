@@ -210,3 +210,12 @@ reaction and never produces an unsolicited reply.
 Scheduled monitors and the GitHub webhook use persistent files for idempotency.
 See [Configuration](configuration.md#persistent-state) for their paths and
 [Operations](operations.md) for deployment and recovery.
+
+## Durable development tasks
+
+Discord development threads are managed by the [development task controller](development-tasks.md).
+SQLite owns task identity, owner directions, the queue, leases, status, and delivery.
+Each turn uses a fresh runner process and a persistent task workspace on its owning
+worker. GitHub readback determines PR/check state; a model turn alone does not
+establish task completion. Deployment uses a bounded MCP service outside the
+coding shell sandbox.

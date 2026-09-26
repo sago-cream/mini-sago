@@ -9,6 +9,8 @@ function send(value: unknown) {
 const reader = Bun.stdin.stream().getReader();
 const decoder = new TextDecoder();
 let buffer = "";
+let threadConfig: unknown;
+let resumed = false;
 
 async function handle(line: string) {
   if (!line.trim()) return;
@@ -18,10 +20,35 @@ async function handle(line: string) {
     params?: Record<string, unknown>;
   };
   if (message.method === "initialize") {
+    if (process.env.MINISAGO_TEST_HANG_INIT) return;
     send({ id: message.id, result: { userAgent: "fake" } });
+  } else if (message.method === "config/read") {
+    send({
+      id: message.id,
+      result: {
+        config: {
+          mcp_servers: { unrelated: { command: "/bin/false", enabled: true } },
+        },
+      },
+    });
   } else if (message.method === "initialized") {
     // Notification only.
-  } else if (message.method === "thread/start") {
+  } else if (
+    message.method === "thread/start" ||
+    message.method === "thread/resume"
+  ) {
+    if (
+      message.method === "thread/resume" &&
+      process.env.MINISAGO_TEST_MISSING_ROLLOUT
+    ) {
+      send({
+        id: message.id,
+        error: { message: "no rollout found for thread id" },
+      });
+      return;
+    }
+    threadConfig = message.params?.config;
+    resumed = message.method === "thread/resume";
     send({
       id: message.id,
       result: { thread: { id: "thread-native", sessionId: "thread-native" } },
@@ -48,7 +75,47 @@ async function handle(line: string) {
         },
       },
     });
-    if (message.params?.outputSchema) {
+    if (message.params?.outputSchema && process.env.MINISAGO_TEST_RUNTIME) {
+      if (process.env.MINISAGO_TEST_SANDBOX_FAILURE)
+        send({
+          method: "item/completed",
+          params: {
+            threadId: "thread-native",
+            turnId: "turn-native",
+            item: {
+              type: "commandExecution",
+              exitCode: 101,
+              aggregatedOutput:
+                "bwrap: failed to inspect synthetic bubblewrap mount target /socket/.git: Not a directory",
+            },
+          },
+        });
+      send({
+        method: "item/completed",
+        params: {
+          threadId: "thread-native",
+          turnId: "turn-native",
+          item: {
+            type: "agentMessage",
+            phase: "final_answer",
+            text: JSON.stringify({
+              pid: process.pid,
+              tmp: process.env.TMPDIR,
+              token: process.env.MINISAGO_TEST_TOKEN,
+              threadConfig,
+              resumed,
+            }),
+          },
+        },
+      });
+      send({
+        method: "turn/completed",
+        params: {
+          threadId: "thread-native",
+          turn: { id: "turn-native", status: "completed", items: [] },
+        },
+      });
+    } else if (message.params?.outputSchema) {
       for (const delta of ['{"reply":"最初の文。', '次の文。"}']) {
         send({
           method: "item/agentMessage/delta",

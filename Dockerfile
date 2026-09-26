@@ -42,6 +42,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+ENV MINISAGO_DEV_TASK_DATABASE_PATH=/app/state/developer-tasks.sqlite
 
 COPY package.json bun.lock ./
 RUN apk add --no-cache git

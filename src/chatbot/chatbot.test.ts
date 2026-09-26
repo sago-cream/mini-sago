@@ -348,7 +348,7 @@ describe("Discord chatbot", () => {
             path === "/channels/coding-thread/messages/coding-message-1" &&
             method === "DELETE",
         ),
-      ).toBe(true);
+      ).toBe(false);
 
       expect(
         await handleChatbotMention({
@@ -456,7 +456,7 @@ describe("Discord chatbot", () => {
             path === "/channels/coding-thread/messages/coding-message-3" &&
             method === "DELETE",
         ),
-      ).toBe(true);
+      ).toBe(false);
 
       await handleChatbotMention({
         message: {

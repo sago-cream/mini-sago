@@ -12,25 +12,12 @@ type DeveloperWorkspaceOptions = {
   signal?: AbortSignal;
 };
 
-const PRESERVED_WORKSPACE_TTL_MS = 3 * 24 * 60 * 60_000;
-const preservedWorkspaceTimers = new Map<
-  string,
-  ReturnType<typeof setTimeout>
->();
-
-function preserveThenRemove(path: string) {
-  const previous = preservedWorkspaceTimers.get(path);
-  if (previous) clearTimeout(previous);
-  const timer = setTimeout(() => {
-    preservedWorkspaceTimers.delete(path);
-    void rm(path, { recursive: true, force: true });
-  }, PRESERVED_WORKSPACE_TTL_MS);
-  timer.unref?.();
-  preservedWorkspaceTimers.set(path, timer);
-}
-
 export type DeveloperWorkspace = {
   directory: string;
+  root: string;
+  temporaryDirectory: string;
+  attachmentsDirectory: string;
+  artifactsDirectory: string;
   environment: Record<string, string>;
   sandboxReadPaths: string[];
   sandboxWritePaths: string[];
@@ -56,7 +43,7 @@ case "$command:$subcommand" in
       esac
     done
     ;;
-  issue:create|issue:edit|issue:close|issue:reopen|issue:comment)
+  issue:create|issue:edit|issue:close|issue:reopen|issue:comment|pr:edit|pr:ready|pr:review|pr:comment|run:rerun)
     ;;
   pr:create)
     draft=false
@@ -72,7 +59,7 @@ case "$command:$subcommand" in
       esac
     done
     ;;
-  pr:ready|pr:review|pr:comment|repo:create|repo:delete|repo:archive|repo:edit|repo:fork|release:*|workflow:run|run:rerun|run:cancel|run:delete|secret:*|variable:*)
+  repo:create|repo:delete|repo:archive|repo:edit|repo:fork|release:*|workflow:run|run:cancel|run:delete|secret:*|variable:*)
     deny
     ;;
   auth:status|repo:view|repo:clone|repo:list|pr:view|pr:list|pr:checks|pr:diff|pr:status|issue:view|issue:list|issue:status|run:view|run:list|run:watch|workflow:view|workflow:list|release:view|release:list|release:download|search:*|status:*|help:*|version:*)
@@ -108,7 +95,7 @@ exec "$MINISAGO_REAL_GIT" "$@"
 `;
 
 function safeJobId(jobId: string) {
-  if (!/^[a-z0-9._-]{1,128}$/iu.test(jobId)) {
+  if (!/^[a-z0-9][a-z0-9._-]{0,127}$/iu.test(jobId)) {
     throw new Error("Developer job ID is not filesystem-safe.");
   }
   return jobId;
@@ -167,12 +154,6 @@ export async function prepareDeveloperWorkspace(
   runCommand: RunCommand = run,
 ): Promise<DeveloperWorkspace> {
   const repository = selectedRepository(job, options.githubRepositories);
-  const deploySocketPath =
-    options.deploySocketPath &&
-    options.deploySocketRepository?.toLocaleLowerCase("en-US") ===
-      repository.toLocaleLowerCase("en-US")
-      ? options.deploySocketPath
-      : undefined;
   const workspaceId = job.developerTask?.id ?? job.id;
   const jobRoot = resolve(options.githubWorktreeRoot, safeJobId(workspaceId));
   const directory = join(jobRoot, ...repository.split("/"));
@@ -184,24 +165,31 @@ export async function prepareDeveloperWorkspace(
     GH_PROMPT_DISABLED: "1",
     GIT_TERMINAL_PROMPT: "0",
   };
-  const preservedTimer = preservedWorkspaceTimers.get(jobRoot);
-  if (preservedTimer) {
-    clearTimeout(preservedTimer);
-    preservedWorkspaceTimers.delete(jobRoot);
+  // A task owns its checkout even when initialization never produced a session ID.
+  const exists = await access(directory).then(
+    () => true,
+    () => false,
+  );
+  const resume = Boolean(job.developerTask?.resumeSessionId) || exists;
+  if (job.developerTask?.resumeSessionId && !exists) {
+    throw new Error(
+      "The preserved coding workspace is unavailable on this worker.",
+    );
   }
-
-  const resume = Boolean(job.developerTask?.resumeSessionId);
-  if (resume) {
-    try {
-      await access(directory);
-      await access(binDirectory);
-    } catch {
-      throw new Error("The preserved coding workspace is unavailable.");
-    }
-  } else {
-    await rm(jobRoot, { recursive: true, force: true });
-    await mkdir(jobRoot, { recursive: true, mode: 0o700 });
-  }
+  await mkdir(jobRoot, { recursive: true, mode: 0o700 });
+  const temporaryDirectory = join(jobRoot, "tmp");
+  const attachmentsDirectory = join(jobRoot, "attachments");
+  const artifactsDirectory = join(jobRoot, "artifacts");
+  await Promise.all(
+    [
+      temporaryDirectory,
+      attachmentsDirectory,
+      artifactsDirectory,
+      join(jobRoot, "checkpoints"),
+      join(jobRoot, "logs"),
+      binDirectory,
+    ].map((path) => mkdir(path, { recursive: true, mode: 0o700 })),
+  );
   try {
     if (!resume) {
       await runCommand(
@@ -222,7 +210,9 @@ export async function prepareDeveloperWorkspace(
         preparationEnvironment,
         options.signal,
       );
-      await mkdir(binDirectory, { mode: 0o700 });
+    }
+    // Refresh policy on continuation after a worker upgrade.
+    {
       const ghWrapper = join(binDirectory, "gh");
       const gitWrapper = join(binDirectory, "git");
       await Promise.all([
@@ -232,7 +222,6 @@ export async function prepareDeveloperWorkspace(
       await Promise.all([chmod(ghWrapper, 0o700), chmod(gitWrapper, 0o700)]);
     }
   } catch (error) {
-    if (!resume) await rm(jobRoot, { recursive: true, force: true });
     throw error;
   }
 
@@ -242,27 +231,28 @@ export async function prepareDeveloperWorkspace(
     MINISAGO_REAL_GH: Bun.which("gh") || "/usr/bin/gh",
     MINISAGO_REAL_GIT: Bun.which("git") || "/usr/bin/git",
     PATH: `${binDirectory}:${process.env.PATH || "/usr/bin:/bin"}`,
-    ...(deploySocketPath
-      ? {
-          MINISAGO_DEPLOY_SOCKET: deploySocketPath,
-          MINISAGO_DISCORD_CHANNEL_ID: job.channelId,
-        }
-      : {}),
   };
 
   return {
     directory,
+    root: jobRoot,
+    temporaryDirectory,
+    attachmentsDirectory,
+    artifactsDirectory,
     environment,
-    sandboxReadPaths: [binDirectory, resolve(options.githubConfigDir)],
+    sandboxReadPaths: [
+      binDirectory,
+      resolve(options.githubConfigDir),
+      attachmentsDirectory,
+    ],
     sandboxWritePaths: [
       resolve(directory, ".git"),
-      ...(deploySocketPath ? [deploySocketPath] : []),
+      temporaryDirectory,
+      artifactsDirectory,
     ],
+    // Persistent tasks are explicitly retained; an idle timer must never erase dirty work.
     cleanup: job.developerTask
-      ? () => {
-          preserveThenRemove(jobRoot);
-          return Promise.resolve();
-        }
+      ? () => Promise.resolve()
       : () => rm(jobRoot, { recursive: true, force: true }),
   };
 }

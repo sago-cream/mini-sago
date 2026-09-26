@@ -734,3 +734,37 @@ test("direct voice dispatch cancels once and retains capacity until acknowledgem
   );
   if (next.status === "accepted") await next.result;
 });
+
+test("pins a continued workspace to its original worker even with another compatible worker online", () => {
+  useWorker();
+  const bridge = new MacAgentBridge();
+  const oracle = connectWorker(bridge);
+  process.env.MINISAGO_MAC_BRIDGE_SECRET = macSecret;
+  const mac = connectWorker(bridge, { workerId: "mac", secret: macSecret });
+  try {
+    const lease = bridge.acquireWorkflow(["dev"], {
+      repository: "sago-cream/mini-sago",
+      workerId: "oracle",
+    });
+    expect(lease.status).toBe("accepted");
+    if (lease.status === "accepted") {
+      expect(lease.workflow.workerId).toBe("oracle");
+      lease.workflow.release();
+    }
+    bridge.close(oracle.socket);
+    expect(
+      bridge.acquireWorkflow(["dev"], {
+        repository: "sago-cream/mini-sago",
+        workerId: "oracle",
+      }).status,
+    ).toBe("offline");
+    const newTask = bridge.acquireWorkflow(["dev"], {
+      repository: "sago-cream/mini-sago",
+    });
+    expect(newTask.status).toBe("accepted");
+    if (newTask.status === "accepted") newTask.workflow.release();
+  } finally {
+    bridge.close(oracle.socket);
+    bridge.close(mac.socket);
+  }
+});

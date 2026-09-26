@@ -1,3 +1,4 @@
+import { isDeveloperTaskOutcome } from "../../contracts/worker-contract";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import type { Server, ServerWebSocket } from "bun";
 
@@ -72,7 +73,12 @@ type Workflow = {
 };
 
 export type MacAgentJobResult =
-  | { ok: true; content: string; files?: ChatbotOutgoingFile[] }
+  | {
+      ok: true;
+      content: string;
+      files?: ChatbotOutgoingFile[];
+      taskOutcome?: import("../../contracts/worker-contract").DeveloperTaskOutcome;
+    }
   | {
       ok: false;
       error: string;
@@ -95,6 +101,7 @@ export type WorkerSelectionResult =
   | { status: "accepted" };
 
 export type WorkflowLease = {
+  readonly workerId: string;
   availableRepositories: string[];
   chatbotRepository?: string;
   dispatch: (
@@ -390,17 +397,27 @@ export class MacAgentBridge {
 
   acquireWorkflow(
     capabilities: ChatbotWorkerCapability[] = ["chat"],
+    affinity?: { workerId?: string; repository: string },
   ): AcquireWorkflowResult {
-    const selected = this.selectWorker(capabilities);
+    const selected = this.selectWorker(
+      capabilities,
+      undefined,
+      affinity?.repository,
+      affinity?.workerId,
+    );
     if (selected.status !== "accepted") return selected;
 
     const workflowId = randomUUID();
-    this.workflows.set(workflowId, { workerId: selected.worker.id });
+    const workflow = { workerId: selected.worker.id };
+    this.workflows.set(workflowId, workflow);
     const repositoryCapabilities = this.repositoryCapabilities();
 
     return {
       status: "accepted",
       workflow: {
+        get workerId() {
+          return workflow.workerId;
+        },
         ...repositoryCapabilities,
         dispatch: (job, onProgress) =>
           this.dispatchWorkflowJob(job, workflowId, onProgress),
@@ -766,6 +783,7 @@ export class MacAgentBridge {
     capabilities: ChatbotWorkerCapability[],
     movingWorkflowId?: string,
     repository?: string,
+    pinnedWorkerId?: string,
   ):
     | { status: "offline" }
     | { status: "busy" }
@@ -773,6 +791,7 @@ export class MacAgentBridge {
     const compatible = [...this.workers.values()].filter(
       (worker) =>
         worker.available &&
+        (!pinnedWorkerId || worker.id === pinnedWorkerId) &&
         supports(worker, capabilities) &&
         (!repository || worker.repositories.has(repositoryKey(repository))),
     );
@@ -856,12 +875,17 @@ export class MacAgentBridge {
     const pendingJob = this.pendingJobs.get(message.jobId);
     if (!pendingJob || pendingJob.workerId !== worker.id) return;
 
-    if (message.ok && !validOutgoingFiles(message.files)) {
+    if (
+      message.ok &&
+      (!validOutgoingFiles(message.files) ||
+        (message.taskOutcome !== undefined &&
+          !isDeveloperTaskOutcome(message.taskOutcome)))
+    ) {
       this.deletePendingJob(pendingJob);
       clearTimeout(pendingJob.timer);
       pendingJob.resolve({
         ok: false,
-        error: "Worker returned invalid files.",
+        error: "Worker returned an invalid result.",
         failureKind: "internal",
       });
       return;
@@ -874,6 +898,9 @@ export class MacAgentBridge {
         ? {
             ok: true,
             content: message.content,
+            ...(message.taskOutcome
+              ? { taskOutcome: message.taskOutcome }
+              : {}),
             ...(message.files?.length ? { files: message.files } : {}),
           }
         : {

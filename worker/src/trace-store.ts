@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { Database } from "bun:sqlite";
 
 import type {
+  DeveloperTaskOutcome,
   CodexJob,
   ChatbotPromptTelemetry,
   ChatbotTraceContext,
@@ -201,15 +202,25 @@ export class ChatbotTraceStore {
     output: string,
     now = Date.now(),
     toolCalls: NonNullable<ChatbotTraceContext["toolCalls"]> = [],
+    taskOutcome?: DeveloperTaskOutcome,
   ) {
     this.database
       .query(
         `UPDATE chatbot_trace_jobs
-         SET finished_at = ?, status = 'complete', output = ?, error = NULL,
+         SET finished_at = ?, status = ?, output = ?, error = ?,
              tool_trace_json = ?
          WHERE job_id = ?`,
       )
-      .run(now, output, JSON.stringify(toolCalls), jobId);
+      .run(
+        now,
+        taskOutcome?.state ?? "complete",
+        output,
+        taskOutcome?.state.startsWith("blocked")
+          ? (taskOutcome.detail ?? output.slice(0, 2000))
+          : null,
+        JSON.stringify(toolCalls),
+        jobId,
+      );
     if (this.databaseBytes() > MAX_DATABASE_BYTES) this.cleanup(now);
   }
 
