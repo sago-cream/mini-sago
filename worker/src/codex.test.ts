@@ -178,6 +178,18 @@ describe("Codex chatbot runner", () => {
     ).toEqual({
       phase: "exploring",
       summary: "Inspecting the bridge.",
+      kind: "action",
+    });
+    expect(
+      progressForCodexEvent(
+        JSON.stringify({
+          type: "item.completed",
+          item: { type: "agent_message", text: "I found the relevant code." },
+        }),
+      ),
+    ).toEqual({
+      phase: "reviewing",
+      summary: "I found the relevant code.",
       kind: "trace",
     });
     expect(progressForCodexEvent("not-json")).toBeUndefined();

@@ -507,7 +507,7 @@ class CodexAppServerSession {
         active.onProgress?.({
           phase: "exploring",
           summary: summary.slice(0, 2_000),
-          kind: "trace",
+          kind: "action",
         });
       }
       return;

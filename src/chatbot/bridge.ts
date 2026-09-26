@@ -250,7 +250,9 @@ function validTaskProgress(value: unknown): value is ChatbotTaskProgress {
         progress.timing.stage.length <= 80 &&
         Number.isFinite(progress.timing.durationMs) &&
         progress.timing.durationMs >= 0)) &&
-    (progress.kind === undefined || progress.kind === "trace") &&
+    (progress.kind === undefined ||
+      progress.kind === "trace" ||
+      progress.kind === "action") &&
     (progress.completion === undefined ||
       progress.completion === "pull_request_merged") &&
     (progress.sessionId === undefined ||

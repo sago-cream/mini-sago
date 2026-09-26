@@ -162,7 +162,7 @@ export function progressForCodexEvent(
       return {
         phase: event.item.type === "reasoning" ? "exploring" : "reviewing",
         summary: event.item.text.trim().slice(0, 2_000),
-        kind: "trace",
+        kind: event.item.type === "reasoning" ? "action" : "trace",
       };
     }
     if (

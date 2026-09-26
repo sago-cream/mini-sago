@@ -321,8 +321,9 @@ describe("Discord chatbot", () => {
           jobId: answerJob.job.id,
           progress: {
             phase: "exploring",
-            summary: "Inspecting the Discord task bridge.",
-            kind: "trace",
+            summary:
+              "**Inspecting the Discord task bridge.**\n### Checking progress delivery.\n\n-# Reviewing the result.",
+            kind: "action",
           },
         }),
       );
@@ -342,6 +343,15 @@ describe("Discord chatbot", () => {
             (body as { content?: string })?.content === "done",
         ),
       );
+      expect(
+        discordCalls.find(
+          ({ path }) => path === "/channels/coding-thread/messages",
+        )?.body,
+      ).toEqual({
+        content:
+          "-# Inspecting the Discord task bridge.\n-# Checking progress delivery.\n\n-# Reviewing the result.",
+        allowed_mentions: { parse: [] },
+      });
       expect(
         discordCalls.some(
           ({ path, method }) =>
@@ -392,7 +402,8 @@ describe("Discord chatbot", () => {
           jobId: resumedJob.job.id,
           progress: {
             phase: "exploring",
-            summary: "Updating the docs.",
+            summary:
+              "The bridge already supports **steering**.\nI’m updating the docs to explain it.",
             kind: "trace",
           },
         }),
@@ -450,6 +461,14 @@ describe("Discord chatbot", () => {
           (body as { content?: string })?.content?.includes("Got it"),
         ),
       ).toBe(false);
+      expect(
+        discordCalls.some(
+          ({ path, body }) =>
+            path === "/channels/coding-thread/messages" &&
+            (body as { content?: string })?.content ===
+              "The bridge already supports **steering**.\nI’m updating the docs to explain it.",
+        ),
+      ).toBe(true);
       expect(
         discordCalls.some(
           ({ path, method }) =>
