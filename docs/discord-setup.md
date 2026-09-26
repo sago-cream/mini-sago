@@ -40,8 +40,8 @@ The synchronized permission bitfield is `9124124388416`:
 - Create Expressions
 
 Manage Messages pins PR review requests and lets MiniSago replace original
-Instagram and X messages after their proxy succeeds. Embed Links and Manage
-Webhooks let those replacements retain the sender's display name and avatar
+Instagram, X, and Threads messages after their proxy succeeds. Embed Links and
+Manage Webhooks let those replacements retain the sender's display name and avatar
 while showing the improved social embed. Thread permissions support review
 discussions. Add Reactions supports answer and ambient reactions. Connect and
 Speak let MiniSago join a member's voice channel and answer aloud. A private,

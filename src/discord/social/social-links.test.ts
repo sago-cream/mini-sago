@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   getInstagramReplyUrls,
   getSocialLinkReplacement,
+  getThreadsReplyUrls,
   getTwitterReplyUrls,
 } from "./social-links";
 
@@ -63,22 +64,58 @@ describe("getTwitterReplyUrls", () => {
   });
 });
 
+describe("getThreadsReplyUrls", () => {
+  test("handles both Threads domains, subdomains, and surrounding punctuation", () => {
+    expect(
+      getThreadsReplyUrls(
+        "https://threads.net/@alice/post/abc https://threads.com/@bob/post/def " +
+          "(https://www.threads.net/@alice/post/ghi?xmt=A#media), " +
+          "<https://www.threads.com/@bob/post/jkl/>",
+      ),
+    ).toEqual([
+      "https://vxthreads.net/@alice/post/abc",
+      "https://vxthreads.net/@bob/post/def",
+      "https://vxthreads.net/@alice/post/ghi?xmt=A#media",
+      "https://vxthreads.net/@bob/post/jkl/",
+    ]);
+  });
+
+  test.each([
+    "https://vxthreads.net/@alice/post/abc",
+    "https://www.vxthreads.net/@alice/post/abc",
+    "https://notthreads.com/@alice/post/abc",
+    "https://threads.net.example.com/@alice/post/abc",
+    "https://threads.com@example.com/@alice/post/abc",
+  ])("ignores transformed or unrelated URL %s", (url) => {
+    expect(getThreadsReplyUrls(url)).toEqual([]);
+    expect(getSocialLinkReplacement(url)).toBeNull();
+  });
+});
+
 describe("getSocialLinkReplacement", () => {
   test("preserves the message while suppressing original social embeds", () => {
     expect(
       getSocialLinkReplacement(
-        "look https://instagram.com/reel/abc/, then https://x.com/user/status/1!",
+        "look https://instagram.com/reel/abc/, then https://x.com/user/status/1! " +
+          "also https://threads.com/@alice/post/abc.",
       ),
     ).toBe(
-      "look <https://instagram.com/reel/abc/>, then <https://x.com/user/status/1>!\n" +
+      "look <https://instagram.com/reel/abc/>, then <https://x.com/user/status/1>! " +
+        "also <https://threads.com/@alice/post/abc>.\n" +
         "https://kkinstagram.com/reel/abc/\n" +
-        "https://fxtwitter.com/user/status/1",
+        "https://fxtwitter.com/user/status/1\n" +
+        "https://vxthreads.net/@alice/post/abc",
     );
   });
 
   test("does not wrap an already suppressed original link twice", () => {
     expect(getSocialLinkReplacement("<https://www.instagram.com/p/abc/>")).toBe(
       "<https://www.instagram.com/p/abc/>\nhttps://www.kkinstagram.com/p/abc/",
+    );
+    expect(
+      getSocialLinkReplacement("<https://www.threads.net/@alice/post/abc>"),
+    ).toBe(
+      "<https://www.threads.net/@alice/post/abc>\nhttps://vxthreads.net/@alice/post/abc",
     );
   });
 

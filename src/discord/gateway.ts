@@ -3,6 +3,7 @@ import { handleCalendarConfirmation } from "../chatbot/calendar-confirmation";
 import {
   getInstagramReplyUrls,
   getSocialLinkReplacement,
+  getThreadsReplyUrls,
   getTwitterReplyUrls,
 } from "./social/social-links";
 import {
@@ -732,6 +733,7 @@ class InstagramGatewayClient implements VoiceGateway {
     const replyUrls = [
       ...getInstagramReplyUrls(content),
       ...getTwitterReplyUrls(content),
+      ...getThreadsReplyUrls(content),
     ];
 
     if (replyUrls.length === 0) {

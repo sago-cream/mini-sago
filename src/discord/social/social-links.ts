@@ -24,6 +24,17 @@ function isTwitterHost(hostname: string) {
   );
 }
 
+function isThreadsHost(hostname: string) {
+  const normalized = hostname.toLowerCase();
+
+  return (
+    normalized === "threads.net" ||
+    normalized.endsWith(".threads.net") ||
+    normalized === "threads.com" ||
+    normalized.endsWith(".threads.com")
+  );
+}
+
 function transformedUrl(
   rawUrl: string,
   matchesHost: (hostname: string) => boolean,
@@ -54,7 +65,9 @@ function socialUrl(rawUrl: string) {
   return (
     transformedUrl(rawUrl, isInstagramHost, (hostname) =>
       hostname.replace(/instagram\.com$/i, "kkinstagram.com"),
-    ) ?? transformedUrl(rawUrl, isTwitterHost, () => "fxtwitter.com")
+    ) ??
+    transformedUrl(rawUrl, isTwitterHost, () => "fxtwitter.com") ??
+    transformedUrl(rawUrl, isThreadsHost, () => "vxthreads.net")
   );
 }
 
@@ -88,6 +101,12 @@ export function getInstagramReplyUrls(content: string) {
 export function getTwitterReplyUrls(content: string) {
   return replyUrls(content, (candidate) =>
     transformedUrl(candidate, isTwitterHost, () => "fxtwitter.com"),
+  );
+}
+
+export function getThreadsReplyUrls(content: string) {
+  return replyUrls(content, (candidate) =>
+    transformedUrl(candidate, isThreadsHost, () => "vxthreads.net"),
   );
 }
 
