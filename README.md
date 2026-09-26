@@ -12,7 +12,7 @@ Codex-powered chat with server context, emote creation and cross-server migratio
 - Joins Discord voice channels for spoken conversations. **WIP and far from usable:** recognition, response latency, and turn-taking still need work.
 - Performs expression management on demand, including adding emojis or stickers from attachments and moving emojis to other servers.
 - Publishes daily TOEFL vocabulary, AniGamer forum voucher code updates, and Codex news on X to configured channels.
-- Improves Instagram, Twitter/X, and Threads embeds with `kkinstagram.com`, `fxtwitter.com`, and `vxthreads.net` links.
+- Improves Instagram, Twitter/X, and Threads embeds with `kkinstagram.com`, `fxtwitter.com`, and `fixthreads.seria.moe` links.
 - Creates reminders when asked to and pings you when the reminder expires.
 - Listen to GitHub activities and maintains PR review threads for certain repo in configured server.
 - Find files in my Mac and send it in chat when asked by me.
