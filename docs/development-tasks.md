@@ -100,9 +100,9 @@ model and keeps tasks pinned until their files can be transferred explicitly.
 
 Run `bash scripts/test-dev-sandbox.sh` to test the pinned production Codex version
 in a Linux container without a model call or credentials. The compose worker
-allows namespace syscalls with `seccomp=unconfined` so Bubblewrap can create its
-inner sandbox; this removes Docker's outer syscall filter, not Codex's filesystem
-sandbox. The worker runs as `bun`, never receives the Docker socket, and is
+uses `seccomp=unconfined` and `apparmor=unconfined` to allow Bubblewrap's
+namespace and mount setup. These settings remove Docker's outer syscall and
+AppArmor filters; Codex still enforces its inner filesystem sandbox. The worker runs as `bun`, never receives the Docker socket, and is
 bounded to 512 processes. CPU and memory limits default to 2 CPUs and 4 GB and
 can be changed with `MINISAGO_WORKER_CPU_LIMIT` and `MINISAGO_WORKER_MEMORY_LIMIT`.
 The production host must permit unprivileged user namespaces. Deploy core and

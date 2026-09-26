@@ -10,6 +10,7 @@ services:
     # The entrypoint drops to bun before starting the worker.
     security_opt:
       - seccomp=unconfined
+      - apparmor=unconfined
     pids_limit: 512
     mem_limit: ${MINISAGO_WORKER_MEMORY_LIMIT:-4g}
     cpus: ${MINISAGO_WORKER_CPU_LIMIT:-2.0}
