@@ -3,6 +3,7 @@ import { join } from "node:path";
 import {
   developerFilesystemPermissions,
   preflightDeveloperRuntime,
+  runtimeCommand,
   DEV_TOOL_CONFIG,
 } from "../developer-runtime";
 
@@ -71,6 +72,24 @@ await preflightDeveloperRuntime({
   codexPath: "/usr/local/bin/codex",
   configArguments: configs.flatMap((c) => ["--config", c]),
 });
+// A directory writable by the worker must still be protected from task commands.
+const outside = "/tmp/minisago-outside-task";
+await mkdir(outside, { recursive: true });
+await runtimeCommand(
+  [
+    "/usr/local/bin/codex",
+    "sandbox",
+    ...configs.flatMap((c) => ["--config", c]),
+    "--",
+    "/bin/sh",
+    "-c",
+    'if touch "$1/should-not-exist" 2>/dev/null; then echo "Sandbox allowed a write outside the task" >&2; exit 1; fi',
+    "minisago-boundary-check",
+    outside,
+  ],
+  directory,
+  environment,
+);
 console.log(
-  `Sandbox readiness and continuation passed as UID ${process.getuid?.()}.`,
+  `Sandbox readiness, continuation, and write boundary passed as UID ${process.getuid?.()}.`,
 );

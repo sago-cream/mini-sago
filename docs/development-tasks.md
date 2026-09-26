@@ -99,12 +99,28 @@ model and keeps tasks pinned until their files can be transferred explicitly.
 ## Runtime checks
 
 Run `bash scripts/test-dev-sandbox.sh` to test the pinned production Codex version
-in a Linux container without a model call or credentials. The compose worker
-uses `seccomp=unconfined` and `apparmor=unconfined` to allow Bubblewrap's
-namespace and mount setup. These settings remove Docker's outer syscall and
-AppArmor filters; Codex still enforces its inner filesystem sandbox. The worker runs as `bun`, never receives the Docker socket, and is
-bounded to 512 processes. CPU and memory limits default to 2 CPUs and 4 GB and
-can be changed with `MINISAGO_WORKER_CPU_LIMIT` and `MINISAGO_WORKER_MEMORY_LIMIT`.
-The production host must permit unprivileged user namespaces. Deploy core and
-workers together for bridge protocol 37. Publishing a PR does not update the
-separate production compose configuration.
+in a Linux container without a model call or credentials. The test and compose
+worker use the policies in `worker/security`, matching the production worker:
+Docker's syscall allowlist with Bubblewrap's namespace and mount operations
+added, and a dedicated AppArmor profile allowing unprivileged user namespaces.
+On an AppArmor host, install the profile before running either:
+
+```sh
+sudo install -m 0644 worker/security/minisago-worker.apparmor /etc/apparmor.d/minisago-worker
+sudo apparmor_parser -r /etc/apparmor.d/minisago-worker
+```
+
+Use AppArmor 4 or newer (Ubuntu 24.04 supplies it). Docker Desktop hosts without
+AppArmor need `MINISAGO_WORKER_APPARMOR_PROFILE=unconfined` for compose; the smoke
+test detects that case. Do not use that override on Ubuntu: an unconfined process
+can still be denied user namespaces by the host's policy. See
+[Ubuntu's namespace policy](https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces)
+and [Docker's profile loading instructions](https://docs.docker.com/engine/security/apparmor/).
+
+The worker runs as `bun`, never receives the Docker socket, and is bounded to
+512 processes. CPU and memory limits default to 2 CPUs and 4 GB and can be
+changed with `MINISAGO_WORKER_CPU_LIMIT` and `MINISAGO_WORKER_MEMORY_LIMIT`.
+Deploy core and workers together for bridge protocol 37. Publishing a PR does
+not update the separate production compose configuration; retain its matching
+security profiles and configure the persistent core database and worker limits
+during rollout.
