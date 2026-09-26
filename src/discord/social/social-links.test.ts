@@ -73,16 +73,16 @@ describe("getThreadsReplyUrls", () => {
           "<https://www.threads.com/@bob/post/jkl/>",
       ),
     ).toEqual([
-      "https://vxthreads.net/@alice/post/abc",
-      "https://vxthreads.net/@bob/post/def",
-      "https://vxthreads.net/@alice/post/ghi?xmt=A#media",
-      "https://vxthreads.net/@bob/post/jkl/",
+      "https://fixthreads.seria.moe/@alice/post/abc",
+      "https://fixthreads.seria.moe/@bob/post/def",
+      "https://fixthreads.seria.moe/@alice/post/ghi?xmt=A#media",
+      "https://fixthreads.seria.moe/@bob/post/jkl/",
     ]);
   });
 
   test.each([
-    "https://vxthreads.net/@alice/post/abc",
-    "https://www.vxthreads.net/@alice/post/abc",
+    "https://fixthreads.seria.moe/@alice/post/abc",
+    "https://www.fixthreads.seria.moe/@alice/post/abc",
     "https://notthreads.com/@alice/post/abc",
     "https://threads.net.example.com/@alice/post/abc",
     "https://threads.com@example.com/@alice/post/abc",
@@ -104,7 +104,7 @@ describe("getSocialLinkReplacement", () => {
         "also <https://threads.com/@alice/post/abc>.\n" +
         "https://kkinstagram.com/reel/abc/\n" +
         "https://fxtwitter.com/user/status/1\n" +
-        "https://vxthreads.net/@alice/post/abc",
+        "https://fixthreads.seria.moe/@alice/post/abc",
     );
   });
 
@@ -115,7 +115,7 @@ describe("getSocialLinkReplacement", () => {
     expect(
       getSocialLinkReplacement("<https://www.threads.net/@alice/post/abc>"),
     ).toBe(
-      "<https://www.threads.net/@alice/post/abc>\nhttps://vxthreads.net/@alice/post/abc",
+      "<https://www.threads.net/@alice/post/abc>\nhttps://fixthreads.seria.moe/@alice/post/abc",
     );
   });
 

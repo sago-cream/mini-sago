@@ -67,7 +67,7 @@ function socialUrl(rawUrl: string) {
       hostname.replace(/instagram\.com$/i, "kkinstagram.com"),
     ) ??
     transformedUrl(rawUrl, isTwitterHost, () => "fxtwitter.com") ??
-    transformedUrl(rawUrl, isThreadsHost, () => "vxthreads.net")
+    transformedUrl(rawUrl, isThreadsHost, () => "fixthreads.seria.moe")
   );
 }
 
@@ -106,7 +106,7 @@ export function getTwitterReplyUrls(content: string) {
 
 export function getThreadsReplyUrls(content: string) {
   return replyUrls(content, (candidate) =>
-    transformedUrl(candidate, isThreadsHost, () => "vxthreads.net"),
+    transformedUrl(candidate, isThreadsHost, () => "fixthreads.seria.moe"),
   );
 }
 
