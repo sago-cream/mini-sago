@@ -801,7 +801,8 @@ class DeveloperTaskRegistry {
     }
 
     task.state = "completed";
-    task.summary = "Completed. Reply in this thread to continue the same task.";
+    task.summary =
+      "Turn finished. Reply in this thread to continue the same task.";
     await this.settleTrace(task, true);
     if (result.content.trim()) {
       for (const answer of formatDiscordAnswers(result.content)) {
@@ -850,7 +851,7 @@ class DeveloperTaskRegistry {
           : task.state === "stopped"
             ? "Stopped"
             : task.state === "completed"
-              ? "Complete"
+              ? "Idle"
               : "Failed";
     return `**${state} · ${task.repository}**\n${task.summary}\n\nReply here to steer me. Say \`stop\` to pause or \`status\` for an update.`;
   }

@@ -59,6 +59,10 @@ test("warm MCP configuration binds each request's credentials instead of inherit
   expect(JSON.stringify(b)).not.toContain("first");
   expect(JSON.stringify(b)).toContain("/second");
   expect(JSON.stringify(b)).not.toContain("bearer_token_env_var");
+  const fresh = warmThreadConfig(args);
+  expect(fresh.mcp_servers.host.bearer_token_env_var).toBe("JOB_TOKEN");
+  expect(fresh.mcp_servers.host.http_headers).toBeUndefined();
+  expect(fresh.mcp_servers.media.env_vars).toEqual(["MANIFEST"]);
 });
 
 test("prewarming initializes one runtime without starting a conversation", async () => {

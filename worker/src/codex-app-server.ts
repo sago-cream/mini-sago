@@ -24,6 +24,8 @@ type RunOptions = {
   imagePaths: string[];
   outputSchema?: JsonObject;
   ephemeral?: boolean;
+  failOnSandboxError?: boolean;
+  permissions?: string;
   warm?: boolean;
   threadConfig?: JsonObject;
   onTiming?: TimingSink;
@@ -37,6 +39,8 @@ type ActiveTurn = {
   jobId: string;
   turnId?: string;
   finalAnswer: string;
+  sandboxError?: string;
+  failOnSandboxError?: boolean;
   lastAgentMessage: string;
   onAgentMessageDelta?: RunOptions["onAgentMessageDelta"];
   onProgress?: RunOptions["onProgress"];
@@ -182,9 +186,12 @@ class CodexAppServerSession {
       resolveResult = resolve;
       rejectResult = reject;
     });
+    // A failed turn/start RPC can reject the turn before its result is awaited.
+    void result.catch(() => undefined);
     this.active = {
       jobId: options.jobId,
       finalAnswer: "",
+      failOnSandboxError: options.failOnSandboxError,
       lastAgentMessage: "",
       onAgentMessageDelta: options.onAgentMessageDelta,
       onProgress: options.onProgress,
@@ -259,6 +266,9 @@ class CodexAppServerSession {
   private async initialize() {
     await this.request("initialize", {
       clientInfo: { name: "minisago", title: "MiniSago", version: "1" },
+      ...(this.options.permissions
+        ? { capabilities: { experimentalApi: true } }
+        : {}),
     });
     this.options.onProgress?.({
       phase: "preparing",
@@ -272,20 +282,21 @@ class CodexAppServerSession {
     timing(this.onTiming).mark("warm.process_ready");
     if (this.options.warm) return;
     const threadStartedAt = performance.now();
+    const threadOptions = {
+      model: this.options.model,
+      cwd: this.options.cwd,
+      config: this.options.threadConfig,
+      ...(this.options.permissions
+        ? { permissions: this.options.permissions }
+        : {}),
+      approvalPolicy: "never",
+      developerInstructions: this.options.developerInstructions,
+    };
     const response = await this.request(
       this.options.resumeThreadId ? "thread/resume" : "thread/start",
       this.options.resumeThreadId
-        ? {
-            threadId: this.options.resumeThreadId,
-            developerInstructions: this.options.developerInstructions,
-          }
-        : {
-            model: this.options.model,
-            cwd: this.options.cwd,
-            approvalPolicy: "never",
-            developerInstructions: this.options.developerInstructions,
-            serviceName: "minisago",
-          },
+        ? { ...threadOptions, threadId: this.options.resumeThreadId }
+        : { ...threadOptions, serviceName: "minisago" },
     );
     const thread = record(response.thread);
     if (!thread || typeof thread.id !== "string") {
@@ -315,7 +326,6 @@ class CodexAppServerSession {
       this.pending.set(id, { resolve, reject });
     });
     this.write({ method, id, params });
-    if (!this.options.warm) return response;
     let timer: ReturnType<typeof setTimeout>;
     const bounded = Promise.race([
       response,
@@ -444,7 +454,8 @@ class CodexAppServerSession {
     this.active = undefined;
     if (status === "completed") {
       const answer = active.finalAnswer || active.lastAgentMessage;
-      if (answer.trim()) active.resolve(answer.trim());
+      if (active.sandboxError) active.reject(new Error(active.sandboxError));
+      else if (answer.trim()) active.resolve(answer.trim());
       else active.reject(new Error("Codex returned no final answer."));
     } else if (status === "interrupted") {
       active.reject(
@@ -459,6 +470,29 @@ class CodexAppServerSession {
 
   private handleCompletedItem(active: ActiveTurn, item?: JsonObject) {
     if (!item || typeof item.type !== "string") return;
+    if (item.type === "commandExecution" && item.exitCode !== 0) {
+      const output = text(item.aggregatedOutput);
+      if (
+        active.failOnSandboxError &&
+        /bwrap:|synthetic (?:bubblewrap mount target|mount registry)|sandbox.*(?:panic|failed to)/iu.test(
+          output,
+        )
+      ) {
+        active.sandboxError = `Coding sandbox failed: ${output.trim().slice(-1000)}`;
+      }
+      if (active.failOnSandboxError)
+        active.onMcpToolCall?.({
+          name: "command_execution",
+          arguments: { exitCode: item.exitCode },
+          status: "failed",
+        });
+      if (active.failOnSandboxError)
+        active.onProgress?.({
+          phase: "testing",
+          kind: "trace",
+          summary: `Command failed (exit ${String(item.exitCode)}).${active.sandboxError ? " The coding environment is blocked." : " Check the command output before continuing."}`,
+        });
+    }
     if (isSuccessfulPullRequestMerge(item)) {
       active.onProgress?.({
         phase: "reviewing",
@@ -586,9 +620,13 @@ export class CodexAppServerManager {
     if (options.ephemeral) {
       const session = new CodexAppServerSession(options);
       this.jobs.set(options.jobId, session);
+      const abort = () => session.close();
+      options.signal?.addEventListener("abort", abort, { once: true });
+      if (options.signal?.aborted) abort();
       try {
         return await session.run(options);
       } finally {
+        options.signal?.removeEventListener("abort", abort);
         this.jobs.delete(options.jobId);
         session.close();
       }

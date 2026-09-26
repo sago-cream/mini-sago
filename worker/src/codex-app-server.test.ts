@@ -152,3 +152,81 @@ describe("Codex App Server manager", () => {
     manager.close();
   });
 });
+
+test("restarts a task runner with fresh environment and replaces resumed thread configuration", async () => {
+  const manager = new CodexAppServerManager();
+  const options = {
+    ...runOptions(() => {}),
+    ephemeral: true,
+    outputSchema: { type: "object" },
+    threadConfig: { default_permissions: "new-profile" },
+    permissions: "new-profile",
+  };
+  try {
+    const first = JSON.parse(
+      await manager.run({
+        ...options,
+        environment: {
+          ...options.environment,
+          MINISAGO_TEST_RUNTIME: "1",
+          TMPDIR: "/tmp/first",
+          MINISAGO_TEST_TOKEN: "old",
+        },
+      }),
+    );
+    const second = JSON.parse(
+      await manager.run({
+        ...options,
+        jobId: "second",
+        resumeThreadId: "thread-native",
+        environment: {
+          ...options.environment,
+          MINISAGO_TEST_RUNTIME: "1",
+          TMPDIR: "/tmp/second",
+          MINISAGO_TEST_TOKEN: "new",
+        },
+      }),
+    );
+    expect(first.pid).not.toBe(second.pid);
+    expect(second).toMatchObject({
+      tmp: "/tmp/second",
+      token: "new",
+      resumed: true,
+      permissions: "new-profile",
+      cwd: options.cwd,
+      threadConfig: {
+        default_permissions: "new-profile",
+      },
+    });
+    expect(manager.status().sessions).toBe(0);
+    await expect(
+      manager.run({
+        ...options,
+        failOnSandboxError: true,
+        environment: {
+          ...options.environment,
+          MINISAGO_TEST_RUNTIME: "1",
+          MINISAGO_TEST_SANDBOX_FAILURE: "1",
+        },
+      }),
+    ).rejects.toThrow("Coding sandbox failed");
+  } finally {
+    manager.close();
+  }
+});
+
+test("cancels an initializing task runner before the first turn exists", async () => {
+  const manager = new CodexAppServerManager();
+  const options = runOptions(() => {});
+  const controller = new AbortController();
+  const run = manager.run({
+    ...options,
+    ephemeral: true,
+    signal: controller.signal,
+    environment: { ...options.environment, MINISAGO_TEST_HANG_INIT: "1" },
+  });
+  setTimeout(() => controller.abort(), 20);
+  await expect(run).rejects.toThrow();
+  expect(manager.status().active).toBe(0);
+  manager.close();
+});
