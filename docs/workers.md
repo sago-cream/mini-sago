@@ -15,16 +15,14 @@ Every worker needs:
 - outbound HTTPS and WSS.
 
 At startup, each worker discovers and advertises every repository visible to its
-GitHub login. A repository does not need to exist locally in advance. Discord development tasks receive a persistent checkout and prepared feature
-branch. See [development tasks](development-tasks.md) for retention, worker
-affinity, preflight, queue, and recovery behavior.
+GitHub login. A repository does not need to exist locally in advance. Oracle jobs
+always receive a disposable checkout and prepared feature branch.
 
 The headless Oracle worker also reads the GitHub skill links in
 `sago-cream/skillbook` and installs them into its isolated Codex home before
 connecting. It checks the Skillbook revision every 15 minutes. A new Skillbook
 revision snapshots the current commit of every linked skill, and that set is
-available to runtimes that enable the skill catalog without restarting the worker.
-Discord development tasks use their explicit tool catalog instead.
+available to the next Discord development turn without restarting the worker.
 The Mac helper leaves its skills alone so the Mac remains the authoring copy.
 Set `MINISAGO_SKILLBOOK_REPOSITORY` explicitly to enable or change syncing on
 another worker, and adjust
@@ -117,3 +115,22 @@ The Oracle image includes Python 3 with `venv` support for owner development
 jobs. Chat jobs do not receive arbitrary Python or shell execution. Media work
 uses the image's FFmpeg binaries only through MiniSago's request-local typed MCP
 tools.
+
+## Development runtime checks
+
+Coding replies resume the saved Codex conversation in a fresh process. Checkout,
+scratch and attachment paths remain under the task's workspace; task files are
+not automatically deleted. The existing thread registry is still in memory and
+expires after three idle days, so restarting the core requires manual task
+recovery. Preserve unfinished work before manually retiring its workspace.
+
+Before starting a coding turn, the worker checks Git metadata writes, scratch
+storage and repository access through the actual Codex sandbox. A failed check
+or sandbox initialization error fails the job and remains visible in the thread
+and worker trace. Finishing a turn does not certify PR or CI completion.
+
+Run `bash scripts/test-dev-sandbox.sh` to check the pinned Linux runtime without
+credentials or a model call. On AppArmor hosts, first load the existing
+production profile with `sudo apparmor_parser -r scripts/test-fixtures/worker-security/minisago-worker.apparmor`.
+The smoke test uses copies of production's AppArmor and seccomp profiles and
+verifies readiness, continuation and denial of writes outside the task as UID 1000. It changes no production configuration.

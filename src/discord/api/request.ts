@@ -8,7 +8,6 @@ export type DiscordRequest = <T>(
     body?: unknown;
     formData?: FormData;
     authenticated?: boolean;
-    signal?: AbortSignal;
   },
 ) => Promise<T>;
 
@@ -33,7 +32,6 @@ export function createDiscordRequest(
     const response = await clock.span("http.response_headers", () =>
       fetch(`${DISCORD_API_BASE_URL}${path}`, {
         method: options.method ?? "GET",
-        signal: options.signal,
         headers,
         body:
           options.formData ??

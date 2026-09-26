@@ -120,7 +120,7 @@ regular file of 8 MB or less. Symlinks and paths outside the roots are rejected.
 
 ## Owner development and GitHub
 
-Development tasks receive one selected persistent repository checkout. GitHub
+Development jobs receive one selected disposable repository checkout. GitHub
 uses a dedicated persistent `gh` login. Workers discover every repository that
 credential can access rather than maintaining a second application allowlist.
 Tokens must never be placed in Discord, tasks, environment files, shell
@@ -134,20 +134,22 @@ repository work without a second inferred authorization scope:
 - the prepared feature branch may be pushed and used to open a draft PR;
 - an explicit owner request may merge a pull request without administrative
   bypass; and
-- PR edits, comments, reviews, ready-for-review, and Actions reruns are allowed
-  within owner-authorized work; protected-branch and force pushes are denied.
+- PR edits, comments, reviews, ready-for-review and Actions reruns are allowed
+  within the owner's requested work; protected-branch and force pushes are denied.
 
 GitHub rulesets must independently block direct and force pushes to protected
 branches. The credential should have repository contents, issues, and pull
-request access plus read access to checks and Actions when needed; never grant
+request access plus read access to checks. Actions reruns require Actions write
+access. Never grant
 administration, secrets, environments, deployments, organization, or unrelated
 repository access. Credential and ruleset setup is tracked in
 [issue #12](https://github.com/sago-cream/mini-sago/issues/12).
 
-The production Oracle worker exposes a bounded deployment MCP tool only to tasks
-for the configured MiniSago repository. Its trusted service connects to the Unix
-socket; the socket is not a writable root in the coding shell sandbox. It accepts a full MiniSago commit SHA plus the
-worker-injected originating Discord thread ID. The host verifies the fixed
+The production Oracle worker exposes `deploy_minisago` only to jobs for the
+configured MiniSago repository. A small MCP adapter calls the existing deployment
+socket outside the shell sandbox, so the socket is never a writable directory
+root. The tool accepts a full MiniSago commit SHA and fixes the originating
+Discord thread ID from the job. The host verifies the fixed
 request shape and deploys the matching immutable core and worker image tags.
 Codex receives no Docker socket, SSH credential, command argument, host path,
 or general deployment target through this channel. The bot reads the terminal

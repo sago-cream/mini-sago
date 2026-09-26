@@ -10,6 +10,8 @@ const reader = Bun.stdin.stream().getReader();
 const decoder = new TextDecoder();
 let buffer = "";
 let threadConfig: unknown;
+let permissions: unknown;
+let cwd: unknown;
 let resumed = false;
 
 async function handle(line: string) {
@@ -22,32 +24,15 @@ async function handle(line: string) {
   if (message.method === "initialize") {
     if (process.env.MINISAGO_TEST_HANG_INIT) return;
     send({ id: message.id, result: { userAgent: "fake" } });
-  } else if (message.method === "config/read") {
-    send({
-      id: message.id,
-      result: {
-        config: {
-          mcp_servers: { unrelated: { command: "/bin/false", enabled: true } },
-        },
-      },
-    });
   } else if (message.method === "initialized") {
     // Notification only.
   } else if (
     message.method === "thread/start" ||
     message.method === "thread/resume"
   ) {
-    if (
-      message.method === "thread/resume" &&
-      process.env.MINISAGO_TEST_MISSING_ROLLOUT
-    ) {
-      send({
-        id: message.id,
-        error: { message: "no rollout found for thread id" },
-      });
-      return;
-    }
     threadConfig = message.params?.config;
+    permissions = message.params?.permissions;
+    cwd = message.params?.cwd;
     resumed = message.method === "thread/resume";
     send({
       id: message.id,
@@ -103,6 +88,8 @@ async function handle(line: string) {
               tmp: process.env.TMPDIR,
               token: process.env.MINISAGO_TEST_TOKEN,
               threadConfig,
+              permissions,
+              cwd,
               resumed,
             }),
           },

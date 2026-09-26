@@ -1,4 +1,4 @@
-export const CHATBOT_PROTOCOL_VERSION = 37;
+export const CHATBOT_PROTOCOL_VERSION = 36;
 export const CHATBOT_JOB_TIMEOUT_MS = 5 * 60_000;
 export const CHATBOT_DEV_JOB_TIMEOUT_MS = 15 * 60_000;
 
@@ -109,56 +109,6 @@ export type ChatbotPromptTelemetry = {
   taskCharacters: number;
   contextCharacters: number;
 };
-
-export type DeveloperTaskOutcome = {
-  state:
-    | "turn_complete"
-    | "needs_input"
-    | "blocked_environment"
-    | "blocked_access"
-    | "awaiting_checks"
-    | "ready_for_review"
-    | "merged";
-  workspace: string;
-  branch: string;
-  head: string;
-  pullRequestUrl?: string;
-  checks?: "failed" | "pending" | "passed" | "none";
-  detail?: string;
-};
-
-export function isDeveloperTaskOutcome(
-  value: unknown,
-): value is DeveloperTaskOutcome {
-  if (!value || typeof value !== "object") return false;
-  const outcome = value as DeveloperTaskOutcome;
-  return (
-    [
-      "turn_complete",
-      "needs_input",
-      "blocked_environment",
-      "blocked_access",
-      "awaiting_checks",
-      "ready_for_review",
-      "merged",
-    ].includes(outcome.state) &&
-    typeof outcome.workspace === "string" &&
-    outcome.workspace.length <= 4096 &&
-    typeof outcome.branch === "string" &&
-    outcome.branch.length <= 255 &&
-    typeof outcome.head === "string" &&
-    /^[a-f0-9]{40}$/u.test(outcome.head) &&
-    (outcome.pullRequestUrl === undefined ||
-      (typeof outcome.pullRequestUrl === "string" &&
-        /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/pull\/\d+$/u.test(
-          outcome.pullRequestUrl,
-        ))) &&
-    (outcome.checks === undefined ||
-      ["failed", "pending", "passed", "none"].includes(outcome.checks)) &&
-    (outcome.detail === undefined ||
-      (typeof outcome.detail === "string" && outcome.detail.length <= 2000))
-  );
-}
 
 export type ChatbotTaskProgress = {
   phase: "preparing" | "exploring" | "implementing" | "testing" | "reviewing";
@@ -286,8 +236,6 @@ export type OracleAnswerJob = AnswerJobBase & {
     id: string;
     title?: string;
     resumeSessionId?: string;
-    ownerDirections?: string[];
-    reconcileOnly?: boolean;
   };
 };
 
@@ -399,10 +347,6 @@ function isDeveloperTask(value: unknown) {
   if (!isRecord(value)) return false;
   return (
     typeof value.id === "string" &&
-    (value.ownerDirections === undefined ||
-      isStringArray(value.ownerDirections)) &&
-    (value.reconcileOnly === undefined ||
-      typeof value.reconcileOnly === "boolean") &&
     (value.title === undefined || typeof value.title === "string") &&
     (value.resumeSessionId === undefined ||
       typeof value.resumeSessionId === "string")
@@ -586,7 +530,6 @@ export type MacAgentClientMessage =
       ok: true;
       content: string;
       files?: ChatbotOutgoingFile[];
-      taskOutcome?: DeveloperTaskOutcome;
     }
   | {
       type: "result";

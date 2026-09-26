@@ -6,14 +6,6 @@ services:
       dockerfile: Dockerfile.worker
     restart: unless-stopped
     init: true
-    # Codex's nested Bubblewrap sandbox needs unprivileged namespace syscalls.
-    # The entrypoint drops to bun before starting the worker.
-    security_opt:
-      - seccomp=./worker/security/minisago-worker.seccomp.json
-      - apparmor=${MINISAGO_WORKER_APPARMOR_PROFILE:-minisago-worker}
-    pids_limit: 512
-    mem_limit: ${MINISAGO_WORKER_MEMORY_LIMIT:-4g}
-    cpus: ${MINISAGO_WORKER_CPU_LIMIT:-2.0}
     env_file: .env.worker
     environment:
       MINISAGO_SANDBOX_URL: http://sandbox:8080

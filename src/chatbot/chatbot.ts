@@ -1,5 +1,3 @@
-import { DeveloperTaskRegistry } from "./developer-tasks";
-import { DeveloperTaskStore } from "./developer-task-store";
 import { createCcxpSyncClient } from "./ccxp-sync";
 import { createCcxpMeetingsClient } from "./ccxp-meetings";
 import { timing, type TimingSink } from "../observability/timing";
@@ -119,6 +117,7 @@ export { parseChatbotAnswerDecision } from "../../contracts/answer-contract";
 const DISCORD_MESSAGE_LIMIT = 2_000;
 const TYPING_REFRESH_MS = 8_000;
 const ACTIVE_CONVERSATION_TTL_MS = 90_000;
+const DEVELOPER_TASK_TTL_MS = 3 * 24 * 60 * 60_000;
 const guildMemoryStore = getGuildMemoryStore();
 const serviceSubscriptionStore = getServiceSubscriptionStore();
 
@@ -582,6 +581,28 @@ export async function postChatbotResponse(
   }
 }
 
+type DeveloperTask = {
+  id: string;
+  threadId: string;
+  requesterUserId: string;
+  repository: string;
+  request: string;
+  job: OracleAnswerJob;
+  workflow?: WorkflowLease;
+  state: "running" | "stopping" | "stopped" | "completed" | "failed";
+  summary: string;
+  sessionId?: string;
+  activeJobId?: string;
+  nextRequest?: string;
+  requiresAddressing?: boolean;
+  traceMessageIds: string[];
+  messageQueue: Promise<void>;
+  cleanupTimer?: ReturnType<typeof setTimeout>;
+  revokeMcp: () => void;
+  extendMcp: () => void;
+  discordRequest: DiscordRequest;
+};
+
 export function developerThreadName(title?: string) {
   return title?.replace(/\s+/gu, " ").trim().slice(0, 100) || "Coding task";
 }
@@ -604,38 +625,285 @@ async function createDeveloperThread(
   return thread.id;
 }
 
-let developerTasksInstance: DeveloperTaskRegistry | undefined;
-function getDeveloperTasks() {
-  return (developerTasksInstance ??= new DeveloperTaskRegistry(
-    new DeveloperTaskStore(
-      process.env.MINISAGO_DEV_TASK_DATABASE_PATH ??
-        (process.env.NODE_ENV === "test"
-          ? ":memory:"
-          : ".data/developer-tasks.sqlite"),
-    ),
-    {
-      formatOne: formatDiscordAnswer,
-      formatMany: formatDiscordAnswers,
-      addressed: chatbotAddressingMode,
-      extract: extractChatbotRequest,
-    },
-  ));
+class DeveloperTaskRegistry {
+  private tasks = new Map<string, DeveloperTask>();
+
+  has(threadId: string) {
+    return this.tasks.has(threadId);
+  }
+
+  start(task: DeveloperTask) {
+    this.tasks.set(task.threadId, task);
+    this.launch(task, task.request);
+  }
+
+  async handle(
+    message: DiscordMessage,
+    botUserId: string,
+    accessConfig: ChatbotAccessConfig,
+  ) {
+    const task = this.tasks.get(message.channel_id);
+    if (!task || message.author?.id !== task.requesterUserId) return false;
+    if (message.webhook_id) return false;
+    const addressingMode = chatbotAddressingMode(
+      message,
+      botUserId,
+      accessConfig,
+    );
+    if (
+      task.requiresAddressing &&
+      task.state !== "running" &&
+      task.state !== "stopping" &&
+      !addressingMode
+    ) {
+      return false;
+    }
+    const request =
+      addressingMode && task.requiresAddressing
+        ? (extractChatbotRequest(message, botUserId, accessConfig) ?? "")
+        : (message.content?.trim() ?? "");
+    if (!request) return true;
+
+    if (/^(?:stop|pause|停止|暫停)[.!。！\s]*$/iu.test(request)) {
+      if (task.state === "running" && task.activeJobId && task.workflow) {
+        task.state = "stopping";
+        task.summary =
+          "Stopping after the current operation; work is preserved.";
+        task.workflow.stop(task.activeJobId);
+      } else {
+        await this.post(task, "This coding task is not currently running.");
+      }
+      return true;
+    }
+
+    if (/^(?:status|進度|狀態)[?？\s]*$/iu.test(request)) {
+      await this.post(task, this.status(task));
+      return true;
+    }
+
+    if (task.state === "running" && task.activeJobId && task.workflow) {
+      const activeJobId = task.activeJobId;
+      if (await task.workflow.steer(activeJobId, request)) {
+        task.summary = "Applying new direction to the active turn.";
+      } else {
+        task.nextRequest = task.nextRequest
+          ? `${task.nextRequest}\n${request}`
+          : request;
+        if (task.activeJobId !== activeJobId && task.state !== "running") {
+          const nextRequest = task.nextRequest;
+          task.nextRequest = undefined;
+          this.launch(task, nextRequest);
+        }
+      }
+    } else if (task.state !== "stopping") {
+      this.launch(task, request);
+    }
+    return true;
+  }
+
+  private launch(task: DeveloperTask, request: string) {
+    void this.run(task, request).catch(async (error) => {
+      task.state = "failed";
+      task.summary = `Failed: ${
+        error instanceof Error
+          ? error.message.slice(0, 500)
+          : "unexpected error"
+      }`;
+      this.releaseWorkflow(task);
+      await this.finishWithoutAnswer(task, task.summary);
+      this.scheduleCleanup(task);
+    });
+  }
+
+  private async run(task: DeveloperTask, request: string) {
+    if (task.cleanupTimer) {
+      clearTimeout(task.cleanupTimer);
+      task.cleanupTimer = undefined;
+    }
+    if (!task.sessionId && request !== task.request) {
+      request = `${task.request}\n\nAdditional direction: ${request}`;
+    }
+    task.extendMcp();
+    if (!task.workflow) {
+      const acquired = macAgentBridge.acquireWorkflow(["dev"]);
+      if (acquired.status !== "accepted") {
+        task.state = "stopped";
+        task.summary =
+          acquired.status === "busy"
+            ? "Waiting for an available coding worker. Reply `continue` to retry."
+            : "The coding worker is offline. Reply `continue` when it is back.";
+        await this.finishWithoutAnswer(task, task.summary);
+        this.scheduleCleanup(task);
+        return;
+      }
+      task.workflow = acquired.workflow;
+      const route = task.workflow.route(["dev"], task.repository);
+      if (route.status !== "accepted") {
+        task.workflow.release();
+        task.workflow = undefined;
+        task.state = "stopped";
+        task.summary = "The repository is not available on the coding worker.";
+        await this.finishWithoutAnswer(task, task.summary);
+        this.scheduleCleanup(task);
+        return;
+      }
+    }
+
+    const job: OracleAnswerJob = {
+      ...task.job,
+      id: randomUUID(),
+      channelId: task.threadId,
+      request,
+      developerTask: {
+        id: task.id,
+        ...(task.job.developerTask?.title
+          ? { title: task.job.developerTask.title }
+          : {}),
+        ...(task.sessionId ? { resumeSessionId: task.sessionId } : {}),
+      },
+    };
+    task.state = "running";
+    task.activeJobId = job.id;
+    task.summary = task.sessionId
+      ? "Continuing the preserved coding task."
+      : "Preparing an isolated workspace.";
+    const dispatch = task.workflow.dispatch(job, (progress) =>
+      this.onProgress(task, progress),
+    );
+    if (dispatch.status !== "accepted") {
+      task.state = "stopped";
+      task.summary = "The coding worker could not start this turn.";
+      this.releaseWorkflow(task);
+      await this.finishWithoutAnswer(task, task.summary);
+      this.scheduleCleanup(task);
+      return;
+    }
+
+    const result = await dispatch.result;
+    delete task.activeJobId;
+    if (!result.ok && result.stopped) {
+      await this.settleTrace(task, false);
+      task.state = "stopped";
+      task.summary = "Stopped. The workspace and Codex session are preserved.";
+      this.releaseWorkflow(task);
+      await this.post(task, task.summary);
+      this.scheduleCleanup(task);
+      return;
+    }
+
+    if (!result.ok) {
+      task.state = "failed";
+      task.summary = `Failed: ${result.error.slice(0, 500)}`;
+      this.releaseWorkflow(task);
+      await this.finishWithoutAnswer(task, task.summary);
+      this.scheduleCleanup(task);
+      return;
+    }
+
+    task.state = "completed";
+    task.summary =
+      "Turn finished. Reply in this thread to continue the same task.";
+    await this.settleTrace(task, true);
+    if (result.content.trim()) {
+      for (const answer of formatDiscordAnswers(result.content)) {
+        await this.post(task, answer);
+      }
+    }
+    const nextRequest = task.nextRequest;
+    task.nextRequest = undefined;
+    if (nextRequest) {
+      await this.run(task, nextRequest);
+      return;
+    }
+    this.releaseWorkflow(task);
+    this.scheduleCleanup(task);
+  }
+
+  private onProgress(task: DeveloperTask, progress: ChatbotTaskProgress) {
+    if (progress.sessionId) task.sessionId = progress.sessionId;
+    if (progress.completion === "pull_request_merged") {
+      task.requiresAddressing = true;
+    }
+    task.summary = progress.summary;
+    if (progress.kind === "trace") this.postTrace(task, progress.summary);
+  }
+
+  private releaseWorkflow(task: DeveloperTask) {
+    task.workflow?.release();
+    task.workflow = undefined;
+  }
+
+  private scheduleCleanup(task: DeveloperTask) {
+    if (task.cleanupTimer) clearTimeout(task.cleanupTimer);
+    task.cleanupTimer = setTimeout(() => {
+      task.revokeMcp();
+      this.tasks.delete(task.threadId);
+    }, DEVELOPER_TASK_TTL_MS);
+    task.cleanupTimer.unref?.();
+  }
+
+  private status(task: DeveloperTask) {
+    const state =
+      task.state === "running"
+        ? "Working"
+        : task.state === "stopping"
+          ? "Stopping"
+          : task.state === "stopped"
+            ? "Stopped"
+            : task.state === "completed"
+              ? "Idle"
+              : "Failed";
+    return `**${state} · ${task.repository}**\n${task.summary}\n\nReply here to steer me. Say \`stop\` to pause or \`status\` for an update.`;
+  }
+
+  private postTrace(task: DeveloperTask, content: string) {
+    task.messageQueue = task.messageQueue
+      .then(async () => {
+        const message = await task.discordRequest<{ id: string }>(
+          `/channels/${task.threadId}/messages`,
+          {
+            method: "POST",
+            body: {
+              content: formatDiscordAnswer(content),
+              allowed_mentions: { parse: [] },
+            },
+          },
+        );
+        task.traceMessageIds.push(message.id);
+      })
+      .catch(() => undefined);
+  }
+
+  private async settleTrace(task: DeveloperTask, removeMessages: boolean) {
+    await task.messageQueue.catch(() => undefined);
+    task.messageQueue = Promise.resolve();
+    const messageIds = task.traceMessageIds.splice(0);
+    if (!removeMessages) return;
+    await Promise.all(
+      messageIds.map((messageId) =>
+        task
+          .discordRequest(`/channels/${task.threadId}/messages/${messageId}`, {
+            method: "DELETE",
+          })
+          .catch(() => undefined),
+      ),
+    );
+  }
+
+  private async finishWithoutAnswer(task: DeveloperTask, content: string) {
+    await this.settleTrace(task, false);
+    await this.post(task, content);
+  }
+
+  private async post(task: DeveloperTask, content: string) {
+    await task.discordRequest(`/channels/${task.threadId}/messages`, {
+      method: "POST",
+      body: { content, allowed_mentions: { parse: [] } },
+    });
+  }
 }
 
-export function recoverDeveloperTasks(
-  discordRequest: DiscordRequest,
-  ownerUserId: string,
-) {
-  getDeveloperTasks().recover(discordRequest, ownerUserId);
-}
-
-export function reconcileDeveloperTaskEvent(
-  event: string,
-  payload: unknown,
-  deliveryId: string,
-) {
-  developerTasksInstance?.githubEvent(event, payload, deliveryId);
-}
+const developerTasks = new DeveloperTaskRegistry();
 
 async function withTyping<T>(
   channelId: string,
@@ -780,8 +1048,8 @@ export async function handleChatbotMention({
     return false;
   }
 
-  if (!invocation && getDeveloperTasks().has(message.channel_id)) {
-    return getDeveloperTasks().handle(message, botUserId, accessConfig);
+  if (!invocation && developerTasks.has(message.channel_id)) {
+    return developerTasks.handle(message, botUserId, accessConfig);
   }
 
   let addressingMode =
@@ -914,7 +1182,6 @@ export async function handleChatbotMention({
       let executionRoute: ChatbotExecutionRoute = "chat";
       let selectedRepository: string | undefined;
       let developerThreadTitle: string | undefined;
-      let developerWorkerReserved = true;
       type PreviousTrace = {
         status: "complete" | "not_found" | "unavailable";
         trace?: ChatbotTraceContext;
@@ -1386,14 +1653,7 @@ export async function handleChatbotMention({
           ],
           selectedRepository,
         );
-        if (
-          workerRoute.status !== "accepted" &&
-          executionRoute === "oracle" &&
-          message.guild_id
-        ) {
-          workflow.release();
-          developerWorkerReserved = false;
-        } else if (workerRoute.status !== "accepted") {
+        if (workerRoute.status !== "accepted") {
           return {
             ok: false as const,
             error:
@@ -1417,6 +1677,7 @@ export async function handleChatbotMention({
         chatbotRepository: workflow.chatbotRepository,
         executionRoute,
       });
+      if (executionRoute === "oracle") mcpSession.extend(DEVELOPER_TASK_TTL_MS);
       const answerBase = {
         id: randomUUID(),
         requesterUserId,
@@ -1463,7 +1724,7 @@ export async function handleChatbotMention({
           discordRequest,
         );
         deferredDeveloperTask = true;
-        getDeveloperTasks().start({
+        developerTasks.start({
           id: taskId,
           threadId,
           requesterUserId,
@@ -1471,16 +1732,20 @@ export async function handleChatbotMention({
           request,
           job: {
             ...job,
-            mcpAccessToken: "dev-task-context-only",
             developerTask: {
               id: taskId,
               title: developerThreadName(developerThreadTitle),
             },
           },
-          workflow: developerWorkerReserved ? workflow : undefined,
+          workflow,
+          state: "running",
+          summary: "Preparing an isolated workspace.",
+          traceMessageIds: [],
+          messageQueue: Promise.resolve(),
+          revokeMcp: () => mcpSession?.revoke(),
+          extendMcp: () => mcpSession?.extend(DEVELOPER_TASK_TTL_MS),
           discordRequest,
         });
-        mcpSession.revoke();
         return { ok: true as const, content: "" };
       }
       const answerDone = clock.start("host.answer_dispatch");

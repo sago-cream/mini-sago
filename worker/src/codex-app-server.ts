@@ -25,7 +25,6 @@ type RunOptions = {
   outputSchema?: JsonObject;
   ephemeral?: boolean;
   failOnSandboxError?: boolean;
-  mcpAllowlist?: string[];
   permissions?: string;
   warm?: boolean;
   threadConfig?: JsonObject;
@@ -282,69 +281,23 @@ class CodexAppServerSession {
     this.notify("initialized", {});
     timing(this.onTiming).mark("warm.process_ready");
     if (this.options.warm) return;
-    let threadConfig = this.options.threadConfig;
-    if (this.options.mcpAllowlist) {
-      // An empty mcp_servers table merges with user config; it does not clear it.
-      // Discover effective names without advertising tools and explicitly disable
-      // every server that this task did not install.
-      const response = await this.request("config/read", {
-        includeLayers: false,
-        cwd: this.options.cwd,
-      });
-      const servers = record(record(response.config)?.mcp_servers) ?? {};
-      threadConfig = {
-        ...threadConfig,
-        mcp_servers: {
-          ...record(threadConfig?.mcp_servers),
-          ...Object.fromEntries(
-            Object.keys(servers)
-              .filter((name) => !this.options.mcpAllowlist!.includes(name))
-              .map((name) => [name, { enabled: false }]),
-          ),
-        },
-      };
-    }
     const threadStartedAt = performance.now();
     const threadOptions = {
       model: this.options.model,
       cwd: this.options.cwd,
-      config: threadConfig,
+      config: this.options.threadConfig,
       ...(this.options.permissions
         ? { permissions: this.options.permissions }
         : {}),
       approvalPolicy: "never",
       developerInstructions: this.options.developerInstructions,
     };
-    let response: JsonObject;
-    try {
-      response = await this.request(
-        this.options.resumeThreadId ? "thread/resume" : "thread/start",
-        this.options.resumeThreadId
-          ? { ...threadOptions, threadId: this.options.resumeThreadId }
-          : { ...threadOptions, serviceName: "minisago" },
-      );
-    } catch (error) {
-      // A process can die after thread/start reports an ID but before its first
-      // rollout is written. The checkout and owner directions still belong to
-      // the task; only that missing conversation needs to be recreated.
-      if (
-        !this.options.resumeThreadId ||
-        !this.options.failOnSandboxError ||
-        !(error instanceof Error) ||
-        !/no rollout found for thread id/iu.test(error.message)
-      )
-        throw error;
-      this.options.onProgress?.({
-        phase: "preparing",
-        summary:
-          "The saved Codex session is unavailable. Restoring the task context in the preserved workspace.",
-        kind: "trace",
-      });
-      response = await this.request("thread/start", {
-        ...threadOptions,
-        serviceName: "minisago",
-      });
-    }
+    const response = await this.request(
+      this.options.resumeThreadId ? "thread/resume" : "thread/start",
+      this.options.resumeThreadId
+        ? { ...threadOptions, threadId: this.options.resumeThreadId }
+        : { ...threadOptions, serviceName: "minisago" },
+    );
     const thread = record(response.thread);
     if (!thread || typeof thread.id !== "string") {
       throw new Error("Codex App Server did not return a thread ID.");
@@ -543,7 +496,8 @@ class CodexAppServerSession {
     if (isSuccessfulPullRequestMerge(item)) {
       active.onProgress?.({
         phase: "reviewing",
-        summary: "Merge request accepted. Verifying its final state on GitHub.",
+        summary: "Pull request merged.",
+        completion: "pull_request_merged",
       });
       return;
     }

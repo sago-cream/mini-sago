@@ -158,9 +158,9 @@ test("restarts a task runner with fresh environment and replaces resumed thread 
   const options = {
     ...runOptions(() => {}),
     ephemeral: true,
-    mcpAllowlist: [],
     outputSchema: { type: "object" },
     threadConfig: { default_permissions: "new-profile" },
+    permissions: "new-profile",
   };
   try {
     const first = JSON.parse(
@@ -192,9 +192,10 @@ test("restarts a task runner with fresh environment and replaces resumed thread 
       tmp: "/tmp/second",
       token: "new",
       resumed: true,
+      permissions: "new-profile",
+      cwd: options.cwd,
       threadConfig: {
         default_permissions: "new-profile",
-        mcp_servers: { unrelated: { enabled: false } },
       },
     });
     expect(manager.status().sessions).toBe(0);
@@ -226,28 +227,6 @@ test("cancels an initializing task runner before the first turn exists", async (
   });
   setTimeout(() => controller.abort(), 20);
   await expect(run).rejects.toThrow();
-  expect(manager.status().active).toBe(0);
-  manager.close();
-});
-
-test("recreates a missing conversation without changing the preserved workspace", async () => {
-  const manager = new CodexAppServerManager();
-  const options = runOptions(() => {});
-  const result = JSON.parse(
-    await manager.run({
-      ...options,
-      ephemeral: true,
-      failOnSandboxError: true,
-      resumeThreadId: "missing",
-      outputSchema: { type: "object" },
-      environment: {
-        ...options.environment,
-        MINISAGO_TEST_RUNTIME: "1",
-        MINISAGO_TEST_MISSING_ROLLOUT: "1",
-      },
-    }),
-  );
-  expect(result.resumed).toBe(false);
   expect(manager.status().active).toBe(0);
   manager.close();
 });

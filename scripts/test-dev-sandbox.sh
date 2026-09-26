@@ -8,7 +8,7 @@ case "$(docker info --format '{{json .SecurityOptions}}')" in
   *) apparmor_profile=unconfined ;;
 esac
 docker run --rm --init --user bun \
-  --security-opt "seccomp=$PWD/worker/security/minisago-worker.seccomp.json" \
+  --security-opt "seccomp=$PWD/scripts/test-fixtures/worker-security/minisago-worker.seccomp.json" \
   --security-opt "apparmor=$apparmor_profile" \
   --mount "type=bind,src=$PWD/worker/src,dst=/source/worker/src,readonly" \
   --entrypoint bun minisago-dev-runtime:test /source/worker/src/test-fixtures/dev-sandbox-smoke.ts

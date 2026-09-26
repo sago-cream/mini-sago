@@ -14,10 +14,8 @@ type DeveloperWorkspaceOptions = {
 
 export type DeveloperWorkspace = {
   directory: string;
-  root: string;
   temporaryDirectory: string;
   attachmentsDirectory: string;
-  artifactsDirectory: string;
   environment: Record<string, string>;
   sandboxReadPaths: string[];
   sandboxWritePaths: string[];
@@ -179,51 +177,39 @@ export async function prepareDeveloperWorkspace(
   await mkdir(jobRoot, { recursive: true, mode: 0o700 });
   const temporaryDirectory = join(jobRoot, "tmp");
   const attachmentsDirectory = join(jobRoot, "attachments");
-  const artifactsDirectory = join(jobRoot, "artifacts");
   await Promise.all(
-    [
-      temporaryDirectory,
-      attachmentsDirectory,
-      artifactsDirectory,
-      join(jobRoot, "checkpoints"),
-      join(jobRoot, "logs"),
-      binDirectory,
-    ].map((path) => mkdir(path, { recursive: true, mode: 0o700 })),
+    [temporaryDirectory, attachmentsDirectory, binDirectory].map((path) =>
+      mkdir(path, { recursive: true, mode: 0o700 }),
+    ),
   );
-  try {
-    if (!resume) {
-      await runCommand(
-        [
-          "gh",
-          "repo",
-          "clone",
-          repository,
-          directory,
-          "--",
-          "--filter=blob:none",
-        ],
-        preparationEnvironment,
-        options.signal,
-      );
-      await runCommand(
-        ["git", "-C", directory, "switch", "-c", branch],
-        preparationEnvironment,
-        options.signal,
-      );
-    }
-    // Refresh policy on continuation after a worker upgrade.
-    {
-      const ghWrapper = join(binDirectory, "gh");
-      const gitWrapper = join(binDirectory, "git");
-      await Promise.all([
-        Bun.write(ghWrapper, GH_WRAPPER),
-        Bun.write(gitWrapper, GIT_WRAPPER),
-      ]);
-      await Promise.all([chmod(ghWrapper, 0o700), chmod(gitWrapper, 0o700)]);
-    }
-  } catch (error) {
-    throw error;
+  if (!resume) {
+    await runCommand(
+      [
+        "gh",
+        "repo",
+        "clone",
+        repository,
+        directory,
+        "--",
+        "--filter=blob:none",
+      ],
+      preparationEnvironment,
+      options.signal,
+    );
+    await runCommand(
+      ["git", "-C", directory, "switch", "-c", branch],
+      preparationEnvironment,
+      options.signal,
+    );
   }
+  // Refresh policy on continuation after a worker upgrade.
+  const ghWrapper = join(binDirectory, "gh");
+  const gitWrapper = join(binDirectory, "git");
+  await Promise.all([
+    Bun.write(ghWrapper, GH_WRAPPER),
+    Bun.write(gitWrapper, GIT_WRAPPER),
+  ]);
+  await Promise.all([chmod(ghWrapper, 0o700), chmod(gitWrapper, 0o700)]);
 
   const environment = {
     ...preparationEnvironment,
@@ -235,21 +221,15 @@ export async function prepareDeveloperWorkspace(
 
   return {
     directory,
-    root: jobRoot,
     temporaryDirectory,
     attachmentsDirectory,
-    artifactsDirectory,
     environment,
     sandboxReadPaths: [
       binDirectory,
       resolve(options.githubConfigDir),
       attachmentsDirectory,
     ],
-    sandboxWritePaths: [
-      resolve(directory, ".git"),
-      temporaryDirectory,
-      artifactsDirectory,
-    ],
+    sandboxWritePaths: [resolve(directory, ".git"), temporaryDirectory],
     // Persistent tasks are explicitly retained; an idle timer must never erase dirty work.
     cleanup: job.developerTask
       ? () => Promise.resolve()

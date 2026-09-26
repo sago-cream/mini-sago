@@ -1,5 +1,6 @@
-import { access, readFile } from "node:fs/promises";
-import { basename } from "node:path";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
+import { basename, join } from "node:path";
+import { tmpdir } from "node:os";
 
 import { describe, expect, test } from "bun:test";
 
@@ -202,6 +203,33 @@ describe("chatbot attachment limits", () => {
         expect(prepared.ignored).toEqual([]);
         await prepared.cleanup();
         expect(access(prepared.directory)).rejects.toThrow();
+        const taskRoot = await mkdtemp(join(tmpdir(), "minisago-task-inputs-"));
+        try {
+          const first = await prepareAttachments(
+            job,
+            undefined,
+            undefined,
+            taskRoot,
+          );
+          await first.cleanup();
+          const second = await prepareAttachments(
+            job,
+            undefined,
+            undefined,
+            taskRoot,
+          );
+          await second.cleanup();
+          expect(second.directory).not.toBe(first.directory);
+          // A resumed conversation can still reference its previous input path.
+          expect(
+            await readFile(join(first.directory, "0-notes.txt"), "utf8"),
+          ).toBe("Ship next Friday.");
+          expect(
+            await readFile(join(second.directory, "0-notes.txt"), "utf8"),
+          ).toBe("Ship next Friday.");
+        } finally {
+          await rm(taskRoot, { recursive: true, force: true });
+        }
       } finally {
         globalThis.fetch = originalFetch;
       }

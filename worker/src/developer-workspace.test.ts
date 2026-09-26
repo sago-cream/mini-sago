@@ -70,7 +70,6 @@ describe("developer workspace", () => {
     expect(workspace.sandboxWritePaths).toEqual([
       join(workspace.directory, ".git"),
       workspace.temporaryDirectory,
-      workspace.artifactsDirectory,
     ]);
     await workspace.cleanup();
   });
@@ -112,7 +111,6 @@ describe("developer workspace", () => {
     expect(workspace.sandboxWritePaths).toEqual([
       join(workspace.directory, ".git"),
       workspace.temporaryDirectory,
-      workspace.artifactsDirectory,
     ]);
   });
 
@@ -133,7 +131,6 @@ describe("developer workspace", () => {
     expect(workspace.sandboxWritePaths).toEqual([
       join(workspace.directory, ".git"),
       workspace.temporaryDirectory,
-      workspace.artifactsDirectory,
     ]);
   });
 
@@ -252,7 +249,7 @@ describe("developer workspace", () => {
   });
 });
 
-test("retains dirty files, scratch files and artifacts when a turn never produced a session", async () => {
+test("retains dirty files and scratch files when a turn never produced a session", async () => {
   const opts = await options();
   const taskJob = { ...job(), developerTask: { id: "task-no-session" } };
   const first = await prepareDeveloperWorkspace(
@@ -264,7 +261,6 @@ test("retains dirty files, scratch files and artifacts when a turn never produce
   );
   await Bun.write(join(first.directory, "uncommitted.txt"), "keep my work");
   await Bun.write(join(first.temporaryDirectory, "scratch"), "scratch");
-  await Bun.write(join(first.artifactsDirectory, "preview.html"), "preview");
   await first.cleanup();
   const second = await prepareDeveloperWorkspace(
     { ...taskJob, id: "turn-two" },
@@ -279,9 +275,6 @@ test("retains dirty files, scratch files and artifacts when a turn never produce
   expect(
     await Bun.file(join(second.temporaryDirectory, "scratch")).text(),
   ).toBe("scratch");
-  expect(
-    await Bun.file(join(second.artifactsDirectory, "preview.html")).text(),
-  ).toBe("preview");
   await expect(
     prepareDeveloperWorkspace({ ...job(), developerTask: { id: ".." } }, opts),
   ).rejects.toThrow("filesystem-safe");

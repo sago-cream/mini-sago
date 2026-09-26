@@ -4,18 +4,15 @@ import {
   developerFilesystemPermissions,
   preflightDeveloperRuntime,
   runtimeCommand,
-  DEV_TOOL_CONFIG,
 } from "../developer-runtime";
 
 const root = "/tmp/minisago-sandbox-smoke";
 const directory = join(root, "repo");
 const temporaryDirectory = join(root, "tmp");
-const artifactsDirectory = join(root, "artifacts");
 const bin = join(root, "bin");
 for (const path of [
   directory,
   temporaryDirectory,
-  artifactsDirectory,
   bin,
   join(root, "codex", "skills"),
 ])
@@ -30,18 +27,12 @@ await Bun.write(
 );
 await Bun.spawn(["chmod", "+x", join(bin, "gh")]).exited;
 const workspace = {
-  root,
   directory,
   temporaryDirectory,
-  artifactsDirectory,
   attachmentsDirectory: root,
   environment: {},
   sandboxReadPaths: [bin],
-  sandboxWritePaths: [
-    join(directory, ".git"),
-    temporaryDirectory,
-    artifactsDirectory,
-  ],
+  sandboxWritePaths: [join(directory, ".git"), temporaryDirectory],
   cleanup: async () => {},
 };
 const environment = {
@@ -52,7 +43,6 @@ const environment = {
   PATH: `${bin}:${process.env.PATH}`,
 } as Record<string, string>;
 const configs = [
-  ...DEV_TOOL_CONFIG,
   'default_permissions="minisago-dev"',
   `permissions.minisago-dev.filesystem=${developerFilesystemPermissions(environment.CODEX_HOME!, workspace.sandboxReadPaths, workspace.sandboxWritePaths)}`,
   "permissions.minisago-dev.network.enabled=true",
