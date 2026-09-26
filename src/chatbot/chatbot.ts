@@ -452,14 +452,17 @@ export function formatDiscordAnswer(content: string) {
   return limitDiscordMessage(normalizeDiscordAnswer(content));
 }
 
-function formatDiscordTrace(content: string) {
+function formatDiscordAction(content: string) {
   return formatDiscordAnswer(
     content
       .trim()
       .split(/\r?\n/u)
       .map((line) =>
         line.trim()
-          ? `-# ${line.trim().replace(/^(?:#{1,6}|-#)[ \t]+/u, "")}`
+          ? `-# ${line
+              .trim()
+              .replace(/^(?:#{1,6}|-#)[ \t]+/u, "")
+              .replace(/^\*\*(.+)\*\*$/u, "$1")}`
           : "",
       )
       .join("\n"),
@@ -838,7 +841,7 @@ class DeveloperTaskRegistry {
       task.requiresAddressing = true;
     }
     task.summary = progress.summary;
-    if (progress.kind === "trace") this.postTrace(task, progress.summary);
+    if (progress.kind) this.postTrace(task, progress);
   }
 
   private releaseWorkflow(task: DeveloperTask) {
@@ -869,7 +872,7 @@ class DeveloperTaskRegistry {
     return `**${state} · ${task.repository}**\n${task.summary}\n\nReply here to steer me. Say \`stop\` to pause or \`status\` for an update.`;
   }
 
-  private postTrace(task: DeveloperTask, content: string) {
+  private postTrace(task: DeveloperTask, progress: ChatbotTaskProgress) {
     task.messageQueue = task.messageQueue
       .then(async () => {
         const message = await task.discordRequest<{ id: string }>(
@@ -877,7 +880,10 @@ class DeveloperTaskRegistry {
           {
             method: "POST",
             body: {
-              content: formatDiscordTrace(content),
+              content:
+                progress.kind === "action"
+                  ? formatDiscordAction(progress.summary)
+                  : formatDiscordAnswer(progress.summary),
               allowed_mentions: { parse: [] },
             },
           },

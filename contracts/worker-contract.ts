@@ -114,7 +114,7 @@ export type ChatbotTaskProgress = {
   phase: "preparing" | "exploring" | "implementing" | "testing" | "reviewing";
   summary: string;
   sessionId?: string;
-  kind?: "trace";
+  kind?: "trace" | "action";
   completion?: "pull_request_merged";
   timing?: { stage: string; durationMs: number };
 };

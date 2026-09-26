@@ -82,7 +82,7 @@ describe("Codex App Server manager", () => {
     expect(progress).toContainEqual({
       phase: "exploring",
       summary: "Inspecting the task.",
-      kind: "trace",
+      kind: "action",
     });
     expect(progress).toContainEqual({
       phase: "reviewing",
