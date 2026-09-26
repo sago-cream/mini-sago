@@ -321,7 +321,8 @@ describe("Discord chatbot", () => {
           jobId: answerJob.job.id,
           progress: {
             phase: "exploring",
-            summary: "Inspecting the Discord task bridge.",
+            summary:
+              "### Inspecting the Discord task bridge.\nChecking progress delivery.\n\n-# Reviewing the result.",
             kind: "trace",
           },
         }),
@@ -342,6 +343,15 @@ describe("Discord chatbot", () => {
             (body as { content?: string })?.content === "done",
         ),
       );
+      expect(
+        discordCalls.find(
+          ({ path }) => path === "/channels/coding-thread/messages",
+        )?.body,
+      ).toEqual({
+        content:
+          "-# Inspecting the Discord task bridge.\n-# Checking progress delivery.\n\n-# Reviewing the result.",
+        allowed_mentions: { parse: [] },
+      });
       expect(
         discordCalls.some(
           ({ path, method }) =>

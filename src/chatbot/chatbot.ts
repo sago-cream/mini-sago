@@ -452,6 +452,20 @@ export function formatDiscordAnswer(content: string) {
   return limitDiscordMessage(normalizeDiscordAnswer(content));
 }
 
+function formatDiscordTrace(content: string) {
+  return formatDiscordAnswer(
+    content
+      .trim()
+      .split(/\r?\n/u)
+      .map((line) =>
+        line.trim()
+          ? `-# ${line.trim().replace(/^(?:#{1,6}|-#)[ \t]+/u, "")}`
+          : "",
+      )
+      .join("\n"),
+  );
+}
+
 function splitDiscordAnswer(content: string) {
   const parts: string[] = [];
   let part: string[] = [];
@@ -863,7 +877,7 @@ class DeveloperTaskRegistry {
           {
             method: "POST",
             body: {
-              content: formatDiscordAnswer(content),
+              content: formatDiscordTrace(content),
               allowed_mentions: { parse: [] },
             },
           },
