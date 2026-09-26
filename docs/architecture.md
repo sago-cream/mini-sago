@@ -202,10 +202,10 @@ as bounded metadata when a requester asks about a previous answer.
 
 ## Background features
 
-The Gateway also handles Instagram link replies, quick-reply nudges, voice
-state, and optional ambient reactions. Ambient messages are buffered without a
-model call; a bounded delayed evaluation may add at most one validated reaction
-and never produces an unsolicited reply.
+The Gateway also handles Instagram, Twitter/X, and Threads embeds, quick-reply
+nudges, voice state, and optional ambient reactions. Ambient messages are buffered
+without a model call; a bounded delayed evaluation may add at most one validated
+reaction and never produces an unsolicited reply.
 
 Scheduled monitors and the GitHub webhook use persistent files for idempotency.
 See [Configuration](configuration.md#persistent-state) for their paths and
