@@ -2,6 +2,7 @@ import {
     Bell,
     BookOpen,
     CalendarDays,
+    CircleHelp,
     Code2,
     FileImage,
     FolderSearch,
@@ -74,14 +75,19 @@ export const AUDIENCE_GROUPS = [
     readonly description: string;
 }>;
 
-export const ACCESS_LABELS = [
-    '一般功能',
-    '需設定',
-    '擁有者限定',
-    '開發中',
-] as const;
-
 export const FEATURES = [
+    {
+        id: 'help',
+        audience: 'general',
+        category: '聊天與記憶',
+        title: '她能幫什麼？',
+        description: '不知道從哪開始？問她能做什麼、怎麼用。',
+        example: '@迷你西米露 你能幫我做什麼？',
+        access: '一般功能',
+        note: '功能依伺服器與頻道設定開放。',
+        icon: CircleHelp,
+        guide: 'docs/discord-setup.md',
+    },
     {
         id: 'chat',
         audience: 'general',

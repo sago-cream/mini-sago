@@ -1,11 +1,9 @@
 # MiniSago website
 
-A one-page Next.js feature guide, scaffolded with `npm create rail`. Browse
-capabilities by audience, copy example requests, or search and filter the same
-catalogue. All audience and access labels are visible and can be selected independently.
-Examples can be hidden for a compact overview.
-The page also introduces Sago's strengths, offers a first-message example beside the catalogue,
-and links to the public bot's Discord server invitation.
+A one-page Next.js feature guide, scaffolded with `npm create rail`. Capabilities
+are grouped by audience, with copyable example requests and expandable usage
+conditions. The first card shows how to ask Sago what she can do. The page also
+introduces her strengths and links to the public bot's Discord server invitation.
 
 From the repository root:
 

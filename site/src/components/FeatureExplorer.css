@@ -2,10 +2,10 @@
     padding-block: 48px 64px;
 }
 .feature-heading {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: center;
-    gap: 40px;
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 24px;
     margin-bottom: 32px;
 }
 .feature-heading h2 {
@@ -15,159 +15,6 @@
     margin-top: 8px;
     color: var(--clr-text-muted);
     font-size: 14px;
-}
-.first-message {
-    padding: 20px 24px;
-    border-radius: 16px;
-    background: var(--clr-lilac);
-}
-.first-message .feature-prompt {
-    padding: 0;
-    font-size: 15px;
-}
-.feature-search {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    gap: 12px;
-    padding-inline: 16px;
-    background: var(--clr-surface);
-    border: 1px solid var(--clr-border);
-    border-radius: 16px;
-    color: var(--clr-text-muted);
-}
-.feature-search:focus-within {
-    border-color: var(--clr-accent);
-    outline: 3px solid var(--clr-lilac);
-    outline-offset: 2px;
-}
-.feature-search input {
-    width: 100%;
-    min-width: 0;
-    height: 56px;
-    border: 0;
-    background: transparent;
-    font-size: 15px;
-}
-.feature-search input::-webkit-search-cancel-button {
-    display: none;
-}
-.feature-search input:focus-visible {
-    outline: none;
-}
-.feature-search button {
-    display: grid;
-    place-items: center;
-    border: 0;
-    background: transparent;
-    width: 44px;
-    height: 44px;
-    flex-shrink: 0;
-    border-radius: 8px;
-}
-.feature-filters {
-    display: grid;
-    gap: 16px;
-    padding-top: 20px;
-}
-.filter-help {
-    color: var(--clr-text-muted);
-    font-size: 13px;
-}
-.filter-set {
-    border: 0;
-    padding: 0;
-    margin: 0;
-    min-width: 0;
-}
-.filter-set legend {
-    padding: 0;
-    margin-bottom: 8px;
-    font-size: 14px;
-    font-weight: 600;
-}
-.filter-choices {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-.filter-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    min-height: 44px;
-    border: 1px solid var(--clr-border);
-    border-radius: 12px;
-    background: var(--clr-surface);
-    font-size: 14px;
-    cursor: pointer;
-}
-.filter-chip:has(input:checked) {
-    background: color-mix(in srgb, var(--clr-teal) 24%, var(--clr-surface));
-    border-color: var(--clr-teal);
-    color: var(--clr-teal-ink);
-}
-.filter-chip input,
-.example-toggle input {
-    width: 16px;
-    height: 16px;
-    margin: 0;
-}
-.filter-chip input {
-    accent-color: var(--clr-teal-ink);
-}
-.filter-count {
-    font-variant-numeric: tabular-nums;
-    font-size: 12px;
-    color: var(--clr-text-muted);
-}
-.filter-actions {
-    display: flex;
-    gap: 4px;
-}
-.filter-actions button {
-    border: 0;
-    background: transparent;
-    color: var(--clr-text-muted);
-    font-size: 13px;
-    min-height: 44px;
-    padding-inline: 12px;
-    border-radius: 8px;
-}
-.filter-actions button:hover {
-    color: var(--clr-accent);
-    background: var(--clr-lilac);
-}
-.feature-meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 72px;
-    flex-wrap: wrap;
-    gap: 8px;
-    font-variant-numeric: tabular-nums;
-    font-size: 13px;
-    color: var(--clr-text-muted);
-}
-.feature-meta button {
-    border: 0;
-    background: transparent;
-    padding-inline: 8px;
-    font-size: 13px;
-}
-.feature-display-controls {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: start;
-    gap: 20px;
-}
-.example-toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 44px;
-    cursor: pointer;
 }
 .feature-group + .feature-group {
     margin-top: 48px;
@@ -245,44 +92,18 @@
     color: var(--clr-teal-ink);
     font-size: 14px;
 }
-.empty-state {
-    text-align: center;
-    padding-block: 64px;
-    color: var(--clr-text-muted);
-}
-.empty-state h3 {
-    font-size: 20px;
-    color: var(--clr-text);
-    margin-block: 12px 8px;
-}
-.empty-state p {
-    font-size: 14px;
-}
 @media (max-width: 900px) {
     .feature-list {
         grid-template-columns: 1fr;
     }
     .feature-heading {
-        grid-template-columns: 1fr;
-        gap: 20px;
+        flex-direction: column;
+        gap: 8px;
     }
 }
 @media (max-width: 600px) {
     .feature-section {
         padding-top: 32px;
-    }
-    .first-message {
-        padding: 16px;
-    }
-    .feature-meta {
-        padding-block: 16px;
-    }
-    .feature-display-controls {
-        width: 100%;
-        gap: 16px;
-    }
-    .filter-chip {
-        font-size: 13px;
     }
     .feature-row summary {
         grid-template-columns: 20px 1fr 20px;
