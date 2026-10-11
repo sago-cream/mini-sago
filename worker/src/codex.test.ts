@@ -502,7 +502,8 @@ describe("Codex chatbot runner", () => {
     expect(prompt).toContain('"id":"conversation"');
     expect(prompt).toContain("<available_reactions_json>");
     expect(prompt).toContain("sago:emoji-1");
-    expect(prompt).toContain("Return at least one of reply or reaction");
+    expect(prompt).toContain("replyDelivered:true");
+    expect(prompt).toContain("Return reply:null and reaction:null");
     expect(prompt).toContain(
       "exact media ID returned by the request-local tool",
     );

@@ -2,7 +2,10 @@ import { createCcxpSyncClient } from "./ccxp-sync";
 import { WebhookLoopTracker } from "./webhook-loop";
 import { createCcxpMeetingsClient } from "./ccxp-meetings";
 import { timing, type TimingSink } from "../observability/timing";
-import { withCalendarConfirmation } from "./calendar-confirmation";
+import {
+  withCalendarConfirmation,
+  updateCalendarDraftDiscussion,
+} from "./calendar-confirmation";
 import { searchThreads } from "./threads-search";
 import { randomUUID } from "node:crypto";
 
@@ -342,6 +345,7 @@ export type ChatbotInvocation = {
   chatOnly?: boolean;
   recentContext?: boolean;
   silent?: boolean;
+  dismiss?: () => Promise<void>;
   respond?: (
     content: string | string[] | null,
     files?: ChatbotOutgoingFile[],
@@ -2013,7 +2017,7 @@ export async function handleChatbotMention({
     );
     reply = decision.reply;
     reacted ||= decision.reacted;
-  } else {
+  } else if (!mcpSnapshot.calendarDraftId) {
     reply = chatbotFailureReply(result.failureKind);
   }
 
@@ -2031,17 +2035,39 @@ export async function handleChatbotMention({
   if (mcpSnapshot.searchUnavailable && reply) {
     reply = `我剛剛翻不到伺服器的舊訊息 這次回答可能不太完整\n\n${reply}`;
   }
-  if (!reply && !reacted && files.length === 0) {
+  if (
+    !reply &&
+    !reacted &&
+    files.length === 0 &&
+    !mcpSnapshot.calendarDraftId
+  ) {
     reply = "我剛剛卡住了 晚點再叫我一次";
   }
+  if (mcpSnapshot.calendarDraftId && !invocation)
+    conversationTracker?.activate(message.channel_id, requesterUserId);
   if (reply || files.length > 0) {
     const content = reply ? formatDiscordAnswers(reply) : null;
-    await clock.span("host.reply_delivery", () => respond(content, files));
+    await clock.span("host.reply_delivery", async () => {
+      if (
+        mcpSnapshot.calendarDraftId &&
+        reply &&
+        files.length === 0 &&
+        (await updateCalendarDraftDiscussion(
+          mcpSnapshot.calendarDraftId,
+          content?.join("\n\n") ?? "",
+          discordRequest,
+        ))
+      )
+        return;
+      await respond(content, files);
+    });
     clock.mark("handler.completed");
     if (!invocation) {
       conversationTracker?.activate(message.channel_id, requesterUserId);
     }
   }
 
+  if (mcpSnapshot.calendarDraftId && files.length === 0)
+    await invocation?.dismiss?.();
   return true;
 }

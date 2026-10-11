@@ -447,6 +447,7 @@ export type ChatbotMcpSessionHandlers = {
 };
 
 type ChatbotMcpSession = {
+  calendarDraftId?: string;
   expiresAt: number;
   handlers: ChatbotMcpSessionHandlers;
   searchUnavailable: boolean;
@@ -454,6 +455,7 @@ type ChatbotMcpSession = {
 };
 
 export type ChatbotMcpSessionSnapshot = {
+  calendarDraftId?: string;
   searchUnavailable: boolean;
 };
 
@@ -958,8 +960,15 @@ function createServer(session: ChatbotMcpSession) {
             openWorldHint: true,
           },
         },
-        async (input: unknown) =>
-          toolResult(await session.handlers.calendar!.call(name, input)),
+        async (input: unknown) => {
+          const result = await session.handlers.calendar!.call(name, input);
+          if (
+            result.replyDelivered === true &&
+            typeof result.calendarDraftId === "string"
+          )
+            session.calendarDraftId = result.calendarDraftId;
+          return toolResult(result);
+        },
       );
     }
   }
@@ -1652,6 +1661,9 @@ export function registerChatbotMcpSession(
     extend,
     snapshot: (): ChatbotMcpSessionSnapshot => ({
       searchUnavailable: session.searchUnavailable,
+      ...(session.calendarDraftId
+        ? { calendarDraftId: session.calendarDraftId }
+        : {}),
     }),
     revoke: () => sessions.delete(token),
   };

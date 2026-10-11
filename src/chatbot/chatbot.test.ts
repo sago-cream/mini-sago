@@ -2636,3 +2636,175 @@ describe("Discord chatbot", () => {
     expect(formatDiscordAnswer(longAnswer).endsWith("…")).toBe(true);
   });
 });
+
+test.each([
+  [null, false, false],
+  ["辦公室在二樓。", false, false],
+  [null, true, false],
+  ["辦公室在二樓。", true, false],
+  [null, false, true],
+  [null, true, true],
+] as const)(
+  "calendar tool delivery keeps one bot message (additional reply: %s, private command: %s, worker failure: %s)",
+  async (reply, privateCommand, workerFailure) => {
+    const { mkdtempSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const dir = mkdtempSync(join(tmpdir(), "calendar-chatbot-"));
+    let dismissed = 0;
+    const env = {
+      MINISAGO_WORKER_BRIDGE_SECRET:
+        "calendar-chatbot-test-secret-at-least-32-bytes",
+      DISCORD_CALENDAR_ID: "events_test@group.calendar.google.com",
+      DISCORD_CALENDAR_OAUTH_JSON: JSON.stringify({
+        client_id: "test.apps.googleusercontent.com",
+        client_secret: "test",
+        refresh_token: "test",
+      }),
+      MINISAGO_CALENDAR_DRAFTS_FILE: join(dir, "drafts.json"),
+    };
+    const saved = Object.fromEntries(
+      Object.keys(env).map((key) => [key, process.env[key]]),
+    );
+    Object.assign(process.env, env);
+    const sent: string[] = [];
+    const socket = {
+      data: { authenticated: false },
+      send: (value: string) => sent.push(value),
+      close: () => undefined,
+    } as unknown as ServerWebSocket<MacAgentSocketData>;
+    const calls: { path: string; method?: string; body: any }[] = [];
+    const server = Bun.serve({ port: 0, fetch: handleChatbotMcpRequest });
+    let client: Client | undefined;
+    try {
+      macAgentBridge.open(socket);
+      macAgentBridge.message(
+        socket,
+        JSON.stringify({
+          type: "authenticate",
+          protocolVersion: CHATBOT_PROTOCOL_VERSION,
+          secret: env.MINISAGO_WORKER_BRIDGE_SECRET,
+          workerId: "oracle",
+          repositories: [],
+        }),
+      );
+      macAgentBridge.message(
+        socket,
+        JSON.stringify({ type: "availability", available: true, capacity: 1 }),
+      );
+      const handled = handleChatbotMention({
+        message: {
+          id: "calendar-request",
+          channel_id: "calendar-channel",
+          guild_id: "1514899496797212683",
+          content: `<@${BOT_ID}> 幫我排討論`,
+          timestamp: new Date().toISOString(),
+          author: { id: ACCESS_CONFIG.ownerUserId },
+          mentions: [{ id: BOT_ID }],
+        },
+        botUserId: BOT_ID,
+        accessConfig: ACCESS_CONFIG,
+        ...(privateCommand
+          ? {
+              invocation: {
+                request: "幫我排討論",
+                addressingMode: "mention" as const,
+                silent: true,
+                dismiss: async () => {
+                  dismissed++;
+                },
+              },
+            }
+          : {}),
+        executionOptions: {
+          lazyPreviousTrace: true,
+          routeRequest: async () => JSON.stringify({ route: "chat" }),
+        },
+        guildMemoryStore: {
+          ensure: async () => ({ revision: 0, entries: [] }) as never,
+          mutate: async () => ({}) as never,
+        },
+        discordRequest: (async (path, options) => {
+          calls.push({ path, method: options?.method, body: options?.body });
+          if (path.includes("/members/"))
+            return { user: { id: ACCESS_CONFIG.ownerUserId }, roles: [] };
+          if (options?.method === "POST") return { id: "calendar-preview" };
+          return [];
+        }) as DiscordRequest,
+      });
+      const job = await waitFor(() =>
+        sent
+          .map((value) => JSON.parse(value))
+          .find(
+            (value) => value.type === "job" && value.job.purpose === "answer",
+          ),
+      );
+      client = new Client({ name: "calendar-chatbot-test", version: "1" });
+      await client.connect(
+        new StreamableHTTPClientTransport(
+          new URL(`http://localhost:${server.port}/api/chatbot/mcp`),
+          {
+            requestInit: {
+              headers: { Authorization: `Bearer ${job.job.mcpAccessToken}` },
+            },
+          },
+        ),
+      );
+      const prepared = await client.callTool({
+        name: "create_calendar_event",
+        arguments: {
+          title: "Meeting",
+          operationKey: "meeting",
+          schedule: {
+            kind: "timed",
+            start: "2026-10-12T15:00:00+08:00",
+            end: "2026-10-12T16:00:00+08:00",
+          },
+        },
+      });
+      expect(prepared.isError).not.toBe(true);
+      expect(JSON.stringify(prepared)).toContain("awaiting_confirmation");
+      macAgentBridge.message(
+        socket,
+        JSON.stringify({
+          type: "result",
+          jobId: job.job.id,
+          ok: !workerFailure,
+          ...(workerFailure
+            ? { error: "Worker stopped", failureKind: "internal" }
+            : { content: JSON.stringify({ reply, reaction: null }) }),
+        }),
+      );
+      expect(await handled).toBe(true);
+      const posts = calls.filter(
+        (call) =>
+          call.method === "POST" &&
+          call.path === "/channels/calendar-channel/messages",
+      );
+      expect(posts).toHaveLength(1);
+      expect(dismissed).toBe(privateCommand ? 1 : 0);
+      expect(posts[0].body.embeds[0].title).toBe("Meeting");
+      expect(JSON.stringify(calls)).not.toContain("我剛剛卡住了");
+      expect(JSON.stringify(calls)).not.toContain("我這次沒完成");
+      const patches = calls.filter(
+        (call) =>
+          call.method === "PATCH" &&
+          call.path === "/channels/calendar-channel/messages/calendar-preview",
+      );
+      if (reply) {
+        expect(patches).toHaveLength(1);
+        expect(patches[0].body.content).toBe(reply);
+        expect(patches[0].body.embeds[0].author.name).toBe("待你確認");
+      } else expect(patches).toHaveLength(0);
+    } finally {
+      await client?.close();
+      server.stop(true);
+      macAgentBridge.close(socket);
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  },
+);

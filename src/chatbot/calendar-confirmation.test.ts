@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   handleCalendarConfirmation,
+  expireCalendarDrafts,
+  updateCalendarDraftDiscussion,
   withCalendarConfirmation,
 } from "./calendar-confirmation";
 import {
@@ -59,7 +61,7 @@ function fixture() {
   };
   const discord = (async (path, options) => {
     messages.push({ path, body: options?.body });
-    return {};
+    return { id: "preview1" };
   }) as DiscordRequest;
   const context = {
     guildId: CALENDAR_GUILD_ID,
@@ -112,8 +114,8 @@ test("only the requester can confirm the immutable preview; repeated clicks do n
     "awaiting_confirmation",
   );
   expect(f.mutations).toHaveLength(0);
-  expect(f.messages[0].body.content).toContain("guest@example.com");
-  expect(f.messages[0].body.content).toContain("2026-09-21 15:00");
+  expect(JSON.stringify(f.messages[0].body)).toContain("guest@example.com");
+  expect(JSON.stringify(f.messages[0].body)).toContain("2026-09-21 15:00");
   await f.wrapped.call("create_calendar_event", booking);
   expect(f.messages).toHaveLength(1);
   await handleCalendarConfirmation(
@@ -135,7 +137,9 @@ test("only the requester can confirm the immutable preview; repeated clicks do n
   ]);
   await handleCalendarConfirmation(f.button(), f.discord, {}, () => f.client);
   expect(f.mutations).toHaveLength(1);
-  expect(f.messages.at(-2)?.body.components).toEqual([]);
+  expect(JSON.stringify(f.messages.at(-2)?.body.components)).not.toContain(
+    "calendar:confirm:",
+  );
 });
 
 test("cancelled and expired drafts cannot create events", async () => {
@@ -161,8 +165,8 @@ test("edit preview preserves omitted fields and attendees and rejects a stale pr
   const f = fixture();
   const input = { eventId: "event1", etag: "version1", title: "After" };
   await f.wrapped.call("edit_calendar_event", input);
-  expect(f.messages[0].body.content).toContain("existing@example.com");
-  expect(f.messages[0].body.content).toContain("2026-09-21");
+  expect(JSON.stringify(f.messages[0].body)).toContain("existing@example.com");
+  expect(JSON.stringify(f.messages[0].body)).toContain("2026-09-21");
   expect(f.mutations).toHaveLength(0);
   await handleCalendarConfirmation(f.button(), f.discord, {}, () => f.client);
   expect(f.mutations).toEqual([{ name: "edit_calendar_event", input }]);
@@ -243,9 +247,9 @@ test("deletion previews the exact event and notifies only after requester confir
     "awaiting_confirmation",
   );
   expect(f.mutations).toHaveLength(0);
-  expect(f.messages[0].body.content).toContain("確認刪除活動");
-  expect(f.messages[0].body.content).toContain("discord-calendar");
-  expect(f.messages[0].body.content).toContain("existing@example.com");
+  expect(JSON.stringify(f.messages[0].body)).toContain("確認刪除");
+  expect(JSON.stringify(f.messages[0].body)).toContain("discord-calendar");
+  expect(JSON.stringify(f.messages[0].body)).toContain("existing@example.com");
   expect(f.messages[0].body.components[0].components[0].style).toBe(4);
   await handleCalendarConfirmation(f.button(), f.discord, {}, () => f.client);
   expect(f.mutations).toEqual([{ name: "delete_calendar_event", input }]);
@@ -257,14 +261,14 @@ test("office preview distinguishes requesting the room from an accepted reservat
     ...booking,
     useOffice: true,
   });
-  expect(f.messages[0].body.content).toContain(
-    "邀請會辦日曆；接受後才算預約成功",
+  expect(JSON.stringify(f.messages[0].body)).toContain(
+    "discord-calendar · 會辦",
   );
   await handleCalendarConfirmation(f.button(), f.discord, {}, () => ({
     ...f.client,
     call: async () => ({ status: "complete", officeReservation: "pending" }),
   }));
-  expect(f.messages.at(-1)?.body.content).toContain("不能視為預約成功");
+  expect(f.messages.at(-1)?.body.embeds[0].author.name).toContain("會辦待回覆");
 });
 
 test("configuration changes and legacy drafts cannot be confirmed against another calendar", async () => {
@@ -317,9 +321,11 @@ test("raw calendar recipients cannot publish a preview and moving away explicitl
       })
     ).status,
   ).toBe("awaiting_confirmation");
-  expect(f.messages[0].body.content).toContain("取消會辦邀請；不使用");
-  expect(f.messages[0].body.content).toContain("guest@example.com");
-  expect(f.messages[0].body.content).not.toContain(config.officeCalendarId);
+  expect(JSON.stringify(f.messages[0].body)).toContain("邀請 → 不使用");
+  expect(JSON.stringify(f.messages[0].body)).toContain("guest@example.com");
+  expect(JSON.stringify(f.messages[0].body)).not.toContain(
+    config.officeCalendarId,
+  );
   expect(f.mutations).toHaveLength(0);
 });
 
@@ -378,5 +384,278 @@ test("losing the allowed role after a preview prevents confirmation from reachin
   );
   expect(calls).toBe(0);
   expect(f.mutations).toHaveLength(0);
-  expect(f.messages.at(-1)?.body.content).toContain("活動操作尚未完成");
+  expect(f.messages.at(-1)?.body.embeds[0].author.name).toContain(
+    "日曆暫時無法使用",
+  );
+});
+
+test("one calendar message progresses through saving to a concise receipt", async () => {
+  const f = fixture();
+  const result = await f.wrapped.call("create_calendar_event", booking);
+  expect(result.replyDelivered).toBe(true);
+  expect(f.messages[0].body.content).toBe("");
+  expect(f.messages[0].body.embeds[0]).toMatchObject({
+    author: { name: "待你確認" },
+    title: "Meeting",
+  });
+  expect(JSON.stringify(f.messages[0].body)).not.toContain("確認後");
+  expect(JSON.stringify(f.messages[0].body)).not.toContain("預約成功");
+  await handleCalendarConfirmation(f.button(), f.discord, {}, () => f.client);
+  const saving = f.messages[1].body;
+  expect(saving.type).toBe(7);
+  expect(saving.data.embeds[0].author.name).toBe("建立中…");
+  expect(saving.data.components[0].components[0].disabled).toBe(true);
+  expect(f.messages.at(-1)?.body.embeds[0].author.name).toBe("已建立");
+  expect(f.messages.at(-1)?.body.embeds[0].description).toContain(
+    "guest@example.com",
+  );
+  expect(
+    f.messages.filter((m) => m.path === "/channels/channel1/messages"),
+  ).toHaveLength(1);
+});
+
+test("expiry edits the original message and refresh requires a new confirmation ID", async () => {
+  const f = fixture();
+  await f.wrapped.call("create_calendar_event", booking);
+  const stored = JSON.parse(readFileSync(f.path, "utf8"));
+  stored[0].expires = Date.now() - 1;
+  writeFileSync(f.path, JSON.stringify(stored));
+  await expireCalendarDrafts(f.discord);
+  expect(f.messages.at(-1)?.path).toBe("/channels/channel1/messages/preview1");
+  expect(f.messages.at(-1)?.body.content).toBe("「Meeting」草稿已過期。");
+  expect(f.messages.at(-1)?.body.components[0].components[0].label).toBe(
+    "重新預覽",
+  );
+  await handleCalendarConfirmation(
+    f.button("refresh"),
+    f.discord,
+    {},
+    () => f.client,
+  );
+  const fresh = JSON.parse(readFileSync(f.path, "utf8")).find(
+    (d: any) => !d.result,
+  );
+  expect(fresh.id).not.toBe(stored[0].id);
+  expect(fresh.responseMessageId).toBe("preview1");
+  expect(f.messages.at(-1)?.body.embeds[0].author.name).toBe("待你確認");
+  await handleCalendarConfirmation(f.button(), f.discord, {}, () => f.client);
+  expect(f.mutations).toHaveLength(0);
+  await handleCalendarConfirmation(
+    { ...f.button(), data: { custom_id: `calendar:confirm:${fresh.id}` } },
+    f.discord,
+    {},
+    () => f.client,
+  );
+  expect(f.mutations).toHaveLength(1);
+});
+
+test("stale events refresh their etag and diff without applying the old approval", async () => {
+  const f = fixture();
+  await f.wrapped.call("edit_calendar_event", {
+    eventId: "event1",
+    etag: "version1",
+    title: "After",
+  });
+  await handleCalendarConfirmation(f.button(), f.discord, {}, () => ({
+    config,
+    call: async () => ({ status: "unavailable", failureKind: "stale" }),
+  }));
+  expect(f.messages.at(-1)?.body.embeds[0].author.name).toBe("活動已變更");
+  await handleCalendarConfirmation(f.button(), f.discord, {}, () => f.client);
+  expect(f.mutations).toHaveLength(0);
+  const oldCall = f.client.call;
+  f.client.call = async (name, input) =>
+    name === "get_calendar_event"
+      ? {
+          status: "complete",
+          event: {
+            id: "event1",
+            etag: "version2",
+            summary: "Someone changed it",
+            start: { date: "2026-09-21" },
+            end: { date: "2026-09-22" },
+          },
+        }
+      : oldCall(name, input);
+  await handleCalendarConfirmation(
+    f.button("refresh"),
+    f.discord,
+    {},
+    () => f.client,
+  );
+  const fresh = JSON.parse(readFileSync(f.path, "utf8")).find(
+    (d: any) => !d.result,
+  );
+  expect(fresh.input.etag).toBe("version2");
+  expect(f.messages.at(-1)?.body.embeds[0].description).toContain(
+    "Someone changed it → After",
+  );
+  expect(f.mutations).toHaveLength(0);
+});
+
+test("uncertain writes can only be read back, including after a host restart", async () => {
+  const f = fixture();
+  await f.wrapped.call("create_calendar_event", booking);
+  let writes = 0;
+  const client: GoogleCalendarClient = {
+    config,
+    call: async (name) => {
+      if (name !== "get_calendar_event") {
+        writes++;
+        return { status: "unavailable", failureKind: "uncertain" };
+      }
+      return {
+        status: "complete",
+        event: {
+          id: "event1",
+          summary: "Meeting",
+          start: { dateTime: booking.schedule.start },
+          end: { dateTime: booking.schedule.end },
+          attendees: [{ email: "guest@example.com" }],
+        },
+        officeReservation: "not_requested",
+      };
+    },
+  };
+  await handleCalendarConfirmation(f.button(), f.discord, {}, () => client);
+  expect(f.messages.at(-1)?.body.embeds[0].author.name).toBe("結果未確認");
+  expect(f.messages.at(-1)?.body.components[0].components[0].label).toBe(
+    "查詢結果",
+  );
+  await handleCalendarConfirmation(f.button(), f.discord, {}, () => client);
+  await handleCalendarConfirmation(
+    f.button("cancel"),
+    f.discord,
+    {},
+    () => client,
+  );
+  expect(writes).toBe(1);
+  const stored = JSON.parse(readFileSync(f.path, "utf8"));
+  stored[0].state = "saving";
+  writeFileSync(f.path, JSON.stringify(stored));
+  await expireCalendarDrafts(f.discord);
+  expect(f.messages.at(-1)?.body.embeds[0].author.name).toBe("結果未確認");
+  await handleCalendarConfirmation(
+    f.button("verify"),
+    f.discord,
+    {},
+    () => client,
+  );
+  expect(writes).toBe(1);
+  expect(f.messages.at(-1)?.body.embeds[0].author.name).toBe("已建立");
+});
+
+test("room status refresh updates the receipt without another calendar write", async () => {
+  const f = fixture();
+  await f.wrapped.call("create_calendar_event", {
+    ...booking,
+    useOffice: true,
+  });
+  let writes = 0;
+  const client: GoogleCalendarClient = {
+    config,
+    call: async (name) => {
+      if (name === "get_calendar_event")
+        return {
+          status: "complete",
+          event: {
+            id: "event1",
+            summary: "Meeting",
+            start: { dateTime: booking.schedule.start },
+            end: { dateTime: booking.schedule.end },
+            attendees: [
+              { email: config.officeCalendarId },
+              { email: "guest@example.com" },
+            ],
+          },
+          officeReservation: "accepted",
+        };
+      writes++;
+      return {
+        status: "complete",
+        event: { id: "event1" },
+        officeReservation: "pending",
+      };
+    },
+  };
+  await handleCalendarConfirmation(f.button(), f.discord, {}, () => client);
+  expect(f.messages.at(-1)?.body.embeds[0].author.name).toContain("會辦待回覆");
+  await handleCalendarConfirmation(
+    f.button("office"),
+    f.discord,
+    {},
+    () => client,
+  );
+  expect(f.messages.at(-1)?.body.embeds[0].author.name).toContain("會辦已接受");
+  expect(JSON.stringify(f.messages.at(-1)?.body.components)).not.toContain(
+    "calendar:office:",
+  );
+  expect(writes).toBe(1);
+  expect(
+    f.messages.filter((m) => m.path === "/channels/channel1/messages"),
+  ).toHaveLength(1);
+});
+
+test("other answers join the calendar message and survive completion", async () => {
+  const f = fixture();
+  const preview = await f.wrapped.call("create_calendar_event", booking);
+  let finish!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const confirming = handleCalendarConfirmation(
+    f.button(),
+    f.discord,
+    {},
+    () => ({
+      config,
+      call: async () => {
+        await pending;
+        return { status: "complete" };
+      },
+    }),
+  );
+  expect(
+    await updateCalendarDraftDiscussion(
+      String(preview.calendarDraftId),
+      "辦公室在二樓。",
+      f.discord,
+    ),
+  ).toBe(true);
+  finish();
+  await confirming;
+  expect(f.messages.at(-1)?.body.content).toBe("辦公室在二樓。");
+  expect(f.messages.at(-1)?.body.embeds[0].author.name).toBe("已建立");
+  expect(JSON.stringify(f.messages.at(-1)?.body.components)).not.toContain(
+    "calendar:confirm:",
+  );
+  expect(
+    f.messages.filter((m) => m.path === "/channels/channel1/messages"),
+  ).toHaveLength(1);
+});
+
+test("long event titles and additional answers stay within Discord message limits", async () => {
+  const f = fixture();
+  const preview = await f.wrapped.call("create_calendar_event", {
+    ...booking,
+    title: "x".repeat(300),
+  });
+  const payload = f.messages[0].body;
+  expect(payload.embeds[0].title.length).toBeLessThanOrEqual(256);
+  expect(payload.embeds[0].description).toContain("x".repeat(300));
+  await updateCalendarDraftDiscussion(
+    String(preview.calendarDraftId),
+    "y".repeat(1900),
+    f.discord,
+  );
+  await handleCalendarConfirmation(
+    f.button("cancel"),
+    f.discord,
+    {},
+    () => f.client,
+  );
+  const cancelled = f.messages.at(-1)?.body.data;
+  expect(cancelled.content.length).toBeLessThanOrEqual(2000);
+  expect(cancelled.embeds[0].description).toContain("已取消");
+  expect(cancelled.components).toEqual([]);
 });

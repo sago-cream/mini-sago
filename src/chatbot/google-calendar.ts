@@ -198,7 +198,29 @@ function eventFields(input: {
   }
   return result;
 }
-class CalendarError extends Error {}
+type CalendarFailureKind =
+  | "retryable"
+  | "uncertain"
+  | "stale"
+  | "unavailable"
+  | "not_found"
+  | "invalid";
+class CalendarError extends Error {
+  constructor(
+    message: string,
+    readonly kind: CalendarFailureKind = "invalid",
+  ) {
+    super(message);
+  }
+}
+export function calendarCreatedEventId(
+  calendarId: string,
+  guildId: string,
+  messageId: string,
+  operationKey: string,
+) {
+  return digest(`${calendarId}:${guildId}:${messageId}:${operationKey}`);
+}
 const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
@@ -362,6 +384,15 @@ export function createGoogleCalendarClient(
       throw new CalendarError(
         errors[response.status] ??
           "Google Calendar request failed. Read the event before retrying an edit; reuse the same operationKey when retrying creation.",
+        response.status >= 500
+          ? "uncertain"
+          : response.status === 412
+            ? "stale"
+            : response.status === 429
+              ? "retryable"
+              : response.status === 404 || response.status === 410
+                ? "not_found"
+                : "unavailable",
       );
     }
     return (await response.json()) as CalendarEvent;
@@ -481,7 +512,12 @@ export function createGoogleCalendarClient(
       raw: unknown,
     ): Promise<Record<string, unknown>> {
       try {
-        if (!(await allowed())) return { status: "forbidden" };
+        if (!(await allowed()))
+          return {
+            status: "forbidden",
+            failureKind: "unavailable",
+            error: "Calendar access is unavailable here.",
+          };
         calendarSchemas[name].parse(raw);
         if (name === "list_calendar_events") {
           const input = calendarSchemas.list_calendar_events.parse(raw);
@@ -525,8 +561,11 @@ export function createGoogleCalendarClient(
               ? { attendees: guestList.attendees }
               : {}),
           };
-          const id = digest(
-            `${config!.calendarId}:${context.guildId}:${context.messageId}:${input.operationKey}`,
+          const id = calendarCreatedEventId(
+            config!.calendarId,
+            context.guildId!,
+            context.messageId,
+            input.operationKey,
           );
           const fingerprint = digest(JSON.stringify(event));
           // A successful retry must not conflict with its own accepted office invitation.
@@ -585,6 +624,7 @@ export function createGoogleCalendarClient(
         if (existing.etag !== input.etag)
           throw new CalendarError(
             "Calendar event changed. Read it again and reconcile changes before retrying.",
+            "stale",
           );
         if (existing.recurrence)
           throw new CalendarError(
@@ -633,6 +673,12 @@ export function createGoogleCalendarClient(
       } catch (error) {
         return {
           status: "unavailable",
+          failureKind:
+            error instanceof CalendarError
+              ? error.kind
+              : error instanceof z.ZodError
+                ? "invalid"
+                : "uncertain",
           error:
             error instanceof CalendarError
               ? error.message
