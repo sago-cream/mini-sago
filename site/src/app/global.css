@@ -17,12 +17,12 @@ body {
 }
 #main {
     --strength-wave-height: 160px;
-    --strength-overlap: 32px;
+    --strength-overlap: 64px;
 }
 @media (max-width: 600px) {
     #main {
         --strength-wave-height: 80px;
-        --strength-overlap: 16px;
+        --strength-overlap: 40px;
     }
 }
 button,

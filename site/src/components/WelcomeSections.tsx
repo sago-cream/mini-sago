@@ -34,11 +34,11 @@ export function Strengths(): JSX.Element {
             >
                 <path
                     className='strength-wave-desktop'
-                    d='M0 8C240 8 520 12 760 20C824 24 848 44 872 88C904 144 1040 148 1200 148H1440V160H0Z'
+                    d='M0 40C240 40 420 40 560 20C640 8 696 8 760 20C824 24 848 44 872 88C904 144 1040 148 1200 148H1440V160H0Z'
                 />
                 <path
                     className='strength-wave-mobile'
-                    d='M0 16C360 0 1080 0 1440 16V160H0Z'
+                    d='M0 40C400 40 920 48 1160 20C1280 8 1360 8 1440 8V160H0Z'
                 />
             </svg>
             <div className='strength-band-body'>
