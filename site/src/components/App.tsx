@@ -1,16 +1,16 @@
 import type { JSX } from 'react';
 
-import { FeatureWalkthrough } from './FeatureWalkthrough';
+import { FeatureExplorer } from './FeatureExplorer';
 import { Hero } from './Hero';
 import { SiteFooter, SiteHeader } from './SiteChrome';
 
 export function App(): JSX.Element {
     return (
         <>
-            <SiteHeader active='home' />
+            <SiteHeader />
             <main id='main'>
                 <Hero />
-                <FeatureWalkthrough />
+                <FeatureExplorer />
             </main>
             <SiteFooter />
         </>

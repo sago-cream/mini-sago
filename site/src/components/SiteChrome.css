@@ -63,7 +63,6 @@
     transition: color 180ms ease;
 }
 .site-header nav a:hover,
-.site-header nav a[aria-current='page'],
 .text-link:hover {
     color: var(--clr-accent);
 }
@@ -95,14 +94,6 @@
 .button:hover {
     background: #57439f;
     transform: translateY(-2px);
-}
-.button-light {
-    background: white;
-    color: var(--clr-accent);
-    border-color: #dcd6ef;
-}
-.button-light:hover {
-    background: var(--clr-lilac);
 }
 
 h2 {
@@ -182,9 +173,4 @@ h2 {
     .site-footer {
         padding-top: 40px;
     }
-}
-
-button:disabled {
-    cursor: default;
-    opacity: 0.45;
 }

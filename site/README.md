@@ -1,8 +1,8 @@
 # MiniSago website
 
-A Next.js feature guide, scaffolded with `npm create rail`. The homepage walks
-through tasks with example requests. `/features/` offers a compact catalogue
-with search, category and access filters, and links to GitHub guides.
+A one-page Next.js feature guide, scaffolded with `npm create rail`. Browse
+capabilities by task, copy example requests, or search and filter the same
+catalogue. Examples can be hidden for a compact overview.
 
 From the repository root:
 

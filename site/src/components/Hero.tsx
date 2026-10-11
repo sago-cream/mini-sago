@@ -1,7 +1,6 @@
 import type { JSX } from 'react';
 import { ArrowDown, CalendarDays, Heart, MessageCircle } from 'lucide-react';
 import Image from 'next/image';
-import Link from 'next/link';
 
 import './Hero.css';
 
@@ -22,12 +21,9 @@ export function Hero(): JSX.Element {
                         Discord 裡的小事，交給 Sago。
                     </p>
                     <div className='hero-actions'>
-                        <a className='button' href='#walkthrough'>
-                            帶我認識 Sago <ArrowDown size={18} />
+                        <a className='button' href='#features'>
+                            看看 Sago 會什麼 <ArrowDown size={18} />
                         </a>
-                        <Link className='text-link' href='/features/'>
-                            功能速查
-                        </Link>
                     </div>
                 </div>
                 <div className='hero-art'>
