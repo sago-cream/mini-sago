@@ -53,6 +53,7 @@ since midnight in the reminder's timezone. The image thread may be the
 destination or a sibling thread under the same parent channel. A matching image
 skips that day's reminder; its schedule continues. These fields live in
 `MINISAGO_REMINDER_STATE_FILE`; chat edits preserve the condition.
+Image-conditioned reminders send the user mention followed by the stored copy.
 
 `MINISAGO_CCXP_INDEX_PATH` enables read-only CCXP meeting retrieval in guilds
 registered under the owner-managed `ccxp_meetings` feature. Initial registrations

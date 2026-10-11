@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { DiscordRequest } from "../api/request";
 import { shouldSkipImageReminder } from "./reminder-images";
-import { ReminderScheduler, type Reminder } from "./reminders";
+import {
+  formatReminderMessage,
+  ReminderScheduler,
+  type Reminder,
+} from "./reminders";
 
 const reminder: Reminder = {
   id: "test",
@@ -18,6 +22,20 @@ const reminder: Reminder = {
   skipIfImagePosted: { threadId: "789", userId: "123" },
 };
 const now = new Date("2026-09-11T15:00:00Z");
+
+test("drawing reminders use only the mention and requested copy", () => {
+  const content = "今天是不是還沒畫畫";
+  expect(formatReminderMessage({ ...reminder, content })).toBe(
+    "<@123> 今天是不是還沒畫畫",
+  );
+  expect(
+    formatReminderMessage({
+      ...reminder,
+      content,
+      skipIfImagePosted: undefined,
+    }),
+  ).toBe("<@123> ⏰ 今天是不是還沒畫畫");
+});
 const message = (timestamp = "2026-09-10T16:00:00Z", author = "123") => ({
   id: "1000",
   timestamp,
