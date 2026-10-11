@@ -1,0 +1,13 @@
+:root {
+    --clr-bg: #fcfcff;
+    --clr-surface: #fff;
+    --clr-text: #303451;
+    --clr-text-muted: #646981;
+    --clr-accent: #6651ba;
+    --clr-border: #e5e4f2;
+    --clr-lilac: #efebfc;
+    --clr-blue: #e7f4fc;
+    --clr-pink: #fff0f5;
+    --shadow-surface: 0 12px 32px #79709d0d;
+    accent-color: var(--clr-accent);
+}

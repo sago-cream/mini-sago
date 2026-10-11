@@ -1,0 +1,72 @@
+@import '../constants/color.css';
+@import '../constants/font.css';
+* {
+    box-sizing: border-box;
+}
+html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 96px;
+}
+body {
+    margin: 0;
+    min-width: 320px;
+    background: var(--clr-bg);
+    color: var(--clr-text);
+    font: var(--font-body-md);
+    -webkit-font-smoothing: antialiased;
+}
+button,
+input {
+    font: inherit;
+}
+button,
+a,
+summary {
+    -webkit-tap-highlight-color: transparent;
+}
+button {
+    cursor: pointer;
+}
+a {
+    color: inherit;
+    text-decoration: none;
+}
+h1,
+h2,
+h3,
+p {
+    margin: 0;
+}
+h1,
+h2,
+h3 {
+    text-wrap: balance;
+}
+p {
+    text-wrap: pretty;
+}
+button,
+input {
+    color: inherit;
+}
+svg {
+    flex-shrink: 0;
+}
+:focus-visible {
+    outline: 3px solid var(--clr-accent);
+    outline-offset: 4px;
+}
+::selection {
+    background: #ded8ff;
+}
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}
