@@ -2,8 +2,8 @@
 
 A one-page Next.js feature guide, scaffolded with `npm create rail`. Capabilities
 are grouped by audience and familiar activities, such as chatting or processing
-files. Expand an activity for individual uses, copyable examples, and usage
-conditions. Asking what Sago can do is part of chatting. The page also
+files. Each activity has one short description and one example. Setup and access
+information is stated at the audience level. The page also
 introduces her strengths and links to the public bot's Discord server invitation.
 
 From the repository root:
@@ -18,8 +18,7 @@ npm --prefix site run check
 exports a static site to `site/out/`; serve that directory with any static host.
 No bot credentials or backend connection are needed.
 
-Update `src/features.ts` and its activity bundles when capabilities or access requirements change, and
-keep its guide links aligned with `../docs/`.
+Update `src/features.ts` when capabilities or access requirements change.
 Keep `INVITE_URL` aligned with the public application ID and the permissions in
 `../scripts/sync-install-settings.mjs`.
 

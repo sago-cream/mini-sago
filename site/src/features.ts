@@ -6,9 +6,6 @@ export interface Feature {
     readonly title: string;
     readonly description: string;
     readonly example: string;
-    readonly access: '一般功能' | '需設定' | '擁有者限定' | '開發中';
-    readonly note: string;
-    readonly guide: string;
 }
 
 const REPO = 'https://github.com/sago-cream/mini-sago';
@@ -20,27 +17,27 @@ export const AUDIENCE_GROUPS = [
     {
         audience: 'general',
         title: '一般使用者',
-        description: '在已開放的聊天室使用。',
+        description: '在已開放的聊天室使用；部分功能需擁有者先設定。',
     },
     {
         audience: 'nthu',
         title: 'NTHU · 清大',
-        description: '查校園資訊、校務紀錄與校園討論。',
+        description: '',
     },
     {
         audience: 'nthusa',
         title: 'NTHUSA · 清大學生會',
-        description: '學生會文件與會辦行程，依伺服器與身分組開放。',
-    },
-    {
-        audience: 'owner',
-        title: '迷你西米露擁有者',
-        description: '限 迷你西米露擁有者操作；伺服器管理員不會自動取得權限。',
+        description: '依伺服器與身分組開放。',
     },
     {
         audience: 'developer',
         title: '開發協作',
-        description: '由擁有者設定 GitHub 儲存庫與通知頻道。',
+        description: '需擁有者設定 GitHub 儲存庫與通知頻道。',
+    },
+    {
+        audience: 'owner',
+        title: '擁有者',
+        description: '限迷你西米露的擁有者操作。',
     },
 ] as const satisfies ReadonlyArray<{
     readonly audience: Audience;
@@ -50,301 +47,101 @@ export const AUDIENCE_GROUPS = [
 
 export const FEATURES = [
     {
-        id: 'help',
-        audience: 'general',
-        title: '她能幫什麼？',
-        description: '不知道從哪開始？問她能做什麼、怎麼用。',
-        example: '@迷你西米露 你能幫我做什麼？',
-        access: '一般功能',
-        note: '功能依伺服器與頻道設定開放。',
-        guide: 'docs/discord-setup.md',
-    },
-    {
         id: 'chat',
         audience: 'general',
-        title: '聊天與摘要',
-        description: '查對話、附件和網路，整理重點或回答問題。',
-        example: '@迷你西米露 整理剛剛討論的重點',
-        access: '一般功能',
-        note: '需開啟聊天功能；歷史搜尋遵守提問者的頻道權限。',
-        guide: 'docs/discord-setup.md',
-    },
-    {
-        id: 'ask',
-        audience: 'general',
-        title: '私下提問',
-        description: '/ask 私下回答；擁有者也能私訊迷你西米露。',
-        example: '/ask 這段程式碼哪裡有問題？',
-        access: '一般功能',
-        note: '需先註冊 /ask 指令。',
-        guide: 'docs/discord-setup.md',
-    },
-    {
-        id: 'memory',
-        audience: 'general',
-        title: '伺服器記憶',
-        description: '記住伺服器用語和事實，也能訂正或忘記。',
-        example: '@迷你西米露 記住，「會辦」是學生會辦公室',
-        access: '一般功能',
-        note: '記憶依伺服器分開，不保存秘密或完整聊天紀錄。',
-        guide: 'docs/architecture.md#context-and-mcp',
-    },
-    {
-        id: 'context',
-        audience: 'general',
-        title: '聊天歷史',
-        description: '找聊天歷史、辨認別名，查看前次回答的處理資訊。',
-        example: '@迷你西米露 找上次討論場地的訊息',
-        access: '一般功能',
-        note: '只搜尋提問者可讀的頻道。',
-        guide: 'docs/architecture.md#context-and-mcp',
+        title: '聊天',
+        description: '提問、查資料、整理重點，也能找回之前的對話。',
+        example: '@迷你西米露 你能幫我做什麼？',
     },
     {
         id: 'reminders',
         audience: 'general',
-        title: '提醒與排程',
-        description: '設定一次或重複提醒，也能修改、取消。',
+        title: '提醒',
+        description: '到時間標記你，一次或定期都可以。',
         example: '@迷你西米露 明天台北時間晚上八點提醒我交報告',
-        access: '一般功能',
-        note: '在原頻道標記你；日期與重複提醒需指定時區。',
-        guide: 'docs/architecture.md#context-and-mcp',
-    },
-    {
-        id: 'mentions',
-        audience: 'general',
-        title: '成員通知',
-        description: '用暱稱找成員，確認後標記通知。',
-        example: '@迷你西米露 標記小明和小花，請他們看置頂',
-        access: '一般功能',
-        note: '限目前頻道；名字不明確時會先釐清。',
-        guide: 'docs/architecture.md#context-and-mcp',
-    },
-    {
-        id: 'quiet',
-        audience: 'general',
-        title: '暫停回覆',
-        description: '暫停目前頻道或討論串的回覆與自動活動。',
-        example: '@迷你西米露 先安靜三十分鐘',
-        access: '一般功能',
-        note: '暫停有時間限制，也能提前恢復。',
-        guide: 'docs/architecture.md#background-features',
     },
     {
         id: 'expressions',
         audience: 'general',
         title: '表情與貼圖',
-        description: '加入貼圖、複製 emoji，或替表情改名。',
+        description: '新增 emoji 和貼圖，複製或改名 emoji。',
         example: '@迷你西米露 把這張圖加成 sago_happy emoji',
-        access: '需設定',
-        note: '所有成員都能使用；迷你西米露需有新增或管理表情權限，跨伺服器操作限你與她共同加入的伺服器。',
-        guide: 'docs/discord-setup.md#permissions',
     },
     {
         id: 'social',
         audience: 'general',
-        title: '社群連結預覽',
-        description: '改善 Instagram、X、Threads 連結預覽。',
-        example: '貼上 Instagram、X 或 Threads 連結',
-        access: '需設定',
-        note: '取得預覽後才替換訊息，保留發文者資訊。',
-        guide: 'docs/discord-setup.md#gateway-ownership',
+        title: '連結預覽',
+        description: '貼上 Instagram、X、Threads 連結，直接看內容。',
+        example: '貼上連結即可，不用標記她。',
     },
     {
         id: 'feeds',
         audience: 'general',
         title: '頻道訂閱',
-        description: '在頻道接收 TOEFL 單字、動畫瘋優惠碼或 X 動態。',
-        example: '在已訂閱的頻道接收更新',
-        access: '需設定',
-        note: '由擁有者設定訂閱頻道與來源。',
-        guide: 'docs/configuration.md#persistent-state',
+        description: '接收 TOEFL 單字、動畫瘋優惠碼或 X 動態。',
+        example: '請擁有者設定訂閱來源與頻道，之後就會自動收到更新。',
     },
     {
-        id: 'media',
+        id: 'files',
         audience: 'general',
-        title: '媒體處理',
-        description: '調整圖片、擷取畫面，轉出 MP4、MP3、GIF。',
-        example: '@迷你西米露 把影片轉成 GIF',
-        access: '需設定',
-        note: '只處理本次附件與輸出。',
-        guide: 'docs/security.md#attachments-and-mac-files',
-    },
-    {
-        id: 'python',
-        audience: 'general',
-        title: '計算與文件',
-        description: '計算數據，處理圖片、PDF 和文件附件。',
-        example: '@迷你西米露 算這份表格的每月合計',
-        access: '需設定',
-        note: '工具無網路、有資源限制，不能安裝套件。',
-        guide: 'docs/security.md#attachments-and-mac-files',
-    },
-    {
-        id: 'mac',
-        audience: 'owner',
-        title: 'Mac 檔案',
-        description: '按檔名找允許目錄中的檔案，傳回聊天。',
-        example: '@迷你西米露 找 Mac 裡的活動海報.pdf',
-        access: '擁有者限定',
-        note: '只搜尋允許的目錄，不搜尋檔案內容。',
-        guide: 'docs/workers.md#mac-helper',
+        title: '處理檔案',
+        description: '改圖、轉影片、算表格，整理 PDF 和文件。',
+        example: '@迷你西米露 把這支影片轉成 GIF',
     },
     {
         id: 'voice',
         audience: 'general',
         title: '語音聊天',
-        description: '加入語音頻道，以 VOICEVOX 回答。',
+        description: '加入語音頻道和你說話，目前仍在開發中。',
         example: '@迷你西米露 加入我的語音頻道',
-        access: '開發中',
-        note: '辨識、延遲與輪流說話仍在改善，尚未穩定。',
-        guide: 'docs/discord-setup.md#permissions',
+    },
+    {
+        id: 'campus',
+        audience: 'nthu',
+        title: '校園查詢',
+        description: '查公車、課程、公告、校務紀錄與校園脆文。',
+        example: '@迷你西米露 查清大公車資訊',
     },
     {
         id: 'drive',
         audience: 'nthusa',
         title: '雲端文件',
-        description: '搜尋核准的 NTHUSA 雲端文件，附上來源。',
+        description: '找學生會的企劃、紀錄和其他文件。',
         example: '@迷你西米露 找上次活動的企劃書',
-        access: '需設定',
-        note: '依 Discord 身分組與 Google 檔案權限開放。',
-        guide: 'docs/configuration.md#nthusa-shared-drive',
     },
     {
         id: 'calendar',
         audience: 'nthusa',
         title: '日曆與邀請',
-        description: '查會辦空檔、找聯絡人，安排活動與邀請。',
+        description: '查會辦空檔、排活動，確認後寄出邀請。',
         example: '@迷你西米露 下週三下午三點開會，會辦有空嗎？',
-        access: '需設定',
-        note: '限註冊伺服器；日曆修改與邀請需原提問者確認。',
-        guide: 'docs/configuration.md#discord-calendar-and-contact-directory',
-    },
-    {
-        id: 'campus',
-        audience: 'nthu',
-        title: '校園資訊',
-        description: '查清大公車、課程、公告、餐飲、圖書館與用電。',
-        example: '@迷你西米露 查清大公車資訊',
-        access: '需設定',
-        note: '需 NTHU Campus Assistant 唯讀服務。',
-        guide: 'docs/architecture.md#context-and-mcp',
-    },
-    {
-        id: 'threads',
-        audience: 'nthu',
-        title: '脆文搜尋',
-        description: '搜尋清大、NTHU、學生會的脆文與指定關鍵字。',
-        example: '@迷你西米露 海巡脆，查最近的宿舍討論',
-        access: '一般功能',
-        note: '只在明確要求時搜尋或閱讀。',
-        guide: 'docs/architecture.md#context-and-mcp',
-    },
-    {
-        id: 'ccxp',
-        audience: 'nthu',
-        title: '校務會議紀錄',
-        description: '查校務會議紀錄，附頁碼與來源。',
-        example: '@迷你西米露 找課程改革的校務會議紀錄',
-        access: '需設定',
-        note: '限註冊伺服器與核准索引；擁有者可刷新，登入異常會私訊通知。',
-        guide: 'docs/ccxp-meetings.md',
-    },
-    {
-        id: 'coding',
-        audience: 'owner',
-        title: '程式開發',
-        description: '在討論串寫程式、追蹤進度、補充方向或暫停。',
-        example: '@迷你西米露 修這個問題，完成後開 draft PR',
-        access: '擁有者限定',
-        note: '擁有者發起；核准成員可補充方向。發布 PR、合併與部署需明確授權。',
-        guide: 'docs/workers.md#development-runtime-checks',
     },
     {
         id: 'reviews',
         audience: 'developer',
         title: 'PR review',
-        description: '維護 PR review 討論串，回報部署結果。',
-        example: '在 PR review 討論串討論修改',
-        access: '需設定',
-        note: '由擁有者設定儲存庫、webhook 與頻道；通知不代表合併或部署授權。',
-        guide: 'docs/discord-setup.md#github-review-webhook',
+        description: '在討論串 review PR，追蹤修改與部署結果。',
+        example: '收到 PR 通知後，直接在 review 討論串回覆。',
+    },
+    {
+        id: 'coding',
+        audience: 'owner',
+        title: '程式開發',
+        description: '交代修改方向，追蹤進度，完成後開 PR。',
+        example: '@迷你西米露 修這個問題，完成後開 draft PR',
+    },
+    {
+        id: 'mac',
+        audience: 'owner',
+        title: 'Mac 檔案',
+        description: '按檔名找 Mac 裡的檔案，傳回聊天室。',
+        example: '@迷你西米露 找 Mac 裡的活動海報.pdf',
     },
     {
         id: 'controls',
         audience: 'owner',
-        title: '功能與權限',
-        description: '調整功能、身分組權限與背景訂閱。',
+        title: '功能設定',
+        description: '開啟服務、調整使用對象與訂閱頻道。',
         example: '@迷你西米露 開啟 Calendar，限指定身分組',
-        access: '擁有者限定',
-        note: '設定持久保存；另通知 Sago Media 存取申請。',
-        guide: 'docs/configuration.md#feature-registrations-and-role-filters',
-    },
-    {
-        id: 'usage',
-        audience: 'general',
-        title: '額度查詢',
-        description: '查看回答所用 worker 的 Codex 額度與重設時間。',
-        example: '@迷你西米露 Codex 額度還剩多少？',
-        access: '一般功能',
-        note: '唯讀，不購買額度或重設限制。',
-        guide: 'docs/workers.md#authentication-and-capacity',
     },
 ] as const satisfies readonly Feature[];
-
-const featureBundles: ReadonlyArray<{
-    readonly title: string;
-    readonly description: string;
-    readonly featureIds: ReadonlyArray<(typeof FEATURES)[number]['id']>;
-}> = [
-    {
-        title: '聊天',
-        description: '標記她提問、查資料、整理對話；也能私下聊或暫停回覆。',
-        featureIds: [
-            'help',
-            'chat',
-            'ask',
-            'memory',
-            'context',
-            'mentions',
-            'quiet',
-        ],
-    },
-    {
-        title: '處理檔案',
-        description: '改圖、轉影片、算表格，處理 PDF 與文件附件。',
-        featureIds: ['media', 'python'],
-    },
-    {
-        title: '校園查詢',
-        description: '查清大公車、課程、公告與校務會議紀錄，附上來源。',
-        featureIds: ['campus', 'ccxp'],
-    },
-];
-
-export const FEATURE_TOPICS: ReadonlyArray<{
-    readonly id: string;
-    readonly audience: Audience;
-    readonly title: string;
-    readonly description: string;
-    readonly access: Feature['access'];
-    readonly features: readonly Feature[];
-}> = FEATURES.flatMap((feature) => {
-    const bundle = featureBundles.find((item) =>
-        item.featureIds.includes(feature.id)
-    );
-    if (bundle && bundle.featureIds[0] !== feature.id) {
-        return [];
-    }
-    return [
-        {
-            id: feature.id,
-            audience: feature.audience,
-            title: bundle?.title ?? feature.title,
-            description: bundle?.description ?? feature.description,
-            access: feature.access,
-            features: bundle
-                ? FEATURES.filter((item) => bundle.featureIds.includes(item.id))
-                : [feature],
-        },
-    ];
-});
