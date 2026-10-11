@@ -47,6 +47,14 @@ live in [Discord setup](discord-setup.md) and [Workers](workers.md).
 See `.env.production.example` for production state paths and the complete
 scheduled-monitor variable names.
 
+Operators can set a reminder's `channelId` to a Discord thread. For drawing
+reminders, `skipIfImagePosted: { threadId, userId }` checks that user's images
+since midnight in the reminder's timezone. The image thread may be the
+destination or a sibling thread under the same parent channel. A matching image
+skips that day's reminder; its schedule continues. These fields live in
+`MINISAGO_REMINDER_STATE_FILE`; chat edits preserve the condition.
+Image-conditioned reminders send the user mention followed by the stored copy.
+
 `MINISAGO_CCXP_INDEX_PATH` enables read-only CCXP meeting retrieval in guilds
 registered under the owner-managed `ccxp_meetings` feature. Initial registrations
 are `1394943277836402779` and `1000249491494019092`. The separate Oracle collector and owner password

@@ -22,6 +22,11 @@ export type Reminder = {
   skipIfImagePosted?: { threadId: string; userId: string };
 };
 
+export function formatReminderMessage(reminder: Reminder) {
+  const prefix = reminder.skipIfImagePosted ? "" : "⏰ ";
+  return `<@${reminder.requesterUserId}> ${prefix}${reminder.content}`;
+}
+
 type ReminderState = {
   version: 1;
   reminders: Reminder[];

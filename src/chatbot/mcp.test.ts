@@ -1020,6 +1020,7 @@ describe("MiniSago MCP server", () => {
           id: "123e4567-e89b-12d3-a456-426614174000",
           content: "stand up",
           nextRunAt: "2026-07-26T01:00:00.000Z",
+          skipIfImagePosted: { threadId: "789", userId: "123" },
         },
       ],
       editReminder: async (input) => {
@@ -1103,7 +1104,12 @@ describe("MiniSago MCP server", () => {
     });
     expect(listResult.structuredContent).toMatchObject({
       status: "complete",
-      reminders: [{ content: "stand up" }],
+      reminders: [
+        {
+          content: "stand up",
+          skipIfImagePosted: { threadId: "789", userId: "123" },
+        },
+      ],
     });
 
     const editResult = await client.callTool({

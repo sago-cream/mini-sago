@@ -1840,6 +1840,9 @@ export async function handleChatbotMention({
                     ...(reminder.timezone
                       ? { timezone: reminder.timezone }
                       : {}),
+                    ...(reminder.skipIfImagePosted
+                      ? { skipIfImagePosted: reminder.skipIfImagePosted }
+                      : {}),
                   }),
                 ),
               editReminder: async (input) => {
@@ -1854,6 +1857,9 @@ export async function handleChatbotMention({
                   nextRunAt: reminder.nextRunAt,
                   ...(reminder.cron ? { cron: reminder.cron } : {}),
                   ...(reminder.timezone ? { timezone: reminder.timezone } : {}),
+                  ...(reminder.skipIfImagePosted
+                    ? { skipIfImagePosted: reminder.skipIfImagePosted }
+                    : {}),
                 };
               },
               cancelReminder: (reminderId: string) =>

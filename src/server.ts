@@ -26,6 +26,7 @@ import { startToeflVocabScheduler } from "./discord/jobs/toefl-vocab";
 import { startXPostMonitor } from "./discord/jobs/x-post-monitor";
 import {
   configureChatbotReminderScheduler,
+  formatReminderMessage,
   type Reminder,
 } from "./discord/jobs/reminders";
 import { createDiscordRequest } from "./discord/api/request";
@@ -122,7 +123,7 @@ if (reminderBotToken) {
     await discordRequest(`/channels/${reminder.channelId}/messages`, {
       method: "POST",
       body: {
-        content: `<@${reminder.requesterUserId}> ⏰ ${reminder.content}`,
+        content: formatReminderMessage(reminder),
         allowed_mentions: {
           parse: [],
           users: [reminder.requesterUserId],
