@@ -1,6 +1,9 @@
 import { getGuildMemoryStore } from "../chatbot/guild-memory";
 import { routeWithJev } from "../chatbot/jev-routing";
-import { handleCalendarConfirmation } from "../chatbot/calendar-confirmation";
+import {
+  handleCalendarConfirmation,
+  startCalendarDraftExpiry,
+} from "../chatbot/calendar-confirmation";
 import {
   getInstagramReplyUrls,
   getSocialLinkReplacement,
@@ -258,6 +261,7 @@ class InstagramGatewayClient implements VoiceGateway {
     { webhookChannelId: string; threadId?: string }
   >();
   private socialWebhooks = new Map<string, Promise<DiscordWebhook>>();
+  private stopCalendarDraftExpiry?: () => void;
   private discordRequest: DiscordRequest;
   private featureAvailability = getFeatureAvailabilityStore();
 
@@ -288,10 +292,15 @@ class InstagramGatewayClient implements VoiceGateway {
   }
 
   connect() {
+    this.stopCalendarDraftExpiry?.();
+    this.stopCalendarDraftExpiry = startCalendarDraftExpiry(
+      this.discordRequest,
+    );
     void this.openSocket(false);
   }
 
   stop() {
+    this.stopCalendarDraftExpiry?.();
     this.stopped = true;
     this.clearHeartbeat();
     this.ambientReactions.stop();
@@ -511,6 +520,13 @@ class InstagramGatewayClient implements VoiceGateway {
         chatOnly: true,
         recentContext: true,
         silent: true,
+        dismiss: async () => {
+          responseAttempted = true;
+          await discordRequest(
+            `/webhooks/${interaction.application_id}/${interaction.token}/messages/@original`,
+            { method: "DELETE", authenticated: false },
+          );
+        },
         respond,
       },
       featureAvailability: this.featureAvailability,
