@@ -1,4 +1,4 @@
-export type Audience = 'general' | 'nthu' | 'nthusa' | 'owner' | 'specific';
+export type Audience = 'general' | 'nthu' | 'nthusa' | 'owner' | 'developer';
 
 export interface Feature {
     readonly id: string;
@@ -38,9 +38,9 @@ export const AUDIENCE_GROUPS = [
         description: '限 迷你西米露擁有者操作；伺服器管理員不會自動取得權限。',
     },
     {
-        audience: 'specific',
-        title: '特定伺服器',
-        description: '供已設定的旅行與開發群組使用。',
+        audience: 'developer',
+        title: '開發協作',
+        description: '由擁有者設定 GitHub 儲存庫與通知頻道。',
     },
 ] as const satisfies ReadonlyArray<{
     readonly audience: Audience;
@@ -131,12 +131,12 @@ export const FEATURES = [
     },
     {
         id: 'expressions',
-        audience: 'owner',
+        audience: 'general',
         title: '表情與貼圖',
         description: '加入貼圖、複製 emoji，或替表情改名。',
         example: '@迷你西米露 把這張圖加成 sago_happy emoji',
-        access: '擁有者限定',
-        note: '需要目的地伺服器的表情管理權限。',
+        access: '需設定',
+        note: '所有成員都能使用；迷你西米露需有新增或管理表情權限，跨伺服器操作限你與她共同加入的伺服器。',
         guide: 'docs/discord-setup.md#permissions',
     },
     {
@@ -151,12 +151,12 @@ export const FEATURES = [
     },
     {
         id: 'feeds',
-        audience: 'owner',
+        audience: 'general',
         title: '頻道訂閱',
-        description: '訂閱 TOEFL 單字、動畫瘋優惠碼或 X 動態。',
-        example: '@迷你西米露 把 TOEFL 單字訂閱到這裡',
-        access: '擁有者限定',
-        note: '擁有者管理訂閱；另有社群反應與指定成員的秒回提醒。',
+        description: '在頻道接收 TOEFL 單字、動畫瘋優惠碼或 X 動態。',
+        example: '在已訂閱的頻道接收更新',
+        access: '需設定',
+        note: '由擁有者設定訂閱頻道與來源。',
         guide: 'docs/configuration.md#persistent-state',
     },
     {
@@ -220,16 +220,6 @@ export const FEATURES = [
         guide: 'docs/configuration.md#discord-calendar-and-contact-directory',
     },
     {
-        id: 'trip',
-        audience: 'specific',
-        title: '九州行程',
-        description: '查詢共享九州行程，依要求調整排程。',
-        example: '@迷你西米露 九州第三天去哪？',
-        access: '需設定',
-        note: '限設定好的伺服器與共享行程。',
-        guide: 'docs/architecture.md#context-and-mcp',
-    },
-    {
         id: 'campus',
         audience: 'nthu',
         title: '校園資訊',
@@ -271,12 +261,12 @@ export const FEATURES = [
     },
     {
         id: 'reviews',
-        audience: 'specific',
+        audience: 'developer',
         title: 'PR review',
         description: '維護 PR review 討論串，回報部署結果。',
         example: '在 PR review 討論串討論修改',
         access: '需設定',
-        note: '通知不代表合併或部署授權。',
+        note: '由擁有者設定儲存庫、webhook 與頻道；通知不代表合併或部署授權。',
         guide: 'docs/discord-setup.md#github-review-webhook',
     },
     {
@@ -300,3 +290,61 @@ export const FEATURES = [
         guide: 'docs/workers.md#authentication-and-capacity',
     },
 ] as const satisfies readonly Feature[];
+
+const featureBundles: ReadonlyArray<{
+    readonly title: string;
+    readonly description: string;
+    readonly featureIds: ReadonlyArray<(typeof FEATURES)[number]['id']>;
+}> = [
+    {
+        title: '聊天',
+        description: '標記她提問、查資料、整理對話；也能私下聊或暫停回覆。',
+        featureIds: [
+            'help',
+            'chat',
+            'ask',
+            'memory',
+            'context',
+            'mentions',
+            'quiet',
+        ],
+    },
+    {
+        title: '處理檔案',
+        description: '改圖、轉影片、算表格，處理 PDF 與文件附件。',
+        featureIds: ['media', 'python'],
+    },
+    {
+        title: '校園查詢',
+        description: '查清大公車、課程、公告與校務會議紀錄，附上來源。',
+        featureIds: ['campus', 'ccxp'],
+    },
+];
+
+export const FEATURE_TOPICS: ReadonlyArray<{
+    readonly id: string;
+    readonly audience: Audience;
+    readonly title: string;
+    readonly description: string;
+    readonly access: Feature['access'];
+    readonly features: readonly Feature[];
+}> = FEATURES.flatMap((feature) => {
+    const bundle = featureBundles.find((item) =>
+        item.featureIds.includes(feature.id)
+    );
+    if (bundle && bundle.featureIds[0] !== feature.id) {
+        return [];
+    }
+    return [
+        {
+            id: feature.id,
+            audience: feature.audience,
+            title: bundle?.title ?? feature.title,
+            description: bundle?.description ?? feature.description,
+            access: feature.access,
+            features: bundle
+                ? FEATURES.filter((item) => bundle.featureIds.includes(item.id))
+                : [feature],
+        },
+    ];
+});

@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import { ChevronDown } from 'lucide-react';
 
-import { AUDIENCE_GROUPS, FEATURES } from '@/features';
+import { AUDIENCE_GROUPS, FEATURE_TOPICS } from '@/features';
 import {
     AccessGuide,
     FeatureBadge,
@@ -40,7 +40,7 @@ export function FeatureExplorer(): JSX.Element {
                             {group.description}
                         </p>
                         <div className='feature-list'>
-                            {FEATURES.filter(
+                            {FEATURE_TOPICS.filter(
                                 (feature) => feature.audience === group.audience
                             ).map((feature) => (
                                 <article
@@ -70,10 +70,79 @@ export function FeatureExplorer(): JSX.Element {
                                             />
                                         </summary>
                                         <div className='feature-row-body'>
-                                            <FeatureExample feature={feature} />
-                                            <FeatureConditions
-                                                feature={feature}
-                                            />
+                                            {feature.features.length === 1 ? (
+                                                <>
+                                                    <FeatureExample
+                                                        feature={
+                                                            feature.features[0]
+                                                        }
+                                                    />
+                                                    <FeatureConditions
+                                                        feature={
+                                                            feature.features[0]
+                                                        }
+                                                    />
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <dl className='feature-actions'>
+                                                        {feature.features.map(
+                                                            (item) => (
+                                                                <div
+                                                                    className='feature-action'
+                                                                    key={
+                                                                        item.id
+                                                                    }
+                                                                >
+                                                                    <dt>
+                                                                        {
+                                                                            item.title
+                                                                        }
+                                                                    </dt>
+                                                                    <dd>
+                                                                        <p className='feature-action-description'>
+                                                                            {
+                                                                                item.description
+                                                                            }
+                                                                        </p>
+                                                                        <FeatureExample
+                                                                            feature={
+                                                                                item
+                                                                            }
+                                                                        />
+                                                                    </dd>
+                                                                </div>
+                                                            )
+                                                        )}
+                                                    </dl>
+                                                    <details className='feature-topic-notes'>
+                                                        <summary>
+                                                            使用條件與說明
+                                                        </summary>
+                                                        {feature.features.map(
+                                                            (item) => (
+                                                                <div
+                                                                    className='feature-topic-note'
+                                                                    key={
+                                                                        item.id
+                                                                    }
+                                                                >
+                                                                    <h5>
+                                                                        {
+                                                                            item.title
+                                                                        }
+                                                                    </h5>
+                                                                    <FeatureConditions
+                                                                        feature={
+                                                                            item
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                            )
+                                                        )}
+                                                    </details>
+                                                </>
+                                            )}
                                         </div>
                                     </details>
                                 </article>

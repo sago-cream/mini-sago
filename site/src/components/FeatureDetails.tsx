@@ -13,7 +13,11 @@ interface FeatureProps {
     readonly feature: Feature;
 }
 
-export function FeatureBadge({ feature }: FeatureProps): JSX.Element {
+export function FeatureBadge({
+    feature,
+}: {
+    readonly feature: Pick<Feature, 'access'>;
+}): JSX.Element {
     return (
         <span
             className={`access-badge ${feature.access === '開發中' ? 'access-development' : ''}`}
