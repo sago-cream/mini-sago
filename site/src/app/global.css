@@ -9,7 +9,7 @@ html {
 }
 body {
     margin: 0;
-    min-width: 320px;
+    min-width: 280px;
     background: var(--clr-bg);
     color: var(--clr-text);
     font: var(--font-body-md);
