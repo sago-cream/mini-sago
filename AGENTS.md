@@ -1,4 +1,4 @@
-When adding a feature, update all affected surfaces, including agent capabilities, configuration, README.md, and user docs.
+When adding a feature, update all affected surfaces, including agent capabilities, configuration, README.md, user docs, and the website's feature catalogue in `site/src/features.ts`.
 
 # Deployment network settings
 

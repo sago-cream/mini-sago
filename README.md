@@ -43,6 +43,9 @@ Start with [Discord setup](docs/discord-setup.md) and
 
 Dockerfiles and Compose configurations live in [`deploy/`](deploy/).
 
+The [feature website](site/README.md) lives in `site/`. Preview it with
+`npm --prefix site ci` and `npm --prefix site run dev`.
+
 ## Voice credits
 
 MiniSago's voice chat uses **VOICEVOX:猫使ビィ**.
