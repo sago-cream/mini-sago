@@ -37,7 +37,6 @@ export interface Feature {
 
 const REPO = 'https://github.com/sago-cream/mini-sago';
 export const REPOSITORY_URL = REPO;
-export const SETUP_URL = `${REPO}/blob/main/docs/discord-setup.md`;
 
 export const CATEGORIES = [
     '全部',
@@ -144,7 +143,7 @@ export const FEATURES = [
         description: '改善 Instagram、X、Threads 連結預覽。',
         example: '貼上 Instagram、X 或 Threads 連結',
         access: '需設定',
-        note: '需訊息管理和 Webhook 權限；取得預覽後才替換訊息，保留發文者資訊。',
+        note: '取得預覽後才替換訊息，保留發文者資訊。',
         icon: Sparkles,
         guide: 'docs/discord-setup.md#gateway-ownership',
     },
@@ -166,7 +165,7 @@ export const FEATURES = [
         description: '調整圖片、擷取畫面，轉出 MP4、MP3、GIF。',
         example: '@Sago 把影片轉成 GIF',
         access: '需設定',
-        note: '需 Linux 媒體 worker，只處理本次附件與輸出。',
+        note: '只處理本次附件與輸出。',
         icon: FileImage,
         guide: 'docs/security.md#attachments-and-mac-files',
     },
@@ -177,7 +176,7 @@ export const FEATURES = [
         description: '計算數據，處理圖片、PDF 和文件附件。',
         example: '@Sago 算這份表格的每月合計',
         access: '需設定',
-        note: '需 Linux 沙箱；無網路、不能裝套件，有資源限制。',
+        note: '工具無網路、有資源限制，不能安裝套件。',
         icon: Code2,
         guide: 'docs/security.md#attachments-and-mac-files',
     },
@@ -188,7 +187,7 @@ export const FEATURES = [
         description: '按檔名找允許目錄中的檔案，傳回聊天。',
         example: '@Sago 找 Mac 裡的活動海報.pdf',
         access: '主人限定',
-        note: '需 Mac helper 在線，不搜尋檔案內容。',
+        note: '只搜尋允許的目錄，不搜尋檔案內容。',
         icon: FolderSearch,
         guide: 'docs/workers.md#mac-helper',
     },
@@ -287,7 +286,7 @@ export const FEATURES = [
         description: '維護 PR review 討論串，回報部署結果。',
         example: '在 PR review 討論串討論修改',
         access: '需設定',
-        note: '需 GitHub Webhook；通知不代表合併或部署授權。',
+        note: '通知不代表合併或部署授權。',
         icon: Tag,
         guide: 'docs/discord-setup.md#github-review-webhook',
     },

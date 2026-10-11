@@ -18,7 +18,5 @@ No bot credentials or backend connection are needed.
 Update `src/features.ts` when capabilities or access requirements change, and
 keep its guide links aligned with `../docs/`.
 
-The avatar is copied from `../assets/minisago.png`. The original hero artwork
-in `public/images/sago-hero.png` was generated with the imagegen tool using that
-portrait as a reference: Sago with cyan hair and violet eyes, sitting on a cloud
-with a lavender laptop, delicate pastel anime linework, transparent background.
+The site uses the original Sago 3 artwork: `public/images/sago3.png` for the hero
+and `public/images/minisago3.png` for the avatar. Keep these assets unchanged.

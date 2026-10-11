@@ -2,7 +2,7 @@ import type { JSX } from 'react';
 import { ArrowDown, ArrowUpRight, Code2, Heart, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 
-import { HIGHLIGHTS, REPOSITORY_URL, SETUP_URL } from '@/features';
+import { HIGHLIGHTS, REPOSITORY_URL } from '@/features';
 import { FeatureExplorer } from './FeatureExplorer';
 import { Hero } from './Hero';
 
@@ -19,7 +19,7 @@ export function App(): JSX.Element {
                     <Image
                         alt=''
                         height={40}
-                        src='/images/sago-avatar.png'
+                        src='/images/minisago3.png'
                         width={40}
                     />
                     <span>
@@ -49,9 +49,6 @@ export function App(): JSX.Element {
                     id='about'
                 >
                     <div className='intro-heading'>
-                        <p className='eyebrow'>
-                            A LITTLE HELPER, A LOT OF HEART
-                        </p>
                         <h2 id='intro-title'>
                             住在 Discord 裡，
                             <br />
@@ -78,44 +75,17 @@ export function App(): JSX.Element {
                     className='getting-started section-width'
                     id='start'
                 >
-                    <div className='section-heading'>
-                        <p className='eyebrow'>SAY HELLO</p>
+                    <div className='start-copy'>
                         <h2 id='start-title'>第一句，就從這裡開始。</h2>
+                        <p>
+                            在有 Sago 的聊天室標記她，或用 <code>/ask</code>{' '}
+                            私下提問。
+                        </p>
+                        <p>功能是否開放，請主人確認。</p>
                     </div>
-                    <div className='start-grid'>
-                        <article className='start-card'>
-                            <span className='step-number'>
-                                01 / IN YOUR SERVER
-                            </span>
-                            <h3>聊天室裡已經有 Sago？</h3>
-                            <p>
-                                標記 Sago，或用 <code>/ask</code> 私下提問。
-                                功能是否開放，請主人確認。
-                            </p>
-                            <div className='first-message'>
-                                <Sparkles size={18} />
-                                <span>@Sago 你能幫我做什麼？</span>
-                            </div>
-                            <a className='text-link' href={SETUP_URL}>
-                                看看使用方式 <ArrowUpRight size={18} />
-                            </a>
-                        </article>
-                        <article className='start-card start-card-blue'>
-                            <span className='step-number'>
-                                02 / MAKE IT YOURS
-                            </span>
-                            <h3>想讓 Sago 搬進來？</h3>
-                            <p>
-                                開源、自行架設。設定 Discord 應用程式，
-                                再選擇要啟用的整合服務。
-                            </p>
-                            <a className='button button-light' href={SETUP_URL}>
-                                打開架設指南 <ArrowUpRight size={18} />
-                            </a>
-                            <a className='text-link' href={REPOSITORY_URL}>
-                                逛逛 GitHub <Code2 size={18} />
-                            </a>
-                        </article>
+                    <div className='first-message'>
+                        <Sparkles size={24} />
+                        <span>@Sago 你能幫我做什麼？</span>
                     </div>
                 </section>
                 <section
@@ -123,7 +93,6 @@ export function App(): JSX.Element {
                     className='faq section-width'
                 >
                     <div>
-                        <p className='eyebrow'>A FEW LITTLE THINGS</p>
                         <h2 id='faq-title'>你可能想知道</h2>
                     </div>
                     <div className='faq-list'>
@@ -173,9 +142,6 @@ export function App(): JSX.Element {
                 <div>
                     <a href={REPOSITORY_URL}>
                         GitHub <ArrowUpRight size={14} />
-                    </a>
-                    <a href={SETUP_URL}>
-                        使用與架設指南 <ArrowUpRight size={14} />
                     </a>
                     <span className='footer-credit'>
                         <Heart size={14} /> 小幫手，也有大大的心。

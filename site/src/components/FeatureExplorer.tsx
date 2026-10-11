@@ -28,7 +28,6 @@ export function FeatureExplorer(): JSX.Element {
             <div className='section-width'>
                 <div className='feature-heading'>
                     <div>
-                        <p className='eyebrow'>THE LITTLE BOOK OF SAGO</p>
                         <h2 id='features-title'>
                             你想做的，<span>這裡找找。</span>
                         </h2>

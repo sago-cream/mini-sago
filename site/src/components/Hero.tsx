@@ -2,10 +2,14 @@
 
 import { useState } from 'react';
 import type { JSX } from 'react';
-import { ArrowDown, ArrowUpRight, Check, Sparkles } from 'lucide-react';
+import {
+    ArrowDown,
+    CalendarDays,
+    Check,
+    Heart,
+    MessageCircle,
+} from 'lucide-react';
 import Image from 'next/image';
-
-import { SETUP_URL } from '@/features';
 
 import './Hero.css';
 
@@ -33,9 +37,6 @@ export function Hero(): JSX.Element {
         <section aria-labelledby='hero-title' className='hero'>
             <div className='hero-inner section-width'>
                 <div className='hero-copy'>
-                    <p className='hero-eyebrow'>
-                        <span /> YOUR LITTLE DISCORD COMPANION
-                    </p>
                     <h1 id='hero-title'>
                         Small Sago.
                         <br />
@@ -51,41 +52,44 @@ export function Hero(): JSX.Element {
                         <a className='button' href='#features'>
                             看看 Sago 會什麼 <ArrowDown size={18} />
                         </a>
-                        <a className='hero-guide' href={SETUP_URL}>
-                            使用指南 <ArrowUpRight size={18} />
-                        </a>
                     </div>
                     <p className='hero-footnote'>
                         <Check size={14} /> 開源・自然語言操作・依權限開放
                     </p>
                 </div>
                 <div className='hero-art'>
-                    <span className='art-orbit orbit-one' />
-                    <span className='art-orbit orbit-two' />
-                    <span aria-hidden='true' className='art-star star-one'>
-                        ✧
-                    </span>
-                    <span aria-hidden='true' className='art-star star-two'>
+                    <span aria-hidden='true' className='portrait-orbit' />
+                    <div className='portrait-frame'>
+                        <Image
+                            alt='Sago 3：藍髮、紫眼，戴著橘子髮飾的 Sago'
+                            className='hero-character'
+                            height={1540}
+                            priority
+                            src='/images/sago3.png'
+                            width={1540}
+                        />
+                    </div>
+                    <span aria-hidden='true' className='portrait-spark'>
                         ✳
                     </span>
-                    <span className='art-caption'>
-                        a little magic
-                        <br />
-                        in your everyday.
+                    <span
+                        aria-hidden='true'
+                        className='portrait-bubble bubble-chat'
+                    >
+                        <MessageCircle size={28} />
                     </span>
-                    <Image
-                        alt='藍髮的 Sago 坐在雲朵上，抱著淡紫色筆電'
-                        className='hero-character'
-                        height={1024}
-                        priority
-                        src='/images/sago-hero.png'
-                        unoptimized
-                        width={1024}
-                    />
-                    <div className='floating-label'>
-                        <Sparkles size={16} />
-                        <span>say hello to sago ♡</span>
-                    </div>
+                    <span
+                        aria-hidden='true'
+                        className='portrait-bubble bubble-calendar'
+                    >
+                        <CalendarDays size={24} />
+                    </span>
+                    <span
+                        aria-hidden='true'
+                        className='portrait-bubble bubble-heart'
+                    >
+                        <Heart size={24} />
+                    </span>
                 </div>
                 <div className='chat-preview'>
                     <div className='chat-preview-top'>
@@ -115,7 +119,7 @@ export function Hero(): JSX.Element {
                         <Image
                             alt=''
                             height={32}
-                            src='/images/sago-avatar.png'
+                            src='/images/minisago3.png'
                             width={32}
                         />
                         <p>{example.reply}</p>
