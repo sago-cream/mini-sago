@@ -1,6 +1,6 @@
 import { startCcxpAuthNotificationMonitor } from "./discord/jobs/ccxp-auth-notifications";
 import { handleVoiceDebugRequest } from "./discord/voice-debug/http";
-import { handleCalendarPage } from "./chatbot/calendar-pages";
+import { handleCalendarPage } from "./chatbot/calendar/calendar-pages";
 import type { Server } from "bun";
 
 import { getChatbotAccessConfig } from "./chatbot/access";

@@ -6,11 +6,11 @@ import {
   meetingTokens,
   normalizeMeetingText,
   type CcxpCoverage,
-} from "../../contracts/ccxp-meetings";
+} from "../../../contracts/ccxp-meetings";
 import {
   getFeatureAvailabilityStore,
   type FeatureAvailabilityStore,
-} from "../discord/feature-availability";
+} from "../../discord/feature-availability";
 
 const category = z.enum(Object.keys(CCXP_CATEGORIES) as [string, ...string[]]);
 export const ccxpSchemas = {

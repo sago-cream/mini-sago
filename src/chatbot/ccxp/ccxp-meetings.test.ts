@@ -2,9 +2,9 @@ import { test, expect } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { publishIndex } from "../../ccxp/src/store";
-import type { CcxpDocument } from "../../contracts/ccxp-meetings";
-import { FeatureAvailabilityStore } from "../discord/feature-availability";
+import { publishIndex } from "../../../ccxp/src/store";
+import type { CcxpDocument } from "../../../contracts/ccxp-meetings";
+import { FeatureAvailabilityStore } from "../../discord/feature-availability";
 import { createCcxpMeetingsClient } from "./ccxp-meetings";
 
 test("CCXP registration is required and revocation closes existing clients", async () => {

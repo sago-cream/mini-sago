@@ -1,4 +1,4 @@
-import { calendarSettings } from "./calendar-settings";
+import { calendarSettings } from "./calendar/calendar-settings";
 import { afterEach, describe, expect, test } from "bun:test";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";

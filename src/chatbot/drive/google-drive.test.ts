@@ -6,7 +6,7 @@ import {
   DRIVE_SERVICE_ACCOUNT,
   createGoogleDriveClient,
 } from "./google-drive";
-import { ChatbotMediaRegistry } from "./media-assets";
+import { ChatbotMediaRegistry } from "../media-assets";
 import { DRIVE_ROLE_MAPPINGS } from "./google-drive-permissions";
 
 const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });

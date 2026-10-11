@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCcxpSyncClient } from "./ccxp-sync";
-import { CcxpSyncQueue } from "../../contracts/ccxp-sync";
+import { CcxpSyncQueue } from "../../../contracts/ccxp-sync";
 
 test("manual sync requires the owner and a currently registered guild; input cannot override identity or paths", async () => {
   const root = await mkdtemp(join(tmpdir(), "ccxp-request-"));

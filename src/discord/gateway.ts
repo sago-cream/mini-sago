@@ -3,7 +3,7 @@ import { routeWithJev } from "../chatbot/jev-routing";
 import {
   handleCalendarConfirmation,
   startCalendarDraftExpiry,
-} from "../chatbot/calendar-confirmation";
+} from "../chatbot/calendar/calendar-confirmation";
 import {
   getInstagramReplyUrls,
   getSocialLinkReplacement,

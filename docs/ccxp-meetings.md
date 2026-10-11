@@ -193,8 +193,8 @@ secret boundary. Protected meeting text must not be saved in guild memory.
 ```bash
 bun install --cwd ccxp --frozen-lockfile
 bun run --cwd ccxp build
-bun test src/chatbot/ccxp-sync.test.ts ccxp/src/main.test.ts \
-  src/chatbot/ccxp-meetings.test.ts src/chatbot/mcp.test.ts \
+bun test src/chatbot/ccxp/ccxp-sync.test.ts ccxp/src/main.test.ts \
+  src/chatbot/ccxp/ccxp-meetings.test.ts src/chatbot/mcp.test.ts \
   src/discord/jobs/ccxp-auth-notifications.test.ts ccxp/src/sync.test.ts
 docker build -f Dockerfile.ccxp -t minisago-ccxp:test .
 docker run --rm --init --shm-size=256m \

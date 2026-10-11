@@ -1,17 +1,17 @@
-import { createCcxpSyncClient } from "./ccxp-sync";
+import { createCcxpSyncClient } from "./ccxp/ccxp-sync";
 import { WebhookLoopTracker } from "./webhook-loop";
-import { createCcxpMeetingsClient } from "./ccxp-meetings";
+import { createCcxpMeetingsClient } from "./ccxp/ccxp-meetings";
 import { timing, type TimingSink } from "../observability/timing";
 import {
   withCalendarConfirmation,
   updateCalendarDraftDiscussion,
-} from "./calendar-confirmation";
+} from "./calendar/calendar-confirmation";
 import { searchThreads } from "./threads-search";
 import { randomUUID } from "node:crypto";
 
-import { createGoogleDriveClient } from "./google-drive";
-import { resolveDriveRequester } from "./drive-discord-access";
-import { createGoogleCalendarClient } from "./google-calendar";
+import { createGoogleDriveClient } from "./drive/google-drive";
+import { resolveDriveRequester } from "./drive/drive-discord-access";
+import { createGoogleCalendarClient } from "./calendar/google-calendar";
 import type { ChatbotAccessConfig } from "./access";
 import {
   macAgentBridge,

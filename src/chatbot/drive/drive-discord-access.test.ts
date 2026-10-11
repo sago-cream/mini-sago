@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { DiscordRequest } from "../discord/api/request";
+import type { DiscordRequest } from "../../discord/api/request";
 import { resolveDriveRequester } from "./drive-discord-access";
 
 const guildId = "1514899496797212683";
