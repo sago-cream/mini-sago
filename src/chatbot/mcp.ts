@@ -678,7 +678,7 @@ function availableCapabilities(
       category: "discord",
       availability: "available",
       description:
-        "List shared servers and custom emojis, then add, copy, or rename an expression when the owner asks.",
+        "List servers shared with the requester and custom emojis, then add, copy, or rename an expression when a member explicitly asks. The bot needs expression permissions in the destination server.",
       tools: [
         "list_shared_guilds",
         "list_guild_emojis",
@@ -1366,7 +1366,7 @@ function createServer(session: ChatbotMcpSession) {
       "list_shared_guilds",
       {
         description:
-          "List every Discord guild you are currently in. Use this to resolve exact source and destination guilds when managing an expression outside the current server. current marks the guild where the request was sent; permission fields report whether you can create or manage expressions there.",
+          "List Discord guilds available to this requester for expression management. Use this to resolve exact source and destination guilds outside the current server. current marks the guild where the request was sent; permission fields report whether the bot can create or manage expressions there.",
         inputSchema: {},
         annotations: readAnnotations,
       },

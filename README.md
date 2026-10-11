@@ -10,7 +10,7 @@ Codex-powered chat with server context, emote creation and cross-server migratio
 - Reacts to community messages with emotes in configured server.
 - Answers member and configured role mentions using conversation context, attachments, public web search, and accessible Discord history.
 - Joins Discord voice channels for spoken conversations. **WIP and far from usable:** recognition, response latency, and turn-taking still need work.
-- Performs expression management on demand, including adding emojis or stickers from attachments and moving emojis to other servers.
+- Lets members add emojis or stickers, copy emojis between servers they share with MiniSago, and rename emojis when the bot has the required expression permissions.
 - Publishes daily TOEFL vocabulary, AniGamer forum voucher code updates, and Codex news on X to configured channels.
 - Improves Instagram, Twitter/X, and Threads embeds with `kkinstagram.com`, `fxtwitter.com`, and `fixthreads.seria.moe` links.
 - Creates reminders when asked to and pings you when the reminder expires.

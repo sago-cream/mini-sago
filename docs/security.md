@@ -51,10 +51,12 @@ VOICEVOX engine on the same host synthesizes spoken replies with the Nekotsuka
 Bi voice. Raw voice audio never reaches Codex or an external speech API;
 transcripts and answers follow the normal trace retention policy below.
 
-The owner may copy an emoji between shared guilds, create one from an image
-attached directly to the request or its replied-to message, or rename an
-existing emoji. The destination bot role must have Create Expressions to add
-and Manage Expressions to rename. Community users never receive these tools.
+Members may add emojis or stickers from request media, copy emojis, and rename
+emojis when explicitly requested. For community users, the host verifies their
+membership before exposing source or destination guilds; failed membership checks
+exclude the guild. The owner retains access to all guilds shared with the bot.
+The destination bot role must have Create Expressions to add and Manage
+Expressions to rename. Members do not need their own expression permissions.
 
 ## Worker authentication and isolation
 
