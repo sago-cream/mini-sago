@@ -36,7 +36,12 @@
     font-family: var(--ff-display);
     font-size: 27px;
     font-weight: 900;
+    line-height: 1;
     letter-spacing: -1px;
+}
+.brand > span {
+    display: inline-flex;
+    align-items: center;
 }
 .brand img {
     border-radius: 50%;
@@ -45,7 +50,6 @@
 .brand-star {
     color: #9686d7;
     font-size: 36px;
-    vertical-align: top;
     padding-left: 2px;
 }
 .site-header nav {
