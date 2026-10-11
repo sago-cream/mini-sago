@@ -61,11 +61,11 @@ export function Hero(): JSX.Element {
                     <span aria-hidden='true' className='portrait-orbit' />
                     <div className='portrait-frame'>
                         <Image
-                            alt='Sago 3：藍髮、紫眼，戴著橘子髮飾的 Sago'
+                            alt='MiniSago 3：藍髮、紫眼的 Sago'
                             className='hero-character'
                             height={1540}
                             priority
-                            src='/images/sago3.png'
+                            src='/images/minisago3.png'
                             width={1540}
                         />
                     </div>

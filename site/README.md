@@ -18,5 +18,5 @@ No bot credentials or backend connection are needed.
 Update `src/features.ts` when capabilities or access requirements change, and
 keep its guide links aligned with `../docs/`.
 
-The site uses the original Sago 3 artwork: `public/images/sago3.png` for the hero
-and `public/images/minisago3.png` for the avatar. Keep these assets unchanged.
+The hero and avatar use the original `public/images/minisago3.png` artwork.
+Keep the asset unchanged.
