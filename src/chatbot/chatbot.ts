@@ -610,6 +610,44 @@ export async function postChatbotResponse(
   }
 }
 
+type TaskMcpSession = Pick<
+  ReturnType<typeof registerChatbotMcpSession>,
+  "extend" | "revoke" | "snapshot"
+>;
+
+export class ChatbotRequestResources {
+  private session?: TaskMcpSession;
+  private released = false;
+  private taskOwned = false;
+
+  constructor(readonly workflow: WorkflowLease) {}
+
+  get retained() {
+    return this.taskOwned;
+  }
+
+  attachSession(session: TaskMcpSession) {
+    this.session = session;
+  }
+
+  retainForTask() {
+    if (!this.session || this.released || this.taskOwned)
+      throw new Error("Request resources are not available for a coding task.");
+    this.session.extend(DEVELOPER_TASK_TTL_MS);
+    this.taskOwned = true;
+    return { workflow: this.workflow, mcpSession: this.session };
+  }
+
+  release() {
+    if (this.taskOwned || this.released) return;
+    this.released = true;
+    const snapshot = this.session?.snapshot();
+    this.session?.revoke();
+    this.workflow.release();
+    return snapshot;
+  }
+}
+
 type DeveloperTask = {
   id: string;
   threadId: string;
@@ -627,9 +665,8 @@ type DeveloperTask = {
   requiresAddressing?: boolean;
   traceMessageIds: string[];
   messageQueue: Promise<void>;
-  cleanupTimer?: ReturnType<typeof setTimeout>;
-  revokeMcp: () => void;
-  extendMcp: () => void;
+  cancelCleanup?: () => void;
+  mcpSession: TaskMcpSession;
   refreshContext: (message: DiscordMessage) => Promise<ChatbotMessage[]>;
   discordRequest: DiscordRequest;
 };
@@ -660,15 +697,89 @@ export async function createDeveloperThread(
   return thread.id;
 }
 
-class DeveloperTaskRegistry {
+export class DeveloperTaskRegistry {
   private tasks = new Map<string, DeveloperTask>();
+
+  constructor(
+    private readonly acquireWorkflow = () =>
+      macAgentBridge.acquireWorkflow(["dev"]),
+    private readonly scheduleExpiry: (expire: () => void) => () => void = (
+      expire,
+    ) => {
+      const timer = setTimeout(expire, DEVELOPER_TASK_TTL_MS);
+      timer.unref?.();
+      return () => clearTimeout(timer);
+    },
+  ) {}
 
   has(threadId: string) {
     return this.tasks.has(threadId);
   }
 
-  start(task: DeveloperTask) {
-    this.tasks.set(task.threadId, task);
+  async start({
+    message,
+    job,
+    title,
+    resources,
+    loadPreviousTask,
+    allowParticipantSteering,
+    activateContext,
+    refreshContext,
+    discordRequest,
+  }: {
+    message: DiscordMessage;
+    job: OracleAnswerJob;
+    title?: string;
+    resources: ChatbotRequestResources;
+    loadPreviousTask: () => Promise<PreservedDeveloperTask | undefined>;
+    allowParticipantSteering: (message: DiscordMessage) => boolean;
+    activateContext: (threadId: string) => void;
+    refreshContext: (message: DiscordMessage) => Promise<ChatbotMessage[]>;
+    discordRequest: DiscordRequest;
+  }) {
+    const threadId = await createDeveloperThread(
+      message,
+      title,
+      discordRequest,
+    );
+    const preserved =
+      threadId === message.channel_id ? await loadPreviousTask() : undefined;
+    const recovered =
+      preserved?.requesterUserId === job.requesterUserId &&
+      preserved.repository === job.repository
+        ? preserved
+        : undefined;
+    const taskId = recovered?.id ?? randomUUID();
+    activateContext(threadId);
+    const task: DeveloperTask = {
+      id: taskId,
+      threadId,
+      requesterUserId: job.requesterUserId,
+      repository: job.repository,
+      allowParticipantSteering,
+      request:
+        recovered && !recovered.resumeSessionId
+          ? `${recovered.request}\n\nAdditional direction: ${job.request}`
+          : job.request,
+      job: {
+        ...job,
+        developerTask: {
+          id: taskId,
+          title: recovered?.title ?? developerThreadName(title),
+        },
+      },
+      ...resources.retainForTask(),
+      state: "running",
+      ...(recovered?.resumeSessionId
+        ? { sessionId: recovered.resumeSessionId }
+        : {}),
+      summary: "Preparing an isolated workspace.",
+      traceMessageIds: [],
+      messageQueue: Promise.resolve(),
+      refreshContext,
+      discordRequest,
+    };
+    this.tasks.set(threadId, task);
     this.launch(task, task.request);
   }
 
@@ -793,16 +904,14 @@ class DeveloperTaskRegistry {
   }
 
   private async run(task: DeveloperTask, request: string) {
-    if (task.cleanupTimer) {
-      clearTimeout(task.cleanupTimer);
-      task.cleanupTimer = undefined;
-    }
+    task.cancelCleanup?.();
+    task.cancelCleanup = undefined;
     if (!task.sessionId && request !== task.request) {
       request = `${task.request}\n\nAdditional direction: ${request}`;
     }
-    task.extendMcp();
+    task.mcpSession.extend(DEVELOPER_TASK_TTL_MS);
     if (!task.workflow) {
-      const acquired = macAgentBridge.acquireWorkflow(["dev"]);
+      const acquired = this.acquireWorkflow();
       if (acquired.status !== "accepted") {
         task.state = "stopped";
         task.summary =
@@ -919,12 +1028,11 @@ class DeveloperTaskRegistry {
   }
 
   private scheduleCleanup(task: DeveloperTask) {
-    if (task.cleanupTimer) clearTimeout(task.cleanupTimer);
-    task.cleanupTimer = setTimeout(() => {
-      task.revokeMcp();
+    task.cancelCleanup?.();
+    task.cancelCleanup = this.scheduleExpiry(() => {
+      task.mcpSession.revoke();
       this.tasks.delete(task.threadId);
-    }, DEVELOPER_TASK_TTL_MS);
-    task.cleanupTimer.unref?.();
+    });
   }
 
   private status(task: DeveloperTask) {
@@ -1220,7 +1328,7 @@ export async function handleChatbotMention({
 
   const { workflow } = acquired;
   let result: MacAgentJobResult;
-  let deferredDeveloperTask = false;
+  const resources = new ChatbotRequestResources(workflow);
   let savedMemoryAction: "add" | "replace" | "remove" | undefined;
   let mcpSession: ReturnType<typeof registerChatbotMcpSession> | undefined;
   let mcpSnapshot: ChatbotMcpSessionSnapshot = {
@@ -1340,7 +1448,7 @@ export async function handleChatbotMention({
       const recentMessages = async (historyCount: number) => {
         const resolved = await (historyCount === 0
           ? Promise.resolve([])
-          : !deferredDeveloperTask &&
+          : !resources.retained &&
               historyCount <= CHATBOT_CONTEXT_LIMITS.nearbyMessages
             ? Promise.resolve(messages.slice(-historyCount))
             : getRecentHumanMessages({
@@ -1760,6 +1868,7 @@ export async function handleChatbotMention({
             }
           : {}),
       });
+      resources.attachSession(mcpSession);
 
       if (
         requesterUserId === accessConfig.ownerUserId &&
@@ -1848,7 +1957,8 @@ export async function handleChatbotMention({
         chatbotRepository: workflow.chatbotRepository,
         executionRoute,
       });
-      if (executionRoute === "oracle") mcpSession.extend(DEVELOPER_TASK_TTL_MS);
+      if (executionRoute === "oracle" && !message.guild_id)
+        mcpSession.extend(DEVELOPER_TASK_TTL_MS);
       const answerBase = {
         id: randomUUID(),
         requesterUserId,
@@ -1888,62 +1998,28 @@ export async function handleChatbotMention({
       }
 
       if (job.executionRoute === "oracle" && message.guild_id) {
-        const threadId = await createDeveloperThread(
+        await developerTasks.start({
           message,
-          developerThreadTitle,
-          discordRequest,
-        );
-        const preserved =
-          threadId === message.channel_id
-            ? (await getPreviousTrace()).developerTask
-            : undefined;
-        const recovered =
-          preserved?.requesterUserId === requesterUserId &&
-          preserved.repository === job.repository
-            ? preserved
-            : undefined;
-        const taskId = recovered?.id ?? randomUUID();
-        deferredDeveloperTask = true;
-        contextChannelId = threadId;
-        developerTasks.start({
-          id: taskId,
-          threadId,
-          requesterUserId,
-          repository: job.repository,
+          job,
+          title: developerThreadTitle,
+          resources,
+          loadPreviousTask: async () =>
+            (await getPreviousTrace()).developerTask,
           allowParticipantSteering: (participant) =>
             featureAvailability?.isEnabled("developer_steering", {
               guildId: message.guild_id,
               roleIds: participant.member?.roles,
             }) ?? false,
-          request:
-            recovered && !recovered.resumeSessionId
-              ? `${recovered.request}\n\nAdditional direction: ${request}`
-              : request,
-          job: {
-            ...job,
-            developerTask: {
-              id: taskId,
-              title:
-                recovered?.title ?? developerThreadName(developerThreadTitle),
-            },
+          activateContext: (threadId) => {
+            contextChannelId = threadId;
           },
-          workflow,
-          state: "running",
-          ...(recovered?.resumeSessionId
-            ? { sessionId: recovered.resumeSessionId }
-            : {}),
-          summary: "Preparing an isolated workspace.",
-          traceMessageIds: [],
-          messageQueue: Promise.resolve(),
-          revokeMcp: () => mcpSession?.revoke(),
-          extendMcp: () => mcpSession?.extend(DEVELOPER_TASK_TTL_MS),
           refreshContext: async (followUp) => {
             contextRequestMessageId = followUp.id;
             mediaRegistry.registerMessages([
               toChatbotMessage(followUp, botUserId),
             ]);
             const resolved = await getNearbyHumanMessages({
-              channelId: threadId,
+              channelId: followUp.channel_id,
               requestMessageId: followUp.id,
               botUserId,
               discordRequest,
@@ -1994,13 +2070,9 @@ export async function handleChatbotMention({
       failureKind: "internal",
     };
   } finally {
-    if (mcpSession && !deferredDeveloperTask) {
-      mcpSnapshot = mcpSession.snapshot();
-      mcpSession.revoke();
-    }
-    if (!deferredDeveloperTask) workflow.release();
+    mcpSnapshot = resources.release() ?? mcpSnapshot;
   }
-  if (deferredDeveloperTask) return true;
+  if (resources.retained) return true;
   if (quietTracker?.isPaused(message.channel_id)) return true;
   let reacted = false;
   let reply: string | null = null;
