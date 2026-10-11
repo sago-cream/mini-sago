@@ -7,19 +7,31 @@ Codex-powered chat with server context, emote creation and cross-server migratio
 
 ## Features
 
-- Reacts to community messages with emotes in configured server.
-- Answers member and configured role mentions using conversation context, attachments, public web search, and accessible Discord history.
+Availability depends on configured workers, integrations, and server/channel access.
+
+- Reacts to community messages with emotes in configured servers and nudges a designated member about frequent quick replies.
+- Answers member and configured role mentions, replies, and owner DMs using attachments, public web search, and accessible Discord history. `/ask` returns an answer visible only to its requester.
+- Remembers and updates server-specific vocabulary and facts taught in chat.
+- Resolves and pings named server members on request. The owner can also request messages to a chosen channel.
+- Pauses replies and automatic activity in a channel or thread when asked.
 - Joins Discord voice channels for spoken conversations. **WIP and far from usable:** recognition, response latency, and turn-taking still need work.
-- Performs expression management on demand, including adding emojis or stickers from attachments and moving emojis to other servers.
-- Publishes daily TOEFL vocabulary, AniGamer forum voucher code updates, and Codex news on X to configured channels.
+- Adds emojis and stickers from attachments, copies emojis between servers, and renames emojis for the owner.
+- Processes images, extracts video frames, converts audio/video/GIF files, and runs bounded Python calculations on Linux workers.
+- Publishes daily TOEFL vocabulary, AniGamer forum voucher code updates, and configured X account posts to subscribed channels.
 - Improves Instagram, Twitter/X, and Threads embeds with `kkinstagram.com`, `fxtwitter.com`, and `fixthreads.seria.moe` links.
-- Creates reminders when asked to and pings you when the reminder expires.
-- Listen to GitHub activities and maintains PR review threads for certain repo in configured server.
-- Find files in my Mac and send it in chat when asked by me.
+- Creates, lists, edits, and cancels one-time or recurring reminders, with a ping when they are due.
+- Watches GitHub activity and maintains PR review threads for configured repositories.
+- Finds files in allowlisted folders on the owner's Mac and sends requested files in chat.
 - Searches Threads on request for 清大, NTHU, 學生會 plus optional extra keywords.
-- Retrieves relevant CCXP meeting records during discussions in owner-registered servers; runs independently on Oracle and DMs the owner when login needs attention.
-- Runs coding tasks in dedicated Discord threads with progress reports,
-  steering, stop, and continuation, then publishes a draft PR when authorized.
+- Searches approved [NTHUSA shared drives](docs/configuration.md#nthusa-shared-drive) and reads documents subject to Discord role and file permission checks.
+- Checks office availability, looks up invitees, and creates, edits, or cancels [Calendar events and invitations](docs/configuration.md#discord-calendar-and-contact-directory) after requester confirmation in registered servers.
+- Reads the shared Kyushu itinerary and, when configured, edits its schedule on request.
+- Queries NTHU Campus Assistant for campus search, buses, courses, announcements, dining, libraries, newsletters, and electricity information when available.
+- Retrieves relevant CCXP meeting records during discussions in owner-registered servers. The independent Oracle collector supports owner-requested refreshes and DMs the owner when login needs attention.
+- Runs owner-requested coding tasks in dedicated Discord threads with progress reports, steering, stop, and continuation, then publishes draft PRs and performs merges or configured MiniSago deployments only when authorized.
+- Reports MiniSago deployment outcomes in Discord and DMs Sago Media access requests to the owner.
+- Reports the answering worker's Codex usage, remaining capacity, and reset times.
+- Lets the owner change [feature access, role filters, and background-posting subscriptions](docs/configuration.md#persistent-state) without deploying.
 
 > [!TIP]
 > Mention MiniSago under **Members/Apps**, or use a configured MiniSago role.
