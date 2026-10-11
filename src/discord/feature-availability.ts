@@ -14,6 +14,7 @@ export const SCOPED_FEATURE_DEFINITIONS = {
     "Search protected NTHU meeting records during related discussions. Owner registration is guild-only; requires a configured CCXP index.",
   calendar:
     "Expose Calendar tools in registered guilds, subject to optional role filters; requires configured Google credentials.",
+  mail: "Search and read approved Gmail mailboxes in explicitly registered guilds or channels, subject to role filters; replies are visible in the requesting conversation. Requires connected mailboxes. The owner also has private text DM access.",
   developer_steering:
     "Let non-owner humans steer existing coding tasks. Requires explicit guild registration; the owner can steer everywhere.",
 } as const;
@@ -119,6 +120,7 @@ export function defaultFeatureAvailability(
         defaultEnabled: false,
         rules: enabledRules("guild", ["1521168712579682567"]),
       },
+      mail: { defaultEnabled: false, rules: [] },
     },
   };
 }
@@ -177,6 +179,9 @@ function assertSnapshot(
     snapshot.features.calendar =
       defaultFeatureAvailability(environment).features.calendar;
   }
+  if (snapshot.features.mail === undefined) {
+    snapshot.features.mail = { defaultEnabled: false, rules: [] };
+  }
   for (const feature of Object.keys(
     SCOPED_FEATURE_DEFINITIONS,
   ) as ScopedFeatureId[]) {
@@ -196,6 +201,11 @@ function assertSnapshot(
       )
     ) {
       throw new Error(`Feature availability has invalid ${feature} rules.`);
+    }
+    if (feature === "mail" && policy.defaultEnabled) {
+      throw new Error(
+        "mail requires explicit registrations with a disabled default.",
+      );
     }
     if (
       guildOnly(feature) &&

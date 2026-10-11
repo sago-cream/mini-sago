@@ -772,7 +772,7 @@ function createServer(session: ChatbotMcpSession) {
       "configure_feature_availability",
       {
         description:
-          "Change one MiniSago feature's availability for an exact Discord guild or channel ID. Use enable or disable to add an override. Use inherit to remove the override and fall back to the guild or feature default. Calendar (calendar), CCXP meeting access (ccxp_meetings) and non-owner coding task steering (developer_steering) require guild scope: enable registers an approved guild; disable or inherit removes access. Optional allowRoleIds and denyRoleIds filter enabled registrations; deny wins, omitted or empty lists mean no filter. Each enable replaces previous filters. Only call when the owner explicitly asks to change feature coverage.",
+          "Change one MiniSago feature's availability for an exact Discord guild or channel ID. Use enable or disable to add an override. Use inherit to remove the override and fall back to the guild or feature default. Calendar (calendar), CCXP meeting access (ccxp_meetings) and non-owner coding task steering (developer_steering) require guild scope: enable registers an approved guild; disable or inherit removes access. Mail (mail) supports guild or channel registration with a disabled default: registered users can read configured connected mailboxes, and answers are visible to anyone who can view the requesting conversation. Optional allowRoleIds and denyRoleIds filter enabled registrations; deny wins, omitted or empty lists mean no filter. Each enable replaces previous filters. Only call when the owner explicitly asks to change feature coverage.",
         inputSchema: {
           feature: z.enum(
             Object.keys(SCOPED_FEATURE_DEFINITIONS) as [

@@ -2,7 +2,8 @@
 
 For optional multi-mailbox Gmail read-only access, hosted owner consent, and
 `MINISAGO_MAIL_*` host settings, see [discord-mail setup](mail.md). Mail tools are
-restricted to the bot owner's private Discord conversation.
+available in the bot owner’s private DM and explicitly registered guilds or
+channels, with optional role filters. Mail is disabled elsewhere by default.
 
 The checked-in environment examples are the mechanical source of truth:
 
@@ -198,7 +199,10 @@ removes that scope's rule. Filters are accepted only with enable.
 Channel rules take precedence over guild rules, including a filtered channel
 rule that denies a member. Calendar, CCXP, and developer steering require guild
 registrations and a disabled global default. Other features support both scopes.
-Existing rules retain their coverage without role filters.
+Mail supports both guild and channel registration with a disabled global default.
+Register `mail` through `configure_feature_availability`; role filters control
+who may request mail, while responses are visible to everyone who can view the
+requesting conversation. Existing rules retain their coverage without role filters.
 
 Calendar is now a registered feature. Legacy state gains the original configured
 Calendar guild and the owner-approved registration for guild

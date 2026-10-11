@@ -2,10 +2,11 @@
 
 discord-mail lets Sago search and read multiple approved Gmail mailboxes. Each
 mailbox owner grants their own read-only Google authorization. Tools are available
-only to `MINISAGO_CHATBOT_OWNER_USER_ID` in their private text conversation with
-Sago. Guild channels, other requesters, and voice sessions receive no mail tools.
-The consent page explains that access is for the bot operator; mailbox consent
-does not grant other Discord members access.
+in owner-registered Discord guilds or channels, subject to
+optional role filters, and to `MINISAGO_CHATBOT_OWNER_USER_ID` in their private
+text DM. Mail is disabled in unregistered guilds, other users’ DMs, and voice.
+The consent page explains that the operator chooses approved Discord spaces
+and members; answers are visible to anyone who can view the requesting conversation.
 
 ## Google Cloud setup
 
@@ -105,14 +106,45 @@ Owner handoff text:
 
 > Please open this private discord-mail invitation and choose Continue with
 > Google. Sign in as nthusc@gapp.nthu.edu.tw and allow read-only Gmail access.
-> This lets Sago search and summarize your mailbox for its operator in their
-> private Discord conversation, with relevant text processed by OpenAI. It cannot
+> This lets Sago search and summarize your mailbox for its operator and approved
+> members in registered Discord spaces, with relevant text processed by OpenAI. It cannot
 > send, delete, or change mail. You can revoke discord-mail in Google Account
 > connections at any time. Tell us when the page says your mailbox is connected.
 
+## Register Discord access
+
+The owner can use `list_feature_availability` and
+`configure_feature_availability` through Sago. Mail has a disabled global default
+and no initial registrations, including when upgrading an existing policy.
+The owner’s private text DM remains available without registration.
+
+Example registration:
+
+```json
+{
+  "feature": "mail",
+  "scope": "guild",
+  "targetId": "1394943277836402779",
+  "action": "enable"
+}
+```
+
+Use `scope: "channel"` for one channel, or include `allowRoleIds` / `denyRoleIds`
+to restrict requesters. Deny wins; an empty filter allows any requester who can
+use Sago in that scope. Channel rules override guild rules. Disable denies the
+scope; inherit removes the override. Registration exposes all configured,
+connected approved mailboxes. It does not authorize another Google account.
+Chatbot coverage remains a separate prerequisite for non-owner requests.
+
+Role filters control tool use, not who can see an answer: responses are visible
+to anyone who can view the requesting conversation. Use a restricted Discord
+channel when mailbox answers should have a limited audience. Every tool call
+refreshes Discord membership and checks policy; revocation during a read prevents
+its results from being returned. No mail tools are exposed in voice sessions.
+
 ## Read and disconnect
 
-Ask Sago in your private Discord conversation to list connected accounts, search
+Ask Sago in an approved Discord conversation to list connected accounts, search
 one mailbox, or search all approved connected mailboxes. Example: “Search
 nthusc@gapp.nthu.edu.tw for unread inbox messages about next week's meeting.”
 Tools are `list_mail_accounts`, `search_mail`, and `read_mail`. Results identify

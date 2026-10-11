@@ -1557,11 +1557,16 @@ export async function handleChatbotMention({
         },
         featureAvailability,
       );
-      const mail = createGoogleMailClient(process.env, {
-        requesterId: requesterUserId,
-        ownerId: accessConfig.ownerUserId,
-        guildId: message.guild_id,
-      });
+      const mail = createGoogleMailClient(
+        process.env,
+        {
+          ...calendarContext,
+          requesterId: requesterUserId,
+          ownerId: accessConfig.ownerUserId,
+        },
+        fetch,
+        featureAvailability,
+      );
       mcpSession = registerChatbotMcpSession({
         ...(message.guild_id
           ? {

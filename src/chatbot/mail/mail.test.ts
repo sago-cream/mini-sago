@@ -9,6 +9,7 @@ import {
   MAIL_SCOPES,
   MAIL_CALLBACK_PATH,
 } from "./mail-settings";
+import { FeatureAvailabilityStore } from "../../discord/feature-availability";
 import { MailStore } from "./mail-store";
 import { createMailAuthHandler, handleMailRequest } from "./mail-auth";
 import { createGoogleMailClient, mailMessageText } from "./google-mail";
@@ -514,4 +515,177 @@ test("message extraction prefers plain text, lists attachments and strips active
       body: { data: data("x".repeat(100001)) },
     }),
   ).toMatchObject({ truncated: true });
+});
+
+test("registered mail scopes refresh roles, honor channel overrides, and revoke existing clients", async () => {
+  const f = fixture();
+  connect(f);
+  const policy = new FeatureAvailabilityStore(
+    join(f.settings.storePath, "..", "features.json"),
+    {},
+  );
+  const guildId = "1394943277836402779",
+    channelId = "1517766866964316201";
+  const role = "1394944058534920213",
+    denied = "1394944058534920214";
+  let roles = [role];
+  let memberUnavailable = false;
+  const context = {
+    requesterId: "member",
+    ownerId: "owner",
+    guildId,
+    channelId,
+    roleIds: [role],
+    resolveRoleIds: async () => {
+      if (memberUnavailable) throw Error("Membership unavailable");
+      return roles;
+    },
+  };
+  const g = google();
+  expect(
+    createGoogleMailClient(f.env, context, g.request, policy),
+  ).toBeUndefined();
+  await policy.configure({
+    feature: "mail",
+    scope: "guild",
+    targetId: guildId,
+    action: "enable",
+    allowRoleIds: [role],
+    denyRoleIds: [denied],
+  });
+  const client = createGoogleMailClient(f.env, context, g.request, policy)!;
+  expect(await client.call("list_mail_accounts", {})).toMatchObject({
+    status: "complete",
+    accounts: [
+      { account: mailbox, connected: true },
+      { account: second, connected: false },
+    ],
+  });
+  roles = [role, denied];
+  expect(await client.call("list_mail_accounts", {})).toEqual({
+    status: "forbidden",
+  });
+  roles = [];
+  expect(await client.call("list_mail_accounts", {})).toEqual({
+    status: "forbidden",
+  });
+  roles = [role];
+  memberUnavailable = true;
+  expect(await client.call("list_mail_accounts", {})).toEqual({
+    status: "forbidden",
+  });
+  memberUnavailable = false;
+  await policy.configure({
+    feature: "mail",
+    scope: "channel",
+    targetId: channelId,
+    action: "disable",
+  });
+  expect(await client.call("list_mail_accounts", {})).toEqual({
+    status: "forbidden",
+  });
+  await policy.configure({
+    feature: "mail",
+    scope: "channel",
+    targetId: channelId,
+    action: "enable",
+    allowRoleIds: [role],
+  });
+  expect(await client.call("list_mail_accounts", {})).toMatchObject({
+    status: "complete",
+  });
+  expect(
+    createGoogleMailClient(
+      f.env,
+      { ...context, streamReply: true },
+      g.request,
+      policy,
+    ),
+  ).toBeUndefined();
+  expect(
+    createGoogleMailClient(
+      f.env,
+      { ...context, guildId: undefined },
+      g.request,
+      policy,
+    ),
+  ).toBeUndefined();
+  expect(
+    createGoogleMailClient(
+      f.env,
+      { ...context, requesterId: "owner", guildId: undefined },
+      g.request,
+      policy,
+    ),
+  ).toBeDefined();
+  await policy.configure({
+    feature: "mail",
+    scope: "channel",
+    targetId: channelId,
+    action: "inherit",
+  });
+  await policy.configure({
+    feature: "mail",
+    scope: "guild",
+    targetId: guildId,
+    action: "disable",
+  });
+  expect(await client.call("list_mail_accounts", {})).toEqual({
+    status: "forbidden",
+  });
+  expect(g.calls).toHaveLength(0);
+  f.store.close();
+});
+
+test("mail registration revoked during a Google read withholds message contents", async () => {
+  const f = fixture();
+  connect(f);
+  const policy = new FeatureAvailabilityStore(
+    join(f.settings.storePath, "..", "features.json"),
+    {},
+  );
+  const guildId = "1394943277836402779";
+  await policy.configure({
+    feature: "mail",
+    scope: "guild",
+    targetId: guildId,
+    action: "enable",
+  });
+  const request = (async (url, init) => {
+    if (String(url).includes("/messages/")) {
+      await policy.configure({
+        feature: "mail",
+        scope: "guild",
+        targetId: guildId,
+        action: "disable",
+      });
+      return json({
+        id: "abcdef123456",
+        payload: {
+          mimeType: "text/plain",
+          body: { data: Buffer.from("private message").toString("base64url") },
+        },
+      });
+    }
+    return google().request(url, init);
+  }) as typeof fetch;
+  const client = createGoogleMailClient(
+    f.env,
+    {
+      requesterId: "member",
+      ownerId: "owner",
+      guildId,
+      roleIds: [],
+      resolveRoleIds: async () => [],
+    },
+    request,
+    policy,
+  )!;
+  const result = await client.call("read_mail", {
+    account: mailbox,
+    messageId: "abcdef123456",
+  });
+  expect(result).toEqual({ status: "forbidden" });
+  expect(JSON.stringify(result)).not.toContain("private message");
+  f.store.close();
 });
