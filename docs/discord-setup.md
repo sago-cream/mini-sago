@@ -52,35 +52,22 @@ can begin before the full reply is ready. The voice credit is
 where the owner may add emoji. Manage Expressions is needed where the owner may
 rename emoji.
 
-Once MiniSago joins, she responds to speech whenever she is idle; no wake word
-or exact transcription of her name is required. While she is answering, direct
-calls to Sago and corrections from the current speaker can take over. Unrelated
-chatter pauses the answer without replacing it.
+Once joined, MiniSago answers speech while idle without a wake word. During an
+answer, a direct call to Sago or a correction from the current speaker can
+replace it; that speaker can also stop it. Other chatter pauses playback.
+Playback resumes after everyone is quiet and pending transcription finishes.
+Replacement waits for worker cancellation acknowledgement, up to ten seconds.
+Context includes played sentences and marks interrupted audio as partly heard.
 
-MiniSago prewarms a slow `うーん…` thinking cue when the gateway starts. It plays
-at most once, after two seconds of processing. Speech suppresses the cue, and a
-ready answer cuts it off.
+A prewarmed `うーん…` thinking cue plays once after two seconds of processing.
+Speech suppresses it, and a ready answer cuts it off. The bot confirms 100 ms of
+voiced audio and ends utterances after 700 ms of silence. Check real microphones
+for false interruptions before changing these thresholds.
 
-Speech pauses a pending answer. Playback resumes only after everyone is quiet
-and pending transcription has been resolved. Direct calls to Sago or explicit
-corrections and stop commands from the current speaker replace or stop the
-answer. Replacing a turn aborts its synthesis and cancels its worker job; the
-replacement waits for cancellation acknowledgement (or the bridge's existing
-10-second cancellation timeout). Successive corrections supersede intermediate
-answers that have not started. Played sentences are kept in context; an
-interrupted sentence is marked as potentially only partly heard.
-
-The bot transcribes one utterance at a time, keeps at most three pending
-utterances, and drops the oldest on overflow. Pending audio older than 15 seconds
-is discarded. Recognition has an eight-second deadline, also bounded by that
-15-second audio age limit, so a stalled recognizer cannot leave playback paused
-indefinitely. Leaving the channel aborts recognition and answer work.
-
-WebRTC voice activity detection confirms 100 ms of consecutive voiced audio
-before pausing playback and submitting short commands. Briefer bursts are
-ignored. Utterances end after 700 ms of silence. The shorter start threshold
-should be checked with real microphones for false interruptions before tuning
-endpointing further.
+Recognition runs one utterance at a time with up to three queued; overflow drops
+the oldest. Audio expires after 15 seconds, and recognition has an eight-second
+deadline bounded by that expiry. Leaving cancels recognition and answer work.
+See [voice diagnostics](operations.md#voice-diagnostics-dashboard) for tuning.
 
 ## Gateway ownership
 
