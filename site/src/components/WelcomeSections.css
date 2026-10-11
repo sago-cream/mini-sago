@@ -1,15 +1,15 @@
 .strength-band {
+    --strength-overlap: 112px;
+    position: relative;
+    margin-top: calc(-1 * var(--strength-overlap));
     overflow: hidden;
 }
 .strength-wave {
     display: block;
     width: 100%;
     min-width: 720px;
-    height: 96px;
+    height: 160px;
     fill: var(--clr-teal);
-}
-.strength-wave-bottom {
-    transform: rotate(180deg);
 }
 .strength-band-body {
     background: var(--clr-teal);
@@ -19,7 +19,7 @@
     grid-template-columns: 1fr 1fr;
     gap: 80px;
     align-items: center;
-    padding-block: 56px;
+    padding-block: 48px 64px;
 }
 .strength-list {
     display: grid;
@@ -82,6 +82,12 @@
     }
 }
 @media (max-width: 600px) {
+    .strength-band {
+        --strength-overlap: 88px;
+    }
+    .strength-wave {
+        height: 128px;
+    }
     .strengths {
         grid-template-columns: 1fr;
         gap: 32px;

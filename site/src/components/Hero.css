@@ -17,8 +17,8 @@
     padding-block: 48px;
 }
 .hero h1 {
-    font: 900 clamp(48px, 4.8vw, 68px) / 1.12 var(--ff-display);
-    letter-spacing: -3px;
+    font: 900 clamp(48px, 4.8vw, 68px) / 1.25 var(--ff-display);
+    letter-spacing: -1.5px;
     margin: 0 0 24px;
     width: max-content;
     max-width: 100%;

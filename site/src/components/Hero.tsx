@@ -20,9 +20,9 @@ export function Hero(): JSX.Element {
                 </div>
                 <div className='hero-copy'>
                     <h1 id='hero-title'>
-                        Small Sago.
+                        聊得來，
                         <br />
-                        <span>Big possibilities.</span>
+                        <span>也幫得上忙。</span>
                     </h1>
                     <p className='hero-description'>
                         聊天、查資料、改圖、寫程式。

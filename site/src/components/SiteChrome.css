@@ -43,10 +43,6 @@
     display: inline-flex;
     align-items: center;
 }
-.brand img {
-    border-radius: 50%;
-    background: var(--clr-blue);
-}
 .site-header nav {
     display: flex;
     gap: 36px;

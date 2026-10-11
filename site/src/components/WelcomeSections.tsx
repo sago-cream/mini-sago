@@ -6,13 +6,17 @@ import { INVITE_URL } from '@/features';
 import './WelcomeSections.css';
 
 const STRENGTHS = [
-    { icon: MessageCircle, title: '不用背指令', text: '直接說你想做什麼。' },
+    {
+        icon: MessageCircle,
+        title: '隨意交談，不用背指令',
+        text: '迷你西米露能直接理解對話',
+    },
     {
         icon: Search,
-        title: '查資料，也能動手做',
-        text: '找來源、算表格、處理圖片。',
+        title: '讓 Discord 也能有生產力',
+        text: '她也能搜尋並整理伺服器或網路資料',
     },
-    { icon: Heart, title: '記得這個聊天室', text: '記住伺服器的用語。' },
+    { icon: Heart, title: '融入你的聊天室', text: '記住伺服器的用語。' },
 ] as const;
 
 export function Strengths(): JSX.Element {
@@ -26,9 +30,9 @@ export function Strengths(): JSX.Element {
                 aria-hidden='true'
                 className='strength-wave'
                 preserveAspectRatio='none'
-                viewBox='0 0 1440 96'
+                viewBox='0 0 1440 160'
             >
-                <path d='M0 48C240 -16 480 -16 720 48S1200 112 1440 48V96H0Z' />
+                <path d='M0 80C120 110 156 10 280 20C402 30 424 132 548 100C662 70 702 8 816 28C934 48 988 152 1110 116C1240 78 1294 14 1440 52V160H0Z' />
             </svg>
             <div className='strength-band-body'>
                 <div className='strengths section-width'>
@@ -56,9 +60,9 @@ export function Strengths(): JSX.Element {
                 aria-hidden='true'
                 className='strength-wave strength-wave-bottom'
                 preserveAspectRatio='none'
-                viewBox='0 0 1440 96'
+                viewBox='0 0 1440 160'
             >
-                <path d='M0 48C240 -16 480 -16 720 48S1200 112 1440 48V96H0Z' />
+                <path d='M0 0H1440V60C1310 8 1268 126 1140 112C1000 98 970 22 848 42C722 62 700 152 572 132C440 112 394 32 268 54C156 74 108 146 0 106Z' />
             </svg>
         </section>
     );
