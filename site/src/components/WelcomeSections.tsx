@@ -32,7 +32,7 @@ export function Strengths(): JSX.Element {
                 preserveAspectRatio='none'
                 viewBox='0 0 1440 160'
             >
-                <path d='M0 80C120 110 156 10 280 20C402 30 424 132 548 100C662 70 702 8 816 28C934 48 988 152 1110 116C1240 78 1294 14 1440 52V160H0Z' />
+                <path d='M0 8C160 8 360 12 480 24C556 32 584 48 608 92C636 140 748 148 904 148H1440V160H0Z' />
             </svg>
             <div className='strength-band-body'>
                 <div className='strengths section-width'>
@@ -58,11 +58,11 @@ export function Strengths(): JSX.Element {
             </div>
             <svg
                 aria-hidden='true'
-                className='strength-wave strength-wave-bottom'
+                className='strength-wave'
                 preserveAspectRatio='none'
                 viewBox='0 0 1440 160'
             >
-                <path d='M0 0H1440V60C1310 8 1268 126 1140 112C1000 98 970 22 848 42C722 62 700 152 572 132C440 112 394 32 268 54C156 74 108 146 0 106Z' />
+                <path d='M0 0H1440V148C1280 160 1100 152 936 148C752 144 640 152 608 108C576 64 584 40 496 24C352 4 160 8 0 8Z' />
             </svg>
         </section>
     );

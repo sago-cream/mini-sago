@@ -1,5 +1,5 @@
 .strength-band {
-    --strength-overlap: 112px;
+    --strength-overlap: 24px;
     position: relative;
     margin-top: calc(-1 * var(--strength-overlap));
     overflow: hidden;
@@ -7,7 +7,6 @@
 .strength-wave {
     display: block;
     width: 100%;
-    min-width: 720px;
     height: 160px;
     fill: var(--clr-teal);
 }
@@ -19,7 +18,10 @@
     grid-template-columns: 1fr 1fr;
     gap: 80px;
     align-items: center;
-    padding-block: 48px 64px;
+    padding-block: 56px;
+}
+.strengths h2 {
+    transform: translateY(-56px);
 }
 .strength-list {
     display: grid;
@@ -27,6 +29,7 @@
     list-style: none;
     padding: 0;
     margin: 0;
+    transform: translateY(56px);
 }
 .strength {
     display: flex;
@@ -83,15 +86,19 @@
 }
 @media (max-width: 600px) {
     .strength-band {
-        --strength-overlap: 88px;
+        --strength-overlap: 16px;
     }
     .strength-wave {
-        height: 128px;
+        height: 80px;
     }
     .strengths {
         grid-template-columns: 1fr;
         gap: 32px;
         padding-block: 32px;
+    }
+    .strengths h2,
+    .strength-list {
+        transform: none;
     }
     .invite-sago {
         align-items: start;
