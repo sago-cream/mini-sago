@@ -31,6 +31,10 @@ import {
   type CcxpMeetingsClient,
 } from "./ccxp-meetings";
 import { CHATBOT_CONTEXT_LIMITS } from "./context-limits";
+import type {
+  MemberMentionInput,
+  MemberMentionResult,
+} from "./member-mentions";
 import {
   budgetMessages,
   CHATBOT_CONTEXT_BUDGETS,
@@ -283,6 +287,7 @@ export type ChatbotGuildEmojiRenameInput = {
 };
 
 export type ChatbotMcpSessionHandlers = {
+  mentionMembers?: (input: MemberMentionInput) => Promise<MemberMentionResult>;
   mediaRegistry?: ChatbotMediaRegistry;
   supplementalCapabilities?: ChatbotCapability[];
   listFeatureAvailability?: () => FeatureAvailabilitySnapshot;
@@ -523,6 +528,16 @@ function availableCapabilities(
       description:
         "Read the answering worker's current Codex usage, remaining capacity, and reset times.",
       tools: ["get_codex_usage"],
+    });
+  }
+  if (handlers.mentionMembers) {
+    capabilities.push({
+      id: "member_mentions",
+      category: "discord",
+      availability: "available",
+      description:
+        "Resolve and notify named members in the current server channel when explicitly requested, splitting large lists into Discord-sized messages. Report missing or ambiguous names without notifying uncertain matches.",
+      tools: ["mention_members"],
     });
   }
   if (
@@ -1155,7 +1170,7 @@ function createServer(session: ChatbotMcpSession) {
     "resolve_context",
     {
       description:
-        "Read more current-channel history, search older accessible messages, resolve member aliases and avatar URLs, and optionally inspect the previous answer trace in one parallel batch. Use only the fields needed for the request.",
+        "Read more current-channel history, search older accessible messages, resolve member IDs, mention syntax, aliases and avatar references, and optionally inspect the previous answer trace in one parallel batch. Use only the fields needed for the request. To notify members, use mention_members; ordinary replies suppress notifications.",
       inputSchema: {
         historyCount: z
           .number()
@@ -1195,6 +1210,41 @@ function createServer(session: ChatbotMcpSession) {
       }
     },
   );
+
+  if (session.handlers.mentionMembers) {
+    server.registerTool(
+      "mention_members",
+      {
+        description:
+          "Mention and notify members in the current channel only when the requester explicitly asks to tag, ping, 標記 or notify them. Supply the whole requested list of server nicknames, usernames, user IDs or <@id> mentions; there is no member-count cap. The host resolves each query in the current guild and splits unambiguous matches into Discord-sized messages. Include the requested notice in content when needed. Report unresolvedQueries and ask for clarification without guessing; a needs_clarification result posts nothing. A complete result already posted the resolved mentions; do not repeat them or claim unresolved people were notified. A partial result confirms only memberIds; delivery to unconfirmedMemberIds is uncertain. Do not retry automatically after partial delivery. The guild, channel and reply target are host-bound. Repeated calls return the same delivery result.",
+        inputSchema: {
+          queries: z
+            .array(
+              z
+                .string()
+                .trim()
+                .min(1)
+                .max(CHATBOT_CONTEXT_LIMITS.maximumMemberQueryCharacters),
+            )
+            .min(1),
+          content: z.string().trim().max(1_400).optional(),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: true,
+        },
+      },
+      async (input) => {
+        try {
+          return toolResult(await session.handlers.mentionMembers!(input));
+        } catch (error) {
+          return unavailable(error);
+        }
+      },
+    );
+  }
 
   if (session.handlers.sendChannelMessage) {
     server.registerTool(

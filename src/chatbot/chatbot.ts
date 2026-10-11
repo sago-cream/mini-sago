@@ -63,6 +63,7 @@ import {
 } from "../discord/api/emojis";
 import { getChatbotReminderScheduler } from "../discord/jobs/reminders";
 import { sendChannelMessage } from "../discord/api/channel-messages";
+import { createMemberMentionHandler } from "./member-mentions";
 import {
   joinMemberVoiceChannel,
   leaveVoiceChannel,
@@ -1444,6 +1445,16 @@ export async function handleChatbotMention({
         featureAvailability,
       );
       mcpSession = registerChatbotMcpSession({
+        ...(message.guild_id
+          ? {
+              mentionMembers: createMemberMentionHandler({
+                guildId: message.guild_id,
+                channelId: message.channel_id,
+                requestMessageId: message.id,
+                discordRequest,
+              }),
+            }
+          : {}),
         ...(ccxpSync ? { ccxpSync } : {}),
         ...(ccxpMeetings ? { ccxpMeetings } : {}),
         searchThreads,

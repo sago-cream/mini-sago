@@ -73,6 +73,8 @@ export const EMOJI_RENAME_MCP_APPROVAL_CONFIG =
   'mcp_servers.minisago.tools.rename_guild_emoji.approval_mode="approve"';
 export const CHANNEL_MESSAGE_MCP_APPROVAL_CONFIG =
   'mcp_servers.minisago.tools.send_channel_message.approval_mode="approve"';
+export const MEMBER_MENTIONS_MCP_APPROVAL_CONFIG =
+  'mcp_servers.minisago.tools.mention_members.approval_mode="approve"';
 export const SERVER_MEMORY_MCP_APPROVAL_CONFIG =
   'mcp_servers.minisago.tools.manage_server_memory.approval_mode="approve"';
 export const CHANNEL_QUIET_MCP_APPROVAL_CONFIG =
@@ -1149,6 +1151,8 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
         EMOJI_RENAME_MCP_APPROVAL_CONFIG,
         "--config",
         CHANNEL_MESSAGE_MCP_APPROVAL_CONFIG,
+        "--config",
+        MEMBER_MENTIONS_MCP_APPROVAL_CONFIG,
         "--config",
         SERVER_MEMORY_MCP_APPROVAL_CONFIG,
         "--config",

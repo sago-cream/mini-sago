@@ -89,6 +89,8 @@ export type ChatbotCapability = {
 
 export type ChatbotMemberResult = {
   query: string;
+  id: string;
+  mention: string;
   names: string[];
   avatar: ChatbotMediaRef;
 };

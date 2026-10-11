@@ -2290,12 +2290,16 @@ describe("Discord chatbot", () => {
     expect(results).toEqual([
       {
         query: "kiseki",
+        id: "123456789012345678",
+        mention: "<@123456789012345678>",
         names: ["Kiseki", "Daniel", "kiseki_account"],
         avatarUrl:
           "https://cdn.discordapp.com/guilds/guild-1/users/123456789012345678/avatars/a_server-avatar.gif?size=4096",
       },
       {
         query: "<@123456789012345678>",
+        id: "123456789012345678",
+        mention: "<@123456789012345678>",
         names: ["Kiseki", "Daniel", "kiseki_account"],
         avatarUrl:
           "https://cdn.discordapp.com/guilds/guild-1/users/123456789012345678/avatars/a_server-avatar.gif?size=4096",
