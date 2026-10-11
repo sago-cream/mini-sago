@@ -5,7 +5,6 @@
         radial-gradient(ellipse at 22% 36%, #e6f4ff 0, transparent 47%),
         radial-gradient(ellipse at 32% 77%, #efebfc 0, transparent 48%),
         linear-gradient(180deg, #fcfcff, #f4f6ff);
-    border-bottom: 1px solid #eaeaf6;
 }
 .hero-inner {
     display: grid;

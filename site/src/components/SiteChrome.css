@@ -47,11 +47,6 @@
     border-radius: 50%;
     background: var(--clr-blue);
 }
-.brand-star {
-    color: #9686d7;
-    font-size: 36px;
-    padding-left: 2px;
-}
 .site-header nav {
     display: flex;
     gap: 36px;
@@ -125,9 +120,6 @@ h2 {
 .footer-brand {
     font: 900 26px / 1.2 var(--ff-display);
     letter-spacing: -1px;
-}
-.footer-brand > span {
-    color: #9686d7;
 }
 .site-footer a {
     display: flex;

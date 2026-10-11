@@ -31,7 +31,7 @@ export function FeatureExample({
     const [copied, setCopied] = useState(false);
     const [failed, setFailed] = useState(false);
     const canCopy =
-        feature.example.startsWith('@Sago') ||
+        feature.example.startsWith('@迷你西米露') ||
         feature.example.startsWith('/ask');
 
     function copyExample() {
@@ -104,7 +104,7 @@ export function AccessGuide(): JSX.Element {
                 </div>
                 <div>
                     <dt>擁有者限定</dt>
-                    <dd>僅 Sago 擁有者可以操作。</dd>
+                    <dd>僅迷你西米露擁有者可以操作。</dd>
                 </div>
                 <div>
                     <dt>開發中</dt>

@@ -10,7 +10,7 @@ export function Hero(): JSX.Element {
             <div className='hero-inner section-width'>
                 <div className='hero-art'>
                     <Image
-                        alt='MiniSago 3：藍髮、紫眼的 Sago'
+                        alt='MiniSago 3：藍髮、紫眼的迷你西米露'
                         className='hero-character'
                         height={1540}
                         priority
@@ -27,11 +27,11 @@ export function Hero(): JSX.Element {
                     <p className='hero-description'>
                         聊天、查資料、改圖、寫程式。
                         <br />
-                        Discord 裡的小事，交給 Sago。
+                        Discord 裡的小事，交給迷你西米露。
                     </p>
                     <div className='hero-actions'>
                         <a className='button' href='#features'>
-                            看看 Sago 會什麼 <ArrowDown size={18} />
+                            看看她會什麼 <ArrowDown size={18} />
                         </a>
                     </div>
                 </div>

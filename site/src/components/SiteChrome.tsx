@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { ArrowUpRight, Code2 } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import Image from 'next/image';
 
 import { REPOSITORY_URL } from '@/features';
@@ -20,9 +20,7 @@ export function SiteHeader(): JSX.Element {
                         src='/images/minisago3.png'
                         width={40}
                     />
-                    <span>
-                        mini sago<span className='brand-star'>*</span>
-                    </span>
+                    <span>mini sago</span>
                 </a>
                 <nav aria-label='主要導覽'>
                     <a href='#features'>功能一覽</a>
@@ -32,7 +30,12 @@ export function SiteHeader(): JSX.Element {
                     className='header-github'
                     href={REPOSITORY_URL}
                 >
-                    <Code2 size={20} />
+                    <Image
+                        alt=''
+                        height={20}
+                        src='/logos/github.svg'
+                        width={20}
+                    />
                     <span>GitHub</span>
                     <ArrowUpRight size={16} />
                 </a>
@@ -44,10 +47,9 @@ export function SiteHeader(): JSX.Element {
 export function SiteFooter(): JSX.Element {
     return (
         <footer className='site-footer section-width'>
-            <div className='footer-brand'>
-                mini sago<span>*</span>
-            </div>
+            <div className='footer-brand'>mini sago</div>
             <a href={REPOSITORY_URL}>
+                <Image alt='' height={20} src='/logos/github.svg' width={20} />
                 GitHub <ArrowUpRight size={14} />
             </a>
         </footer>

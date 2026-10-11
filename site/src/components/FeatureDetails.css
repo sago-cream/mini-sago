@@ -7,7 +7,7 @@
     border-radius: 20px;
     color: var(--clr-text-muted);
     background: var(--clr-bg);
-    font-size: 11px;
+    font-size: 12px;
     white-space: nowrap;
 }
 .access-development {
@@ -24,6 +24,7 @@
 }
 .prompt-line {
     display: flex;
+    min-height: 44px;
     gap: 12px;
     align-items: center;
     justify-content: space-between;
@@ -43,7 +44,7 @@
     border-radius: 8px;
     background: transparent;
     color: var(--clr-accent);
-    font-size: 11px;
+    font-size: 12px;
 }
 .copy-prompt:hover {
     background: #e4ddf7;
@@ -75,7 +76,7 @@
 }
 .access-guide dl > div {
     display: grid;
-    grid-template-columns: 60px 1fr;
+    grid-template-columns: 84px 1fr;
     gap: 12px;
 }
 .access-guide dt {
