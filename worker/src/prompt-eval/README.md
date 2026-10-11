@@ -1,8 +1,8 @@
 # Prompt case evaluation
 
-This is an opt-in live-model suite for prompt changes. It compiles the same prompt plan and output schema as the worker, runs Codex with mock MiniSago MCP tools, and checks observable behavior such as tool selection, inline emoji, non-empty replies, and artifact delivery.
+This is an opt-in live-model suite for prompt changes. It compiles the same prompt plan and output schema as the worker, runs Codex against the production Discord MCP server with fixture handlers, and checks accepted tool calls, inline emoji, non-empty replies, and artifact selection. Media fixtures share the production Python input schema and return synthetic artifact IDs; they do not execute Python or verify file contents.
 
-The suite never contacts Discord or mutates production state. Web search is disabled. It is not part of normal unit tests because model runs are slow, paid, and nondeterministic.
+The Discord MCP endpoint listens only on loopback. Its handlers return fixtures and never contact Discord or mutate production state. Rejected tool calls do not satisfy required-action checks. Web search is disabled. It is not part of normal unit tests because model runs are slow, paid, and nondeterministic.
 
 ## Case sources
 

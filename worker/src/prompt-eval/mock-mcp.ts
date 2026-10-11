@@ -2,141 +2,154 @@ import { appendFileSync } from "node:fs";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
+import {
+  handleChatbotMcpRequest,
+  registerChatbotMcpSession,
+} from "../../../src/chatbot/mcp";
+import type {
+  ChatbotMemberResult,
+  ChatbotMessage,
+} from "../../../contracts/worker-contract";
+import { pythonToolSchema } from "../media/python";
 
-const server = new McpServer({
-  name: "minisago-prompt-eval",
-  version: "1.0.0",
-});
-const callLog = process.env.MINISAGO_PROMPT_EVAL_CALL_LOG;
-const mockContext = JSON.parse(
-  process.env.MINISAGO_PROMPT_EVAL_CONTEXT ?? "{}",
-) as Record<string, unknown>;
-const mediaId = process.env.MINISAGO_PROMPT_EVAL_MEDIA_ID;
+export type PromptEvalContext = {
+  history?: Array<Pick<ChatbotMessage, "author" | "content">>;
+  members?: Array<Pick<ChatbotMemberResult, "query" | "names" | "id">>;
+  channels?: Array<{ name: string; id: string }>;
+};
 
-if (!callLog) throw new Error("MINISAGO_PROMPT_EVAL_CALL_LOG is required");
-const callLogPath = callLog;
-
-function record(tool: string, input: unknown) {
-  appendFileSync(callLogPath, `${JSON.stringify({ tool, input })}\n`);
+function record(path: string, tool: string, input: unknown, success = true) {
+  appendFileSync(path, `${JSON.stringify({ tool, input, success })}\n`);
 }
 
-function result(value: Record<string, unknown>) {
+export function startPromptEvalHost(
+  callLog: string,
+  context: PromptEvalContext = {},
+) {
+  const session = registerChatbotMcpSession({
+    resolveContext: async () => {
+      return {
+        history: {
+          status: "complete",
+          messages: (context.history ?? []).map((message, index) => ({
+            ...message,
+            id: `history-${index}`,
+            timestamp: "2026-08-27T00:00:00.000Z",
+            attachments: [],
+          })),
+        },
+        search: { status: "not_requested", results: [] },
+        members: {
+          status: "complete",
+          results: (context.members ?? []).map((member) => ({
+            ...member,
+            mention: `<@${member.id}>`,
+            avatar: {
+              mediaId: `avatar-${member.id}`,
+              filename: "avatar.png",
+              contentType: "image/png",
+            },
+          })),
+        },
+        previousTrace: { status: "not_requested" },
+      };
+    },
+    manageServerMemory: async (input) => {
+      return { revision: 2, action: input.action, entryId: "mem_012345abcdef" };
+    },
+    createReminder: async (input) => {
+      return {
+        id: "reminder-eval",
+        ...input,
+        nextRunAt: input.runAt ?? "2026-08-28T00:00:00.000Z",
+      };
+    },
+    listReminders: async () => [],
+    editReminder: async () => undefined,
+    cancelReminder: async () => false,
+    sendChannelMessage: async (input) => {
+      const channel = context.channels?.find((channel) =>
+        input.channelId
+          ? channel.id === input.channelId
+          : channel.name === input.channel,
+      );
+      if (!channel)
+        throw new Error("No matching channel in the evaluation fixture.");
+      return {
+        id: "message-eval",
+        channelId: channel.id,
+        channelName: channel.name,
+        guildId: "guild-eval",
+        jumpUrl: `https://discord.com/channels/guild-eval/${channel.id}/message-eval`,
+      };
+    },
+  });
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    async fetch(request) {
+      const message =
+        request.method === "POST" ? await request.clone().json() : undefined;
+      const response = await handleChatbotMcpRequest(request);
+      if (message?.method === "tools/call") {
+        const body = await response.clone().json();
+        const result = body.result;
+        const status = result?.structuredContent?.status;
+        record(
+          callLog,
+          message.params.name,
+          message.params.arguments,
+          Boolean(
+            result && !result.isError && (!status || status === "complete"),
+          ),
+        );
+      }
+      return response;
+    },
+  });
   return {
-    content: [{ type: "text" as const, text: JSON.stringify(value) }],
-    structuredContent: value,
+    url: server.url.href,
+    token: session.token,
+    close() {
+      session.revoke();
+      server.stop(true);
+    },
   };
 }
 
-server.registerTool(
-  "resolve_context",
-  {
-    description:
-      "Read more current-channel history, search older accessible messages, and resolve member aliases when supplied Discord context is insufficient.",
-    inputSchema: {
-      historyCount: z.number().int().min(0).max(100).optional(),
-      memberQueries: z.array(z.string()).optional(),
-      queries: z.array(z.object({ query: z.string() })).optional(),
+if (import.meta.main) {
+  const callLog = process.env.MINISAGO_PROMPT_EVAL_CALL_LOG;
+  if (!callLog) throw new Error("MINISAGO_PROMPT_EVAL_CALL_LOG is required");
+  const mediaId = process.env.MINISAGO_PROMPT_EVAL_MEDIA_ID;
+  const server = new McpServer({
+    name: "minisago-prompt-eval-media",
+    version: "1.0.0",
+  });
+  server.registerTool(
+    "run_python",
+    {
+      description:
+        "Run bounded Python for request-local computation. If outputExtension is set, write one result to MINISAGO_OUTPUT_PATH and return its mediaId.",
+      inputSchema: pythonToolSchema,
     },
-  },
-  async (input) => {
-    record("resolve_context", input);
-    return result({ status: "complete", ...mockContext });
-  },
-);
-
-server.registerTool(
-  "manage_server_memory",
-  {
-    description:
-      "Save a stable correction or durable fact about the current Discord server.",
-    inputSchema: {
-      action: z.enum(["add", "replace", "remove"]),
-      entryId: z.string().optional(),
-      content: z.string().optional(),
+    async (input) => {
+      const success = Boolean(
+        mediaId &&
+        input.outputExtension &&
+        mediaId.endsWith(`.${input.outputExtension}`),
+      );
+      record(callLog, "run_python", input, success);
+      const value = success
+        ? { status: "complete", mediaId }
+        : {
+            status: "unavailable",
+            reason: "No matching media result in the evaluation fixture.",
+          };
+      return {
+        content: [{ type: "text", text: JSON.stringify(value) }],
+        structuredContent: value,
+      };
     },
-  },
-  async (input) => {
-    record("manage_server_memory", input);
-    return result({ status: "complete", revision: 2, entryId: "memory-eval" });
-  },
-);
-
-server.registerTool(
-  "create_reminder",
-  {
-    description:
-      "Create a one-time or recurring reminder in the current Discord channel.",
-    inputSchema: {
-      content: z.string(),
-      runAt: z.string().optional(),
-      cron: z.string().optional(),
-      timezone: z.string().optional(),
-      condition: z.string().optional(),
-    },
-  },
-  async (input) => {
-    record("create_reminder", input);
-    return result({ status: "complete", reminder: input });
-  },
-);
-
-server.registerTool(
-  "send_channel_message",
-  {
-    description:
-      "Send a message to a Discord channel only when the requester explicitly asks you to send or post it.",
-    inputSchema: {
-      content: z.string(),
-      channel: z.string().optional(),
-      server: z.string().optional(),
-    },
-  },
-  async (input) => {
-    record("send_channel_message", input);
-    return result({
-      status: "complete",
-      message: {
-        channelName: input.channel ?? "general",
-        jumpUrl: "https://discord.com/channels/eval/general/message",
-      },
-    });
-  },
-);
-
-server.registerTool(
-  "describe_capabilities",
-  {
-    description:
-      "Describe request-scoped MiniSago capabilities when someone asks what you can do.",
-    inputSchema: {},
-  },
-  async (input) => {
-    record("describe_capabilities", input);
-    return result({ status: "complete", capabilities: [] });
-  },
-);
-
-server.registerTool(
-  "run_python",
-  {
-    description:
-      "Run bounded Python for a media transformation not covered by another tool. Use mediaIds from the current request and return the generated media ID.",
-    inputSchema: {
-      code: z.string(),
-      mediaIds: z.array(z.string()),
-      outputExtension: z.string().optional(),
-    },
-  },
-  async (input) => {
-    record("run_python", input);
-    return mediaId
-      ? result({ status: "complete", mediaId })
-      : result({
-          status: "unavailable",
-          reason: "No media result was produced.",
-        });
-  },
-);
-
-await server.connect(new StdioServerTransport());
+  );
+  await server.connect(new StdioServerTransport());
+}
