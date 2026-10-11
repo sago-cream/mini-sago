@@ -13,7 +13,7 @@ import {
   createGoogleCalendarClient,
   type GoogleCalendarClient,
 } from "./google-calendar";
-import type { DiscordRequest } from "../discord/api/request";
+import type { DiscordRequest } from "../../discord/api/request";
 
 import { calendarSettings } from "./calendar-settings";
 const config = calendarSettings({

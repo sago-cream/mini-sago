@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { DiscordRequest } from "../discord/api/request";
+import type { DiscordRequest } from "../../discord/api/request";
 import type { DriveRequester } from "./google-drive-permissions";
 
 const snowflake = z.string().regex(/^\d{17,20}$/u);

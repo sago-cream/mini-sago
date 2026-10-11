@@ -1,3 +1,5 @@
+# From the checkout root:
+# docker compose --project-directory . -f deploy/compose.voice-comparison.yaml up -d
 # Optional isolated recognition servers for /voice-debug comparisons.
 # Download ggml-small-q5_1.bin and ggml-base.bin from ggerganov/whisper.cpp
 # into WHISPER_COMPARISON_MODEL_DIR before starting these services.

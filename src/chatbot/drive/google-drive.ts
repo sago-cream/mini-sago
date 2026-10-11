@@ -5,8 +5,8 @@ import {
   CONTACTS_SHEET_ID,
   contactsSchema,
   matchCalendarContacts,
-} from "./calendar-contacts";
-import { ChatbotMediaRegistry, readBoundedMediaBytes } from "./media-assets";
+} from "../calendar/calendar-contacts";
+import { ChatbotMediaRegistry, readBoundedMediaBytes } from "../media-assets";
 import {
   canReadDriveItem,
   type DriveRequester,

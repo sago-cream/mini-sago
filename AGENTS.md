@@ -1,3 +1,5 @@
+When adding a feature, update all affected surfaces, including agent capabilities, configuration, README.md, and user docs.
+
 # Deployment network settings
 
 When deploying from a Mac through Tailscale:

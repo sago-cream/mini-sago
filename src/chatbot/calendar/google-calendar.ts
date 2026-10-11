@@ -5,7 +5,7 @@ import {
   getFeatureAvailabilityStore,
   type FeatureAvailabilityStore,
   type FeatureContext,
-} from "../discord/feature-availability";
+} from "../../discord/feature-availability";
 import { calendarSettings } from "./calendar-settings";
 export {
   CALENDAR_GUILD_ID,

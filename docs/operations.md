@@ -271,11 +271,13 @@ monitor and LaunchAgent configuration.
 
 ### Oracle worker unavailable
 
+Run from the checkout root:
+
 ```bash
-docker compose -f compose.worker.yaml logs -f worker
-docker compose -f compose.worker.yaml exec worker codex login status
-docker compose -f compose.worker.yaml exec worker gh auth status
-docker compose -f compose.worker.yaml up -d --force-recreate
+docker compose --project-directory . -f deploy/compose.worker.yaml logs -f worker
+docker compose --project-directory . -f deploy/compose.worker.yaml exec worker codex login status
+docker compose --project-directory . -f deploy/compose.worker.yaml exec worker gh auth status
+docker compose --project-directory . -f deploy/compose.worker.yaml up -d --force-recreate
 ```
 
 Confirm persistent volumes are mounted and outbound HTTPS/WSS works. The worker
@@ -330,7 +332,7 @@ Browser tests do not join Discord or use Discord playback. They share recognitio
 
 ### Recognition models and comparisons
 
-Live recognition defaults to **multilingual base with fixed Japanese**, beam size 1, temperature 0, and Silero VAD. `MINISAGO_WHISPER_BASE_URL` selects its server (default `http://whisper-base:8080`). The small server remains at `MINISAGO_WHISPER_URL` for comparison; quantized small uses `MINISAGO_WHISPER_QUANTIZED_URL` (default `http://whisper-quantized:8080`). Deploy `compose.voice-comparison.yaml` with `WHISPER_COMPARISON_MODEL_DIR` containing `ggml-base.bin` and `ggml-small-q5_1.bin` from the ggerganov/whisper.cpp model repository. The base service is required for live recognition.
+Live recognition defaults to **multilingual base with fixed Japanese**, beam size 1, temperature 0, and Silero VAD. `MINISAGO_WHISPER_BASE_URL` selects its server (default `http://whisper-base:8080`). The small server remains at `MINISAGO_WHISPER_URL` for comparison; quantized small uses `MINISAGO_WHISPER_QUANTIZED_URL` (default `http://whisper-quantized:8080`). Copy `deploy/compose.voice-comparison.yaml` to the root of the operations checkout and deploy it with `WHISPER_COMPARISON_MODEL_DIR` containing `ggml-base.bin` and `ggml-small-q5_1.bin` from the ggerganov/whisper.cpp model repository. The base service is required for live recognition.
 
 **Compare recognition** replays a saved recording through three editable model/language cards. **Add variant** allows a fourth profile. Runs execute sequentially and persist their transcripts, timings, settings, and diagnostics. Comparisons invoke recognition only. Recording a normal turn still runs the complete conversation pipeline and saves the recording.
 

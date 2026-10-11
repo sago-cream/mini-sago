@@ -3,7 +3,7 @@ set -eu
 # Test the stable Codex release used by worker image builds. No login, model call,
 # GitHub access, or production mount is used by this smoke test.
 codex_version="${CODEX_VERSION:-$(bash scripts/resolve-codex-version.sh)}"
-docker build --target runtime -f Dockerfile.worker \
+docker build --target runtime -f deploy/Dockerfile.worker \
   --build-arg "CODEX_VERSION=$codex_version" -t minisago-dev-runtime:test .
 case "$(docker info --format '{{json .SecurityOptions}}')" in
   *apparmor*) apparmor_profile=minisago-worker ;;

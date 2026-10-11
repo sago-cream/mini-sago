@@ -2,8 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { z } from "zod";
-import type { DiscordRequest } from "../discord/api/request";
-import type { DiscordApplicationCommandInteraction } from "../discord/interactions";
+import type { DiscordRequest } from "../../discord/api/request";
+import type { DiscordApplicationCommandInteraction } from "../../discord/interactions";
 import {
   calendarCreatedEventId,
   calendarSchemas,
@@ -16,8 +16,8 @@ import {
   calendarPreviewText,
   type CalendarPreview,
 } from "./calendar-message";
-import { getFeatureAvailabilityStore } from "../discord/feature-availability";
-import { resolveDriveRequester } from "./drive-discord-access";
+import { getFeatureAvailabilityStore } from "../../discord/feature-availability";
+import { resolveDriveRequester } from "../drive/drive-discord-access";
 
 const draftSchema = z.object({
   id: z.string(),

@@ -4,7 +4,7 @@ import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import { TARGET_GUILD_ID } from "./config";
-import { CALENDAR_GUILD_ID } from "../chatbot/calendar-settings";
+import { CALENDAR_GUILD_ID } from "../chatbot/calendar/calendar-settings";
 
 export const SCOPED_FEATURE_DEFINITIONS = {
   chatbot: "Answer mentions and /ask requests from non-owner members.",

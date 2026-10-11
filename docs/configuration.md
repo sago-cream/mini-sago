@@ -6,7 +6,7 @@ The checked-in environment examples are the mechanical source of truth:
 - `.env.production.example` for the hosted Discord service; and
 - `.env.worker.example` for the headless Oracle worker.
 
-Image and installer defaults live in `Dockerfile.worker` and
+Image and installer defaults live in `deploy/Dockerfile.worker` and
 `scripts/worker.mjs`. This reference explains each setting; setup procedures
 live in [Discord setup](discord-setup.md) and [Workers](workers.md).
 
@@ -313,7 +313,7 @@ MiniSago trial does not imply the fork has already been deployed.
 `list_shared_drives`, `search_drive_files`, and `read_drive_file` use the dedicated
 `discord-drive@nthusa-discord-drive.iam.gserviceaccount.com` identity from project
 `nthusa-discord-drive`. The host permits only the 10 shared-drive IDs in
-`APPROVED_DRIVES` in `src/chatbot/google-drive.ts`. Give that account Viewer
+`APPROVED_DRIVES` in `src/chatbot/drive/google-drive.ts`. Give that account Viewer
 membership on those drives. It has no project IAM roles, admin impersonation,
 or domain-wide delegation; JWTs request only `drive.readonly`.
 

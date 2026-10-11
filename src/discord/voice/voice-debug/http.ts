@@ -229,7 +229,8 @@ export function createVoiceDebugHandler(
           ? await recognitionLab.audio(value.recordingId)
           : undefined;
         const { transcribeSpeech } = await import("../local-speech");
-        const { respondToVoiceChat } = await import("../../chatbot/voice-chat");
+        const { respondToVoiceChat } =
+          await import("../../../chatbot/voice-chat");
         browsers.get(cookie)?.close();
         browsers.set(
           cookie,

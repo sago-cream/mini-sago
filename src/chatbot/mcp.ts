@@ -3,7 +3,7 @@ import {
   ccxpSyncDescription,
   type CcxpSyncClient,
   type CcxpSyncToolName,
-} from "./ccxp-sync";
+} from "./ccxp/ccxp-sync";
 import { randomBytes } from "node:crypto";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -15,21 +15,21 @@ import {
   calendarDescriptions,
   type CalendarToolName,
   type GoogleCalendarClient,
-} from "./google-calendar";
+} from "./calendar/google-calendar";
 import {
   driveSchemas,
   driveDescriptions,
   driveContextDescription,
   type DriveToolName,
   type GoogleDriveClient,
-} from "./google-drive";
+} from "./drive/google-drive";
 import {
   ccxpSchemas,
   ccxpDescriptions,
   ccxpContextDescription,
   type CcxpToolName,
   type CcxpMeetingsClient,
-} from "./ccxp-meetings";
+} from "./ccxp/ccxp-meetings";
 import { CHATBOT_CONTEXT_LIMITS } from "./context-limits";
 import type {
   MemberMentionInput,

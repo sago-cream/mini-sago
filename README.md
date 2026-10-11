@@ -41,6 +41,8 @@ Start with [Discord setup](docs/discord-setup.md) and
 - [CCXP meeting retrieval and password rotation](docs/ccxp-meetings.md)
 - [Durable-state backup and restore](docs/operations.md#durable-state-backup-and-restore)
 
+Dockerfiles and Compose configurations live in [`deploy/`](deploy/).
+
 ## Voice credits
 
 MiniSago's voice chat uses **VOICEVOX:猫使ビィ**.

@@ -3,11 +3,11 @@ import { z } from "zod";
 import {
   CcxpSyncQueue,
   type CcxpCollectorStatus,
-} from "../../contracts/ccxp-sync";
+} from "../../../contracts/ccxp-sync";
 import {
   getFeatureAvailabilityStore,
   type FeatureAvailabilityStore,
-} from "../discord/feature-availability";
+} from "../../discord/feature-availability";
 
 export const ccxpSyncSchemas = {
   request_ccxp_sync: z.object({}).strict(),

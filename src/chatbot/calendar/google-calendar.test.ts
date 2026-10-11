@@ -1,4 +1,4 @@
-import { FeatureAvailabilityStore } from "../discord/feature-availability";
+import { FeatureAvailabilityStore } from "../../discord/feature-availability";
 import { randomUUID, generateKeyPairSync, verify } from "node:crypto";
 import { describe, expect, test } from "bun:test";
 import {
