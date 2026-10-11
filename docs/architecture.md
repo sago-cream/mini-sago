@@ -1,8 +1,8 @@
 # Architecture
 
-MiniSago separates Discord-facing authority from model execution. The hosted
-service owns identity, permissions, context retrieval, and Discord mutations;
-Codex runs on authenticated workers that connect outbound to the service.
+MiniSago separates Discord authority from model execution. The hosted service
+owns identity, permissions, context retrieval, and Discord actions. Authenticated
+workers connect outbound and run Codex.
 
 ## Deployment topology
 
@@ -19,196 +19,137 @@ flowchart LR
     O --> V[("Codex, GitHub, repository,<br/>and trace volumes")]
 ```
 
-No worker port is public. Oracle is the preferred always-on worker. The Mac
-helper is a fallback and the only profile with access to explicitly requested
-local Mac resources.
+Workers expose no public port. Oracle is the preferred always-on worker; the
+Mac helper is a fallback and handles explicitly requested local Mac resources.
 
 ## Components
 
 ### Hosted service
 
-The Bun service handles:
-
-- Discord Gateway events, REST calls, and GitHub webhooks;
-- chatbot authorization and requester-visible channel filtering;
-- nearby context, history search, member aliases, and bounded Discord actions;
-- worker authentication, reservation, routing, timeouts, and result delivery;
-- scheduled reminders, vocabulary posts, and feed monitors; and
-- persistent monitor and webhook state.
+The Bun service handles Discord events and REST calls, GitHub webhooks,
+requester authorization, permission-filtered history, member lookup, worker
+routing, and result delivery. It also owns reminders, feed monitors, voice
+coordination, and persistent feature and subscription settings.
 
 ### Workers
 
-Both workers run ephemeral Codex jobs with isolated configuration. Their
-profiles are assigned by the bridge secret rather than advertised by the
-worker:
+Bridge secrets determine each worker's profile:
 
 | Profile | Capabilities         | Selection                               |
 | ------- | -------------------- | --------------------------------------- |
 | Oracle  | `chat`, `dev`        | Preferred when compatible and available |
 | Mac     | `chat`, `dev`, `mac` | Fallback or explicit Mac target         |
 
-Workers advertise only capacity, repository availability, and the repository
-that owns chatbot behavior. A workflow remains reserved on one worker through
-routing, evidence retrieval, and answering unless its required profile changes.
+Workers advertise capacity, available repositories, and the repository that
+owns chatbot behavior. A workflow reserves one worker through routing and
+answering unless its required profile changes. Codex conversations have isolated
+configuration and request credentials. Linux chat can reuse an app-server process
+while creating and cleaning up a separate conversation and workspace per answer.
 
 ## Chat request lifecycle
 
-1. The Gateway receives a human message and determines whether it is a mention,
-   reply continuation, owner direct message, or timed follow-up.
-2. The hosted service authorizes the requester and gathers nearby messages.
-3. It reserves a compatible worker and registers a short-lived, bearer-bound
-   MCP session. Owner requests first run a bounded router with the session's
-   filtered capability catalog. The router keeps host-tool actions and uncertain
-   requests in `chat`, selects `mac` for explicit Mac resources, or selects
-   `oracle` with one repository for development work.
-4. The service routes the reserved workflow when needed and dispatches one
-   answer job with the executable MCP session.
-5. Codex receives the request, nearby context, and supported answer attachments.
-   It may call `resolve_context` for more history, accessible guild search,
-   member aliases, or the previous observable trace.
-6. Codex returns a structured reply and optional reaction or Mac file. The
-   hosted service validates and posts the result to Discord.
-7. The MCP token is revoked and the worker reservation is released.
+1. The Gateway recognizes a mention, reply, owner DM, or active continuation.
+2. The host authorizes the requester, gathers nearby messages, reserves a worker,
+   and creates a short-lived MCP session.
+3. Owner requests first run a bounded router. It chooses `chat` for host-tool
+   actions and uncertain requests, `mac` for explicit Mac resources, or `oracle`
+   with one repository for development work.
+4. The worker answers using the request, conversation, and supported attachments.
+   It can fetch additional history, accessible guild search, member aliases,
+   and metadata about a previous answer through `resolve_context`.
+5. The host validates and posts the reply, reaction, or files, then revokes the
+   MCP token and releases the worker.
 
-Community and owner chat use GPT-6.1 Sol with medium reasoning. The owner router,
-voice chat, and social actions use GPT-6 Luna with low reasoning; selected
-development work uses GPT-6.1 Sol with high reasoning. Ordinary stages have a
-two-minute timeout. Owner development answers have no fixed job deadline and
-run until completion, cancellation, or worker disconnection.
+Community and owner chat use GPT-6.1 Sol with medium reasoning. Owner routing,
+voice, and social actions use GPT-6 Luna with low reasoning; development uses
+GPT-6.1 Sol with high reasoning. Ordinary stages time out after two minutes.
+Development runs until completion, cancellation, or worker disconnection.
 
 ## Context and MCP
 
-The hosted service exposes one Streamable HTTP MCP endpoint. Tokens are created
-for one active workflow, expire after 16 minutes, and cannot select another
-requester, guild, channel, worker profile, or repository.
+The host exposes one Streamable HTTP MCP endpoint. Tokens expire after 16
+minutes and bind to one workflow's requester, guild, channel, worker profile,
+and repository. `resolve_context` batches history, guild search, member lookup,
+and previous-answer metadata in parallel.
 
-The consolidated `resolve_context` tool can request, in parallel:
+Other tools cover usage, reminders, voice, owner messaging, and expression
+management. The request's capability catalog lists available and conditional
+conversation, attachment, reaction, development, Mac, and MCP features.
+Owner-only features are omitted for other requesters; the host binds identity
+and destinations wherever possible.
 
-- additional current-channel history;
-- searches across requester-visible guild channels;
-- server aliases for named members; and
-- bounded metadata about the previous answer.
+Owners can change feature coverage without deploying. Persisted channel rules
+override guild rules. A separate subscription list selects destination channels
+for Gamer Forum, X reposts, and TOEFL; jobs read it before delivery. See
+[Configuration](configuration.md) for registrations and role filters.
 
-Other tools cover Codex usage, reminders, voice, owner channel messages, and
-owner emoji and sticker creation. A persisted feature policy controls guild
-and channel coverage. Owner-only MCP tools update it without a deployment;
-channel rules take precedence over guild rules. Where the trip planner is
-enabled, host-bound tools read the shared itinerary and apply typed schedule
-edits through the planner API. They never expose database credentials or
-accept a guild argument. The host injects a request-scoped capability catalog
-into the answer context. It includes conversation, attachment, reaction,
-development, Mac, and MCP capabilities. Owner features are omitted for other
-requesters, and capabilities that need a routed worker or explicit request are
-marked conditional. Discord identity and destinations remain bound by the host
-wherever possible.
+The Kyushu trip planner exposes guild-bound itinerary reads and typed schedule
+edits without database credentials. Ordinary answers also receive the optional,
+read-only [NTHU Campus Assistant MCP](https://api.nthusa.tw/mcp), covering campus
+search, buses, courses, announcements, dining, libraries, newsletters, and
+electricity. Its outage does not block unrelated answers.
 
-An independent persisted subscription list controls the destination channels
-for Gamer Forum, X repost, and TOEFL background services. Owner-only MCP tools
-list those destinations with Discord channel mentions and add or remove a
-channel. Scheduled jobs read the current subscriptions before delivery, so a
-change does not require a process restart.
+Linux answers receive a request-local media MCP server. Attachments, member
+avatars, and generated outputs share opaque `mediaId` references. Tools inspect
+and transform images, extract frames, and produce bounded MP4, MP3, or GIF
+outputs through fixed FFmpeg presets, or use bounded Python computation.
+The worker exchanges bytes only through the request's bearer-bound media
+endpoint. Tokens and local manifests are request-scoped. See
+[Security](security.md#attachments-and-mac-files) for limits and isolation.
 
-Linux answer jobs also receive a worker-local stdio MCP server for media in the
-active request. Attachments, resolved member avatars, and generated outputs all
-use the same opaque `mediaId` interface, so one tool's output can be passed
-directly to another media or Discord tool. Typed tools inspect media, transform
-images, extract video frames, and produce bounded MP4, MP3, or GIF artifacts
-through fixed FFmpeg presets. The worker can exchange bytes only with the
-bearer-bound request media endpoint; it accepts no paths, URLs, or arbitrary
-network destinations. The server, token, and local manifest are request-scoped.
+Reminders bind to the requester and current channel, with at most 50 active
+reminders per requester. Relative timers need no timezone; wall-clock and
+recurring requests need an IANA timezone or an unambiguous location.
 
-Ordinary answer jobs also connect to the public NTHU Campus Assistant MCP at
-`https://api.nthusa.tw/mcp`. Its read-only tools cover campus search, buses,
-courses, announcements, dining schedules, library information, newsletters,
-and electricity usage. The server is optional, so an upstream outage does not
-prevent MiniSago from answering unrelated requests.
-
-Reminder identity and destination are fixed to the requester and current
-channel. Relative timers need no timezone; wall-clock and recurring requests
-require an IANA timezone or an unambiguous location. Each requester may keep at
-most 50 active reminders.
-
-Persisted reminders may include `skipIfImagePosted: { threadId, userId }`.
-Before sending, the host checks that thread belongs to the reminder's channel
-and scans its messages back to midnight in the reminder's timezone (Asia/Taipei
-for legacy reminders). An image attachment or image embed from the specified
-user skips that occurrence; the recurring schedule still advances normally.
-Discord lookup failures leave the occurrence due for retry. Ordinary content
-or schedule edits preserve the condition. This condition is configured in
-durable state by an operator, not through the reminder chat tools.
+Operators can add `skipIfImagePosted: { threadId, userId }` to durable reminder
+state. Before sending, the host verifies the thread belongs to the reminder's
+channel and checks for that user's image attachments or embeds since local
+midnight. Legacy reminders use Asia/Taipei. A match skips that occurrence while
+the recurring schedule advances; Discord failures leave it due for retry.
+Ordinary edits preserve the condition. Chat tools cannot configure it.
 
 ## Prompt harness and context policy
 
-Workers compile every model call into three explicit authority layers:
+Every model call has three layers:
 
-1. stable MiniSago policy and the selected capability mode are passed as Codex
-   developer instructions;
-2. a short, fixed instruction states the task for answering, routing, or social
-   action; and
-3. the current request, Discord messages, attachments, repository choices, and
-   tool results are labeled as untrusted context.
+1. MiniSago policy and capability mode are developer instructions.
+2. A fixed task instruction selects answering, routing, or social action.
+3. Requests, Discord messages, attachments, repositories, and tool results are
+   untrusted context, passed over standard input.
 
-Codex receives the task as its prompt and the context over standard input.
-Development jobs discover repository guidance from `AGENTS.md` and
-`AGENTS.override.md` with a 32 KiB combined limit. Other worker jobs disable
-implicit repository instruction discovery. Mechanical permissions, MCP session
-binding, command wrappers, and output schemas continue to enforce capabilities
-outside the prompt.
+Development jobs read repository `AGENTS.md` and `AGENTS.override.md` guidance,
+up to 32 KiB combined. Other jobs disable implicit repository guidance.
+Permissions, MCP bindings, command wrappers, and output schemas enforce
+capabilities outside the prompt.
 
-Initial messages, each message, extracted attachment text, and resolved MCP
-context have deterministic character budgets in
-`contracts/context-budget.ts`. Selection keeps the newest messages, truncates
-oversized items, and emits `context_omissions_json` metadata rather than hiding
-loss. Taiwanese slang reference material is loaded only when Chinese appears in
-the active context; identity, trust, and output policy always remain loaded.
+Context budgets keep the newest messages, truncate oversized items, and report
+omissions explicitly. Taiwanese slang references load only when relevant terms
+appear. Identity, trust, and output policy remain loaded. Policy, task, and
+context versions and sizes are recorded in traces; private reasoning is not.
 
-Answer jobs also carry host-derived addressing metadata that records whether
-the current request reached MiniSago through a mention, reply, owner DM, or
-active-conversation continuation. The prompt uses that signal together with
-message roles, reply links, and antecedents to resolve second- and third-person
-references without treating Chinese grammatical gender as identity evidence.
-The answer schema requires a bounded `referenceResolution` classification so
-the reply stays consistent with that decision; the gateway consumes only the
-reply and reaction fields and does not post the classification to Discord.
+Host-derived addressing metadata distinguishes mentions, replies, owner DMs,
+and continuations. The answer classifies relevant personal references to keep
+its wording consistent; that classification is not posted to Discord. Genuine
+self-introductions mark the self-name for host validation. Other unmarked
+self-names get one tool-free, networkless repair attempt; unresolved violations
+are rejected.
 
-The worker and host also enforce MiniSago's first-person identity at the answer
-boundary. A genuine self-introduction marks only the self-name in structured
-reply text; the host validates and removes that marker before posting. An
-unmarked self-name triggers one tool-free, networkless repair pass that may
-rewrite the reference as first person or mark a genuine introduction. The
-worker rejects the answer if the repaired reply still violates the identity
-contract.
+Codex memories are disabled. The host instead maintains a small curated memory
+file per guild, injected as bounded untrusted context with stable entry IDs.
+Authorized members can teach or correct durable server vocabulary and facts.
+Temporary, uncertain, sensitive, or behavioral content is excluded. The
+server-bound tool records requester and message provenance and accepts no guild
+ID from the model.
 
-Policy, task, and context formats have independent versions. Traces record
-those versions and layer sizes, but never private reasoning. Prompt-injection
-and budget cases are covered by structural evaluations in
-`worker/src/prompts/prompt-plan.test.ts`.
-
-Worker jobs keep Codex's own memories off. The hosted service instead owns a
-small curated memory file for each Discord guild. Current-guild entries are
-injected into the untrusted context layer with stable IDs and a hard character
-limit; they can describe server vocabulary and conventions but cannot change
-identity, policy, permissions, or authorization. The answering model proactively
-curates durable server knowledge, treating explicit teaching and corrections
-from any authorized server member as strong signals while rejecting temporary,
-uncertain, sensitive, or behavioral content. The guild-bound add, replace, or
-remove tool records the requester and request message as provenance and never
-accepts a guild ID from the model.
-
-Guild memory lives under the persistent state volume as human-readable
-Markdown. Atomic writes are serialized and committed to an independent
-local-only Git repository for diff and rollback history; no remote is
-configured. Conversation history remains request-scoped Discord context, while
-sanitized operational traces are retained locally for 14 days and exposed only
-as bounded metadata when a requester asks about a previous answer.
+Guild memory is human-readable Markdown in persistent storage. Serialized atomic
+writes are committed to an independent local Git repository with no remote for
+rollback. Discord history remains request-scoped. Sanitized operational traces
+are retained for 14 days and exposed only as bounded previous-answer metadata.
 
 ## Background features
 
-The Gateway also handles Instagram, Twitter/X, and Threads embeds, quick-reply
-nudges, voice state, and optional ambient reactions. Ambient messages are buffered
-without a model call; a bounded delayed evaluation may add at most one validated
-reaction and never produces an unsolicited reply.
-
-Scheduled monitors and the GitHub webhook use persistent files for idempotency.
-See [Configuration](configuration.md#persistent-state) for their paths and
-[Operations](operations.md) for deployment and recovery.
+The Gateway also handles improved Instagram, X, and Threads embeds, quick-reply
+nudges, voice, and optional ambient reactions. Ambient messages are buffered;
+a delayed evaluation may add one validated reaction and never an unsolicited
+reply. Monitors and webhooks use persistent state to avoid duplicate delivery.
+See [Operations](operations.md) for deployment, backups, and recovery.

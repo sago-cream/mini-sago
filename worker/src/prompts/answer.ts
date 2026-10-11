@@ -3,7 +3,6 @@ import {
   CHATBOT_REACTION_MAX_CHARACTERS,
   CHATBOT_REPLY_MAX_CHARACTERS,
 } from "../../../contracts/answer-contract";
-import { answerContext } from "./context";
 import { taiwaneseLanguageReference } from "./language";
 
 export const PROMPT_VERSION = 63;
@@ -212,17 +211,3 @@ export function buildAnswerDeveloperInstructions(
 export const ANSWER_TASK_INSTRUCTION = "Answer <current_request>.";
 
 export const CODEX_THREAD_TASK_INSTRUCTION = "Complete <current_request>.";
-
-export function buildAnswerPrompt(
-  job: AnswerJob,
-  attachmentText: string[],
-  ignoredAttachments: string[],
-  developerPolicy?: string,
-  macFileRoots: string[] = [],
-) {
-  return `${buildAnswerDeveloperInstructions(job, developerPolicy, macFileRoots)}\n\n${ANSWER_TASK_INSTRUCTION}\n\n${answerContext(
-    job,
-    attachmentText,
-    ignoredAttachments,
-  )}`;
-}

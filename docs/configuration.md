@@ -96,9 +96,8 @@ Worker URLs must use TLS outside local or container-local hosts. Bridge secrets
 must contain at least 32 bytes. The owner ID is validated as a Discord snowflake
 on both sides.
 
-The prompt harness has one production path rather than a runtime rollout flag.
-Its authority layers and context budgets are versioned in code, covered by
-tests, and rolled back through the corresponding atomic Git commit if needed.
+Prompt policy and context budgets are versioned with the application. Roll them
+back by deploying the corresponding commit.
 
 Workers discover repositories from their dedicated GitHub CLI login at startup.
 Set `MINISAGO_CHATBOT_REPOSITORY` when that login can access multiple repositories
@@ -125,11 +124,10 @@ directory is an independent local-only Git repository with no configured
 remote. Its files and Git history must never be committed to the application
 repository. Each guild file is capped at 4,000 characters.
 
-MiniSago automatically creates missing memory files for every joined server
-when the Gateway connects and whenever she joins a server. Server conversations
-also ensure their file exists. Existing entries and revisions are preserved;
-new files start empty and acquire facts through the server-bound memory tool.
-This does not change which members or channels can use the chatbot.
+MiniSago creates missing memory files on Gateway connection, server join, and
+server conversations. Existing facts and revisions are preserved; new files
+start empty and learn through the server-bound memory tool. Chatbot access stays
+controlled by feature registrations.
 
 To reconcile all current servers manually, run `bun run memory:backfill` in the
 core service environment with `DISCORD_BOT_TOKEN` and the persistent
@@ -141,25 +139,20 @@ Production recovery uses a separate private `minisago-state` repository. Its
 backup job reads memory and history without adding a remote to the live memory
 repository. See [backup and restore](operations.md#durable-state-backup-and-restore).
 
-Feature availability defaults to `/app/state/feature-availability.json` in
-production and `.data/feature-availability.json` elsewhere. On the first
-change, MiniSago writes a complete policy initialized from the existing chatbot
-environment lists and built-in behavior. After that, the file is the source of
-truth. An owner can ask MiniSago to list, enable, disable, or restore inherited
-availability for a feature in an exact server or channel. Channel rules
-override server rules, and server rules override the feature default. The
-scoped features are chatbot access, ambient reactions, the trip planner, and
-CCXP meeting retrieval. CCXP accepts only explicit guild registrations and
-always defaults to disabled; DMs cannot use it. Always-on capabilities do not
-appear in this policy.
+Feature policy defaults to `/app/state/feature-availability.json` in production
+and `.data/feature-availability.json` elsewhere. The first change saves a policy
+initialized from environment settings and built-in defaults; saved policy then
+takes precedence. Owners can list, enable, disable, or restore inherited coverage
+for an exact guild or channel. Channel rules override guild rules, then feature
+defaults. Calendar, CCXP, and developer steering require explicit guild
+registrations; always-on capabilities are omitted. See
+[role filters](#feature-registrations-and-role-filters) below.
 
-Background-service subscriptions default to
-`.data/service-subscriptions.json`. The initial destination list comes from the
-existing Gamer Forum, X repost, and TOEFL settings. After the owner changes a
-subscription, the file becomes the source of truth. MiniSago can list the
-services and their clickable Discord channel mentions, then subscribe or
-unsubscribe an exact channel without a deployment. Running jobs read the list
-on every scheduled check, so changes apply without restarting the service.
+Background subscriptions default to `.data/service-subscriptions.json`,
+initialized from Gamer Forum, X, and TOEFL destinations. Once changed, the saved
+list takes precedence. Owners can list destinations and subscribe or unsubscribe
+an exact channel through chat. Jobs read the list on every check; no deployment
+or restart is needed.
 
 ## Current deployment-specific defaults
 

@@ -13,6 +13,7 @@ export type PromptCaseResult = {
   pass: boolean;
   failures: string[];
   tools: string[];
+  successfulTools: string[];
   output: PromptCaseOutput | null;
   exitCode: number;
   developerCharacters: number;
@@ -27,16 +28,19 @@ export function evaluatePromptCase(
   result: {
     output: PromptCaseOutput | null;
     tools: string[];
+    successfulTools?: string[];
     exitCode: number;
   },
 ) {
   const failures: string[] = [];
   const { output, tools, exitCode } = result;
+  const successfulTools = result.successfulTools ?? tools;
   if (exitCode !== 0) failures.push(`Codex exited with ${exitCode}`);
   if (!output) failures.push("No structured answer was returned");
 
   for (const tool of testCase.expectation.requiredTools ?? []) {
-    if (!tools.includes(tool)) failures.push(`Missing tool call: ${tool}`);
+    if (!successfulTools.includes(tool))
+      failures.push(`Missing tool call: ${tool}`);
   }
   for (const tool of testCase.expectation.forbiddenTools ?? []) {
     if (tools.includes(tool)) failures.push(`Unexpected tool call: ${tool}`);

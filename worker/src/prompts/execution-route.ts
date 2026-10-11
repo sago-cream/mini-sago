@@ -52,7 +52,3 @@ available_capabilities_json
 ${JSON.stringify(job.capabilities ?? [])}`;
   return `${repositoryCapabilities}\n\n${requestContext(job, "nearby_messages_json")}`;
 }
-
-export function buildExecutionRoutePrompt(job: ExecutionRouteJob) {
-  return `${EXECUTION_ROUTE_INSTRUCTIONS}\n\n${EXECUTION_ROUTE_TASK_INSTRUCTION}\n\n${executionRouteContext(job)}`;
-}

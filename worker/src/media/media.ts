@@ -490,11 +490,3 @@ export class MediaProcessor {
     return this.finishOutput(output);
   }
 }
-
-export const mediaLimits = {
-  inputBytes: MAX_INPUT_BYTES,
-  outputBytes: MAX_OUTPUT_BYTES,
-  dimension: MAX_DIMENSION,
-  pixels: MAX_PIXELS,
-  durationSeconds: MAX_DURATION_SECONDS,
-};

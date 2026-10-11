@@ -30,6 +30,12 @@ export const pythonArtifactExtensions = [
   "zip",
 ] as const;
 
+export const pythonToolSchema = {
+  code: z.string().min(1).max(MAX_CODE_CHARACTERS),
+  mediaIds: z.array(z.string().trim().min(1).max(200)).max(10),
+  outputExtension: z.enum(pythonArtifactExtensions).optional(),
+};
+
 export const pythonSandboxRequestSchema = z.object({
   code: z.string().min(1).max(MAX_CODE_CHARACTERS),
   attachments: z

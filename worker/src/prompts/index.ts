@@ -105,25 +105,6 @@ export function buildPromptPlan(
   );
 }
 
-export function buildCodexPrompt(
-  job: CodexJob,
-  attachmentText: string[],
-  ignoredAttachments: string[],
-  developerPolicy?: string,
-  macFileRoots: string[] = [],
-) {
-  const plan = buildPromptPlan(
-    job,
-    attachmentText,
-    ignoredAttachments,
-    developerPolicy,
-    macFileRoots,
-  );
-  return [plan.developerInstructions, plan.taskInstruction, plan.context].join(
-    "\n\n",
-  );
-}
-
 export function outputSchemaForJob(job: CodexJob) {
   if (job.purpose === "execution_route") return EXECUTION_ROUTE_OUTPUT_SCHEMA;
   if (job.purpose === "social_action") return SOCIAL_ACTION_OUTPUT_SCHEMA;

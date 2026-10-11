@@ -1,3 +1,4 @@
+import type { PromptEvalContext } from "./mock-mcp";
 import type {
   ChatAnswerJob,
   ChatbotMessage,
@@ -45,7 +46,7 @@ export type PromptCase = {
   source: PromptCaseSource;
   job: ChatAnswerJob;
   attachmentText?: string[];
-  mockContext?: Record<string, unknown>;
+  mockContext?: PromptEvalContext;
   mediaId?: string;
   expectation: PromptCaseExpectation;
 };
@@ -178,7 +179,7 @@ export const PROMPT_CASES: PromptCase[] = [
       "conditional-reminder",
       "如果我每天晚上十一點前沒說我畫畫了就標我",
     ),
-    expectation: { requiredTools: ["create_reminder"] },
+    expectation: { forbiddenTools: ["create_reminder"] },
   },
   {
     id: "discord-id-followup",

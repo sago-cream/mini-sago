@@ -417,11 +417,3 @@ export async function prepareAttachments(
         : rm(directory, { recursive: true, force: true }),
   };
 }
-
-export const attachmentLimits = {
-  count: MAX_ATTACHMENTS,
-  bytes: MAX_ATTACHMENT_BYTES,
-  totalBytes: MAX_TOTAL_ATTACHMENT_BYTES,
-  extractedCharacters: MAX_EXTRACTED_CHARACTERS,
-  totalExtractedCharacters: MAX_TOTAL_EXTRACTED_CHARACTERS,
-};

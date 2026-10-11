@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { MediaProcessor, mediaLimits, type MediaCommandRunner } from "./media";
+import { MediaProcessor, type MediaCommandRunner } from "./media";
 import type { MediaClient } from "./media-client";
 
 const temporaryDirectories: string[] = [];
@@ -208,15 +208,5 @@ describe("request-local media processor", () => {
       }),
     ).rejects.toThrow("dimensions exceed");
     expect(commands).toHaveLength(1);
-  });
-
-  test("publishes conservative processing limits", () => {
-    expect(mediaLimits).toEqual({
-      inputBytes: 20 * 1024 * 1024,
-      outputBytes: 8 * 1024 * 1024,
-      dimension: 8_192,
-      pixels: 40_000_000,
-      durationSeconds: 600,
-    });
   });
 });
