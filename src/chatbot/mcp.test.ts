@@ -128,6 +128,53 @@ async function connect(token: string) {
 }
 
 describe("MiniSago MCP server", () => {
+  test("exposes member notifications only in sessions with a bound handler", async () => {
+    const calls: unknown[] = [];
+    const session = registerChatbotMcpSession({
+      ...handlers(),
+      mentionMembers: async (input) => {
+        calls.push(input);
+        return {
+          status: "complete",
+          messageId: "message-1",
+          memberIds: ["123456789012345678"],
+          unresolvedQueries: [],
+        };
+      },
+    });
+    const client = await connect(session.token);
+    expect(session.capabilities).toContainEqual(
+      expect.objectContaining({
+        id: "member_mentions",
+        tools: ["mention_members"],
+      }),
+    );
+    expect((await client.listTools()).tools.map((tool) => tool.name)).toContain(
+      "mention_members",
+    );
+    const queries = Array.from({ length: 20 }, (_, index) => `Member ${index}`);
+    expect(
+      (
+        await client.callTool({
+          name: "mention_members",
+          arguments: { queries },
+        })
+      ).structuredContent,
+    ).toMatchObject({ status: "complete", memberIds: ["123456789012345678"] });
+    expect(calls).toEqual([{ queries }]);
+    expect(
+      (
+        await client.callTool({
+          name: "mention_members",
+          arguments: { queries: [...queries, "Extra"] },
+        })
+      ).isError,
+    ).toBe(true);
+    expect(calls).toHaveLength(1);
+    await client.close();
+    session.revoke();
+  });
+
   test("lets the owner inspect and change persisted feature coverage", async () => {
     const configured: unknown[] = [];
     const policy = {
@@ -385,6 +432,8 @@ describe("MiniSago MCP server", () => {
           results: [
             {
               query: "Daniel",
+              id: "123456789012345678",
+              mention: "<@123456789012345678>",
               names: ["Daniel"],
               avatar: {
                 mediaId: "avatar-1",
@@ -410,6 +459,8 @@ describe("MiniSago MCP server", () => {
         results: [
           {
             query: "Daniel",
+            id: "123456789012345678",
+            mention: "<@123456789012345678>",
             avatar: {
               mediaId: "avatar-1",
               filename: "Daniel-avatar.png",

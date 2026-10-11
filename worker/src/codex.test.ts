@@ -21,6 +21,7 @@ import {
   CHATBOT_MODEL_VERBOSITY,
   CHANNEL_QUIET_MCP_APPROVAL_CONFIG,
   CHANNEL_MESSAGE_MCP_APPROVAL_CONFIG,
+  MEMBER_MENTIONS_MCP_APPROVAL_CONFIG,
   canUseMacFiles as canUseMacFilesWithConfig,
   canUseMediaTools,
   canUseDeveloperTools as canUseDeveloperToolsWithConfig,
@@ -200,6 +201,9 @@ describe("Codex chatbot runner", () => {
     );
     expect(CHANNEL_MESSAGE_MCP_APPROVAL_CONFIG).toBe(
       'mcp_servers.minisago.tools.send_channel_message.approval_mode="approve"',
+    );
+    expect(MEMBER_MENTIONS_MCP_APPROVAL_CONFIG).toBe(
+      'mcp_servers.minisago.tools.mention_members.approval_mode="approve"',
     );
     expect(SERVER_MEMORY_MCP_APPROVAL_CONFIG).toBe(
       'mcp_servers.minisago.tools.manage_server_memory.approval_mode="approve"',

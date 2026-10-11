@@ -253,11 +253,19 @@ async function resolveGuildMember({
   memberQuery: string;
   discordRequest: DiscordRequest;
 }) {
-  const mentionedUserId = memberQuery.match(USER_MENTION_PATTERN)?.[1];
+  const mentionedUserId =
+    memberQuery.match(USER_MENTION_PATTERN)?.[1] ??
+    (/^\d{17,20}$/u.test(memberQuery) ? memberQuery : undefined);
   if (mentionedUserId) {
-    return discordRequest<DiscordGuildMember>(
-      `/guilds/${guildId}/members/${mentionedUserId}`,
-    );
+    try {
+      return await discordRequest<DiscordGuildMember>(
+        `/guilds/${guildId}/members/${mentionedUserId}`,
+      );
+    } catch (error) {
+      if (error instanceof Error && /^404\b/u.test(error.message))
+        return undefined;
+      throw error;
+    }
   }
 
   const query = new URLSearchParams({
@@ -292,38 +300,31 @@ export async function lookupGuildMembers({
   queries: string[];
   discordRequest: DiscordRequest;
 }) {
-  const results = await Promise.all(
-    queries
-      .slice(0, CHATBOT_CONTEXT_LIMITS.maximumMemberLookups)
-      .map(async (query) => {
-        const member = await resolveGuildMember({
-          guildId,
-          memberQuery: query,
-          discordRequest,
-        });
-        if (!member) return [];
-
-        const names = memberNames(member);
-        if (names.length === 0) return [];
-
-        return [
-          {
-            query,
-            names,
-            avatarUrl: getDiscordAvatarUrl(
-              {
-                guild_id: guildId,
-                author: member.user,
-                member,
-              },
-              4096,
-            ),
-          },
-        ];
-      }),
-  );
-
-  return results.flat();
+  const results = [];
+  for (const query of queries.slice(
+    0,
+    CHATBOT_CONTEXT_LIMITS.maximumMemberLookups,
+  )) {
+    const member = await resolveGuildMember({
+      guildId,
+      memberQuery: query,
+      discordRequest,
+    });
+    if (!member?.user?.id) continue;
+    const names = memberNames(member);
+    if (names.length === 0) continue;
+    results.push({
+      query,
+      id: member.user.id,
+      mention: `<@${member.user.id}>`,
+      names,
+      avatarUrl: getDiscordAvatarUrl(
+        { guild_id: guildId, author: member.user, member },
+        4096,
+      ),
+    });
+  }
+  return results;
 }
 
 const ADMINISTRATOR = 1n << 3n;
