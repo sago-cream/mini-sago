@@ -5,6 +5,13 @@ import {
   type CcxpSyncToolName,
 } from "./ccxp/ccxp-sync";
 import { randomBytes } from "node:crypto";
+import {
+  mailSchemas,
+  mailDescriptions,
+  mailContextDescription,
+  type GoogleMailClient,
+  type MailToolName,
+} from "./mail/google-mail";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -438,6 +445,7 @@ export type ChatbotMcpSessionHandlers = {
     entryId: string;
   }>;
   calendar?: GoogleCalendarClient;
+  mail?: GoogleMailClient;
   searchThreads?: (input: {
     additionalKeywords?: string[];
   }) => Promise<Record<string, unknown>>;
@@ -614,6 +622,15 @@ function availableCapabilities(
       description:
         "Manage confirmed events and cancellations in discord-calendar. Read office availability, invite the office when requested, and report its actual acceptance status. Resolve named guests with lookup_calendar_contacts.",
       tools: Object.keys(calendarSchemas),
+    });
+  }
+  if (handlers.mail) {
+    capabilities.push({
+      id: "mail",
+      category: "context",
+      availability: "available",
+      description: mailContextDescription,
+      tools: Object.keys(mailSchemas),
     });
   }
   if (handlers.searchThreads) {
@@ -921,6 +938,26 @@ function createServer(session: ChatbotMcpSession) {
         },
         async (input: unknown) =>
           toolResult(await session.handlers.ccxpMeetings!.call(name, input)),
+      );
+    }
+  }
+
+  if (session.handlers.mail) {
+    for (const name of Object.keys(mailSchemas) as MailToolName[]) {
+      server.registerTool(
+        name,
+        {
+          description: mailDescriptions[name],
+          inputSchema: mailSchemas[name],
+          annotations: {
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: true,
+          },
+        },
+        async (input: unknown) =>
+          toolResult(await session.handlers.mail!.call(name, input)),
       );
     }
   }

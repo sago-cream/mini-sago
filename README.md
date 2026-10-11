@@ -17,6 +17,7 @@ Codex-powered chat with server context, emote creation and cross-server migratio
 - Drawing reminders can post in a dedicated thread and skip days with an image in the artwork thread; see [Configuration](docs/configuration.md).
 - Listen to GitHub activities and maintains PR review threads for certain repo in configured server.
 - Find files in my Mac and send it in chat when asked by me.
+- Searches and reads approved Gmail mailboxes in the owner's private Discord conversation after each mailbox owner approves read-only access through discord-mail. See [mail setup](docs/mail.md).
 - Searches Threads on request for 清大, NTHU, 學生會 plus optional extra keywords.
 - Retrieves relevant CCXP meeting records during discussions in owner-registered servers; runs independently on Oracle and DMs the owner when login needs attention.
 - Runs coding tasks in dedicated Discord threads with progress reports,

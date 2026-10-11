@@ -1,5 +1,9 @@
 # Configuration
 
+For optional multi-mailbox Gmail read-only access, hosted owner consent, and
+`MINISAGO_MAIL_*` host settings, see [discord-mail setup](mail.md). Mail tools are
+restricted to the bot owner's private Discord conversation.
+
 The checked-in environment examples are the mechanical source of truth:
 
 - `.env.example` for local development and the Mac helper;

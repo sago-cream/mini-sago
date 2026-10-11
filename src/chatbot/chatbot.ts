@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 import { createGoogleDriveClient } from "./drive/google-drive";
 import { resolveDriveRequester } from "./drive/drive-discord-access";
 import { createGoogleCalendarClient } from "./calendar/google-calendar";
+import { createGoogleMailClient } from "./mail/google-mail";
 import type { ChatbotAccessConfig } from "./access";
 import {
   macAgentBridge,
@@ -1556,6 +1557,11 @@ export async function handleChatbotMention({
         },
         featureAvailability,
       );
+      const mail = createGoogleMailClient(process.env, {
+        requesterId: requesterUserId,
+        ownerId: accessConfig.ownerUserId,
+        guildId: message.guild_id,
+      });
       mcpSession = registerChatbotMcpSession({
         ...(message.guild_id
           ? {
@@ -1598,6 +1604,7 @@ export async function handleChatbotMention({
             }
           : {}),
         ...(drive ? { drive } : {}),
+        ...(mail ? { mail } : {}),
         getCodexUsage: () => workflow.getCodexUsage(),
         ...(quietTracker
           ? {

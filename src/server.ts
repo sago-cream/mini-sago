@@ -1,6 +1,7 @@
 import { startCcxpAuthNotificationMonitor } from "./discord/jobs/ccxp-auth-notifications";
 import { handleVoiceDebugRequest } from "./discord/voice/voice-debug/http";
 import { handleCalendarPage } from "./chatbot/calendar/calendar-pages";
+import { handleMailRequest } from "./chatbot/mail/mail-auth";
 import type { Server } from "bun";
 
 import { getChatbotAccessConfig } from "./chatbot/access";
@@ -67,6 +68,8 @@ function handleRequest(request: Request, server: Server<MacAgentSocketData>) {
   const { pathname } = new URL(request.url);
   const calendarPage = handleCalendarPage(request);
   if (calendarPage) return calendarPage;
+  const mailResponse = handleMailRequest(request);
+  if (mailResponse) return mailResponse;
 
   if (
     pathname === "/voice-debug" ||
