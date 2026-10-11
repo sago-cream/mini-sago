@@ -15,7 +15,6 @@ import {
     Radio,
     Search,
     Settings2,
-    ShieldCheck,
     Sparkles,
     Tag,
     Users,
@@ -38,13 +37,19 @@ export interface Feature {
 const REPO = 'https://github.com/sago-cream/mini-sago';
 export const REPOSITORY_URL = REPO;
 
-export const CATEGORIES = [
-    '全部',
-    '聊天與記憶',
-    'Discord 日常',
-    '檔案與媒體',
-    '資料與行程',
-    '程式與管理',
+export const FEATURE_GROUPS = [
+    { category: '聊天與記憶', title: '整理聊天', icon: MessageCircle },
+    { category: 'Discord 日常', title: '照顧聊天室', icon: Bell },
+    { category: '檔案與媒體', title: '處理檔案', icon: FileImage },
+    { category: '資料與行程', title: '找資料與排程', icon: CalendarDays },
+    { category: '程式與管理', title: '寫程式與管理', icon: Code2 },
+] as const;
+
+export const ACCESS_LABELS = [
+    '一般功能',
+    '需設定',
+    '主人限定',
+    '開發中',
 ] as const;
 
 export const FEATURES = [
@@ -313,21 +318,3 @@ export const FEATURES = [
         guide: 'docs/workers.md#authentication-and-capacity',
     },
 ] as const satisfies readonly Feature[];
-
-export const HIGHLIGHTS = [
-    {
-        icon: MessageCircle,
-        title: '不用背指令',
-        text: '直接說你想做什麼。',
-    },
-    {
-        icon: ShieldCheck,
-        title: '權限，先想清楚',
-        text: '依身分與頻道開放。',
-    },
-    {
-        icon: Heart,
-        title: '記得這個聊天室',
-        text: '記住伺服器的用語。',
-    },
-] as const;

@@ -12,7 +12,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     position: relative;
-    min-height: 640px;
+    min-height: 584px;
     align-items: start;
 }
 .hero-copy {
@@ -49,102 +49,13 @@
     display: flex;
     align-items: center;
     gap: 24px;
+    flex-wrap: wrap;
     margin-top: 28px;
 }
 
-.hero-footnote {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 20px;
-    color: #75748e;
-    font-size: 11px;
-}
-
-.chat-preview {
-    width: 468px;
-    max-width: 100%;
-    position: absolute;
-    bottom: 24px;
-    left: 0;
-    background: #ffffffc9;
-    backdrop-filter: blur(12px);
-    border: 1px solid #fff;
-    border-radius: 24px;
-    padding: 16px 20px;
-    box-shadow: 0 12px 40px #777ca40d;
-    z-index: 3;
-}
-.chat-preview-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-    gap: 8px;
-}
-.demo-label {
-    color: var(--clr-text-muted);
-    font-size: 10px;
-    letter-spacing: 1px;
-}
-.demo-options {
-    display: flex;
-    gap: 4px;
-}
-.demo-options button {
-    background: transparent;
-    border: 0;
-    font-size: 11px;
-    padding: 8px 12px;
-    border-radius: 20px;
-    min-height: 44px;
-    color: var(--clr-text-muted);
-}
-.demo-options button[aria-pressed='true'] {
-    background: var(--clr-lilac);
-    color: var(--clr-accent);
-}
-.demo-message {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    font-size: 12px;
-}
-.demo-user {
-    display: grid;
-    place-items: center;
-    height: 32px;
-    width: 32px;
-    flex-shrink: 0;
-    background: #edf0f8;
-    border-radius: 50%;
-    font-size: 12px;
-}
-.demo-message strong {
-    color: var(--clr-accent);
-    font-weight: 600;
-}
-.demo-reply {
-    margin-top: 12px;
-}
-.demo-reply img {
-    border-radius: 50%;
-    background: var(--clr-blue);
-}
-.hero-scroll {
-    margin: 8px auto 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    font-size: 9px;
-    letter-spacing: 2px;
-    color: #77758d;
-    min-height: 44px;
-}
 @media (max-width: 1000px) {
     .hero-inner {
-        min-height: 650px;
+        min-height: 584px;
     }
     .hero h1 {
         font-size: 52px;
@@ -160,6 +71,7 @@
 @media (max-width: 900px) {
     .hero-inner {
         grid-template-columns: 1fr;
+        padding-bottom: 32px;
     }
     .hero-copy {
         padding-top: 24px;
@@ -176,16 +88,6 @@
     .hero-description {
         font-size: 15px;
     }
-
-    .chat-preview {
-        position: relative;
-        bottom: auto;
-        margin: 24px auto 0;
-        width: 100%;
-    }
-    .hero-scroll {
-        margin-top: 24px;
-    }
 }
 @media (max-width: 380px) {
     .hero h1 {
@@ -201,12 +103,6 @@
     }
     .hero-actions .button {
         padding-inline: 16px;
-    }
-    .chat-preview {
-        padding-inline: 12px;
-    }
-    .demo-options button {
-        padding-inline: 8px;
     }
 }
 

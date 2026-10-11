@@ -16,7 +16,8 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 button,
-input {
+input,
+select {
     font: inherit;
 }
 button,
@@ -46,7 +47,8 @@ p {
     text-wrap: pretty;
 }
 button,
-input {
+input,
+select {
     color: inherit;
 }
 svg {
