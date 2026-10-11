@@ -9,29 +9,15 @@ Codex-powered chat with server context, emote creation and cross-server migratio
 
 Availability depends on configured workers, integrations, and server/channel access.
 
-- Reacts to community messages with emotes in configured servers and nudges a designated member about frequent quick replies.
-- Answers member and configured role mentions, replies, and owner DMs using attachments, public web search, and accessible Discord history. `/ask` returns an answer visible only to its requester.
-- Remembers and updates server-specific vocabulary and facts taught in chat.
-- Resolves and pings named server members on request. The owner can also request messages to a chosen channel.
-- Pauses replies and automatic activity in a channel or thread when asked.
-- Joins Discord voice channels for spoken conversations. **WIP and far from usable:** recognition, response latency, and turn-taking still need work.
-- Adds emojis and stickers from attachments, copies emojis between servers, and renames emojis for the owner.
-- Processes images, extracts video frames, converts audio/video/GIF files, and runs bounded Python calculations on Linux workers.
-- Publishes daily TOEFL vocabulary, AniGamer forum voucher code updates, and configured X account posts to subscribed channels.
-- Improves Instagram, Twitter/X, and Threads embeds with `kkinstagram.com`, `fxtwitter.com`, and `fixthreads.seria.moe` links.
-- Creates, lists, edits, and cancels one-time or recurring reminders, with a ping when they are due.
-- Watches GitHub activity and maintains PR review threads for configured repositories.
-- Finds files in allowlisted folders on the owner's Mac and sends requested files in chat.
-- Searches Threads on request for 清大, NTHU, 學生會 plus optional extra keywords.
-- Searches approved [NTHUSA shared drives](docs/configuration.md#nthusa-shared-drive) and reads documents subject to Discord role and file permission checks.
-- Checks office availability, looks up invitees, and creates, edits, or cancels [Calendar events and invitations](docs/configuration.md#discord-calendar-and-contact-directory) after requester confirmation in registered servers.
-- Reads the shared Kyushu itinerary and, when configured, edits its schedule on request.
-- Queries NTHU Campus Assistant for campus search, buses, courses, announcements, dining, libraries, newsletters, and electricity information when available.
-- Retrieves relevant CCXP meeting records during discussions in owner-registered servers. The independent Oracle collector supports owner-requested refreshes and DMs the owner when login needs attention.
-- Runs owner-requested coding tasks in dedicated Discord threads with progress reports, steering, stop, and continuation, then publishes draft PRs and performs merges or configured MiniSago deployments only when authorized.
-- Reports MiniSago deployment outcomes in Discord and DMs Sago Media access requests to the owner.
-- Reports the answering worker's Codex usage, remaining capacity, and reset times.
-- Lets the owner change [feature access, role filters, and background-posting subscriptions](docs/configuration.md#persistent-state) without deploying.
+- **Chat:** Answers mentions, replies, owner DMs, and private `/ask` requests using attachments, web search, and accessible Discord history. Remembers server vocabulary and facts, pings named members on request, and supports quiet mode.
+- **Discord tools:** Creates, lists, edits, and cancels one-time or recurring reminders. The owner can add emojis and stickers, copy emojis between servers, rename emojis, and request messages to chosen channels.
+- **Voice and media:** Joins voice channels, processes images, extracts video frames, converts audio/video/GIF files, and runs bounded Python calculations on Linux workers. The owner can retrieve files from allowlisted Mac folders.
+- **Integrations:** Searches [NTHUSA shared Drive](docs/configuration.md#nthusa-shared-drive) with role and file permission checks; checks office availability and manages [Calendar events and invitations](docs/configuration.md#discord-calendar-and-contact-directory) with requester confirmation and contact lookup. Reads and edits the configured Kyushu itinerary, queries NTHU Campus Assistant, searches Threads, and retrieves CCXP meeting records with owner-requested refreshes.
+- **Feeds and notifications:** Posts TOEFL vocabulary, AniGamer voucher updates, and configured X feeds. Improves social embeds, relays GitHub activity, maintains PR review threads, reacts to community messages, and nudges a designated member about frequent quick replies. Reports deployment outcomes and notifies the owner about CCXP login issues and Sago Media access requests.
+- **Coding tasks:** Runs owner-requested work in Discord threads with progress, steering, stop, and continuation. Publishes draft PRs and performs merges or configured MiniSago deployments only when authorized.
+- **Controls and status:** Reports worker Codex usage, remaining capacity, and reset times. The owner can change [feature access, role filters, and posting subscriptions](docs/configuration.md#persistent-state) without deploying.
+
+**Voice is WIP and far from usable:** recognition, response latency, and turn-taking still need work.
 
 > [!TIP]
 > Mention MiniSago under **Members/Apps**, or use a configured MiniSago role.
