@@ -23,7 +23,7 @@
     padding-block: 56px;
 }
 .strengths h2 {
-    transform: translateY(-56px);
+    transform: translateY(-64px);
 }
 .strength-list {
     display: grid;
@@ -31,7 +31,7 @@
     list-style: none;
     padding: 0;
     margin: 0;
-    transform: translateY(56px);
+    transform: translateY(20px);
 }
 .strength {
     display: flex;
@@ -91,12 +91,18 @@
     .strengths {
         gap: 40px;
     }
+    .strengths h2 {
+        transform: translateY(-56px);
+    }
+    .strength-list {
+        transform: translateY(-8px);
+    }
 }
 @media (max-width: 600px) {
     .strengths {
         grid-template-columns: 1fr;
         gap: 32px;
-        padding-block: 32px;
+        padding-block: 16px 48px;
     }
     .strengths h2,
     .strength-list {

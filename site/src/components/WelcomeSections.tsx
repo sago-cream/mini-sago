@@ -34,11 +34,11 @@ export function Strengths(): JSX.Element {
             >
                 <path
                     className='strength-wave-desktop'
-                    d='M0 40C240 40 420 40 560 20C640 8 696 8 760 20C824 24 848 44 872 88C904 144 1040 148 1200 148H1440V160H0Z'
+                    d='M0 40C240 40 420 40 560 20C644 8 696 8 760 20C888 44 888 148 1120 148H1440V160H0Z'
                 />
                 <path
                     className='strength-wave-mobile'
-                    d='M0 40C400 40 920 48 1160 20C1280 8 1360 8 1440 8V160H0Z'
+                    d='M0 40C400 40 920 48 1160 20C1280 6 1360 8 1440 8V160H0Z'
                 />
             </svg>
             <div className='strength-band-body'>
@@ -69,7 +69,7 @@ export function Strengths(): JSX.Element {
                 preserveAspectRatio='none'
                 viewBox='0 0 1440 160'
             >
-                <path d='M0 0H1440V148C1320 160 1200 152 1120 148C1000 144 904 152 872 108C840 64 848 40 760 24C560 4 240 8 0 8Z' />
+                <path d='M0 8C240 8 420 8 560 8C644 8 696 8 760 20C888 44 888 148 1120 148H1440V0H0Z' />
             </svg>
         </section>
     );
