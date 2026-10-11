@@ -13,11 +13,6 @@
     line-height: 1.5;
     letter-spacing: -1.5px;
 }
-.feature-heading p {
-    margin-top: 8px;
-    color: var(--clr-text-muted);
-    font-size: 14px;
-}
 .feature-toolbar {
     display: grid;
     grid-template-columns: 1fr 180px 180px;

@@ -53,10 +53,6 @@ export function FeatureExplorer(): JSX.Element {
             <div className='feature-heading'>
                 <div>
                     <h2 id='features-title'>想做什麼，直接說。</h2>
-                    <p>
-                        在有 Sago 的聊天室標記她，或用 <code>/ask</code>{' '}
-                        私下提問。
-                    </p>
                 </div>
                 <AccessGuide />
             </div>

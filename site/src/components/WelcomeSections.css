@@ -1,0 +1,125 @@
+.strengths {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+    padding-block: 80px;
+    border-bottom: 1px solid var(--clr-border);
+}
+.strength-list {
+    display: grid;
+    gap: 28px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.strength {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+.strength-icon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    color: var(--clr-accent);
+    background: var(--clr-lilac);
+}
+.strength:nth-child(2) .strength-icon {
+    background: var(--clr-blue);
+}
+.strength:nth-child(3) .strength-icon {
+    background: var(--clr-pink);
+}
+.strength h3 {
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+.strength p,
+.start-copy p,
+.invite-sago p {
+    font-size: 14px;
+    color: var(--clr-text-muted);
+}
+.getting-started {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    gap: 48px;
+    padding-block: 80px;
+}
+.start-copy p {
+    margin-top: 12px;
+}
+.first-message {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 28px;
+    border-radius: 24px;
+    color: var(--clr-accent);
+    background: var(--clr-lilac);
+}
+.first-message .feature-prompt {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    font-size: 16px;
+}
+.invite-sago {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 32px;
+    padding: 48px;
+    border-radius: 32px;
+    background: linear-gradient(
+        105deg,
+        var(--clr-blue),
+        var(--clr-lilac) 60%,
+        var(--clr-pink)
+    );
+}
+.invite-sago h2 {
+    font-size: clamp(28px, 2.5vw, 36px);
+}
+.invite-sago p {
+    margin-top: 8px;
+}
+.invite-sago .button {
+    flex-shrink: 0;
+}
+@media (max-width: 900px) {
+    .strengths {
+        gap: 40px;
+    }
+    .getting-started {
+        gap: 32px;
+    }
+    .first-message {
+        padding: 20px;
+    }
+    .first-message .prompt-line {
+        flex-wrap: wrap;
+    }
+}
+@media (max-width: 600px) {
+    .strengths,
+    .getting-started {
+        grid-template-columns: 1fr;
+        gap: 32px;
+        padding-block: 48px;
+    }
+    .invite-sago {
+        align-items: start;
+        flex-direction: column;
+        padding: 28px;
+        gap: 24px;
+    }
+    .invite-sago .button {
+        width: 100%;
+    }
+}

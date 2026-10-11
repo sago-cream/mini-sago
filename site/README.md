@@ -3,6 +3,8 @@
 A one-page Next.js feature guide, scaffolded with `npm create rail`. Browse
 capabilities by audience, copy example requests, or search and filter the same
 catalogue. Examples can be hidden for a compact overview.
+The page also introduces Sago's strengths, offers a first-message example,
+and links to the public bot's Discord server invitation.
 
 From the repository root:
 
@@ -18,6 +20,8 @@ No bot credentials or backend connection are needed.
 
 Update `src/features.ts` when capabilities or access requirements change, and
 keep its guide links aligned with `../docs/`.
+Keep `INVITE_URL` aligned with the public application ID and the permissions in
+`../scripts/sync-install-settings.mjs`.
 
 The hero and avatar use the original `public/images/minisago3.png` artwork.
 Keep the asset unchanged.

@@ -39,6 +39,8 @@ export interface Feature {
 
 const REPO = 'https://github.com/sago-cream/mini-sago';
 export const REPOSITORY_URL = REPO;
+export const INVITE_URL =
+    'https://discord.com/oauth2/authorize?client_id=1487474617017831494&integration_type=0&scope=bot&permissions=9124124388416';
 
 export const AUDIENCE_GROUPS = [
     {

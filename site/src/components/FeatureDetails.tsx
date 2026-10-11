@@ -23,7 +23,11 @@ export function FeatureBadge({ feature }: FeatureProps): JSX.Element {
     );
 }
 
-export function FeatureExample({ feature }: FeatureProps): JSX.Element {
+export function FeatureExample({
+    feature,
+}: {
+    readonly feature: Pick<Feature, 'title' | 'example'>;
+}): JSX.Element {
     const [copied, setCopied] = useState(false);
     const [failed, setFailed] = useState(false);
     const canCopy =
