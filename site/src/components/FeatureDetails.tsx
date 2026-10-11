@@ -96,11 +96,11 @@ export function AccessGuide(): JSX.Element {
                 </div>
                 <div>
                     <dt>需設定</dt>
-                    <dd>請主人先開啟對應服務與權限。</dd>
+                    <dd>請擁有者先開啟對應服務與權限。</dd>
                 </div>
                 <div>
-                    <dt>主人限定</dt>
-                    <dd>僅 Sago 主人可以操作。</dd>
+                    <dt>擁有者限定</dt>
+                    <dd>僅 Sago 擁有者可以操作。</dd>
                 </div>
                 <div>
                     <dt>開發中</dt>

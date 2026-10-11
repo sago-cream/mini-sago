@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { JSX } from 'react';
 import { ChevronDown, Search, X } from 'lucide-react';
 
-import { ACCESS_LABELS, FEATURE_GROUPS, FEATURES } from '@/features';
+import { ACCESS_LABELS, AUDIENCE_GROUPS, FEATURES } from '@/features';
 import {
     AccessGuide,
     FeatureBadge,
@@ -15,7 +15,7 @@ import {
 import './FeatureExplorer.css';
 
 export function FeatureExplorer(): JSX.Element {
-    const [category, setCategory] = useState('全部');
+    const [audience, setAudience] = useState('全部');
     const [access, setAccess] = useState('全部');
     const [query, setQuery] = useState('');
     const [showExamples, setShowExamples] = useState(true);
@@ -25,21 +25,21 @@ export function FeatureExplorer(): JSX.Element {
         .split(/\s+/u)
         .filter(Boolean);
     const filtered = FEATURES.filter((feature) => {
-        const groupTitle =
-            FEATURE_GROUPS.find((group) => group.category === feature.category)
-                ?.title ?? feature.category;
+        const group = AUDIENCE_GROUPS.find(
+            (item) => item.audience === feature.audience
+        );
         const content =
-            `${groupTitle} ${feature.category} ${feature.title} ${feature.description} ${feature.example} ${feature.note} ${feature.access}`.toLocaleLowerCase();
+            `${group?.title} ${group?.description} ${feature.category} ${feature.title} ${feature.description} ${feature.example} ${feature.note} ${feature.access}`.toLocaleLowerCase();
         return (
-            (category === '全部' || feature.category === category) &&
+            (audience === '全部' || feature.audience === audience) &&
             (access === '全部' || feature.access === access) &&
             terms.every((term) => content.includes(term) || feature.id === term)
         );
     });
-    const hasFilters = category !== '全部' || access !== '全部' || query !== '';
+    const hasFilters = audience !== '全部' || access !== '全部' || query !== '';
 
     function resetFilters() {
-        setCategory('全部');
+        setAudience('全部');
         setAccess('全部');
         setQuery('');
     }
@@ -88,17 +88,17 @@ export function FeatureExplorer(): JSX.Element {
                     )}
                 </div>
                 <label className='feature-filter'>
-                    <span className='visually-hidden'>功能分類</span>
+                    <span className='visually-hidden'>使用對象</span>
                     <select
                         onChange={(event) => {
-                            setCategory(event.target.value);
+                            setAudience(event.target.value);
                         }}
-                        value={category}
+                        value={audience}
                     >
-                        <option value='全部'>全部分類</option>
-                        {FEATURE_GROUPS.map(({ category: item }) => (
+                        <option value='全部'>全部使用對象</option>
+                        {AUDIENCE_GROUPS.map(({ audience: item, title }) => (
                             <option key={item} value={item}>
-                                {item}
+                                {title}
                             </option>
                         ))}
                     </select>
@@ -147,9 +147,9 @@ export function FeatureExplorer(): JSX.Element {
                 </div>
             </div>
             <div className='feature-groups'>
-                {FEATURE_GROUPS.map((group, index) => {
+                {AUDIENCE_GROUPS.map((group, index) => {
                     const items = filtered.filter(
-                        (feature) => feature.category === group.category
+                        (feature) => feature.audience === group.audience
                     );
                     if (items.length === 0) {
                         return undefined;
@@ -158,9 +158,12 @@ export function FeatureExplorer(): JSX.Element {
                         <section
                             aria-labelledby={`feature-group-${index}`}
                             className='feature-group'
-                            key={group.category}
+                            key={group.audience}
                         >
                             <h3 id={`feature-group-${index}`}>{group.title}</h3>
+                            <p className='feature-group-description'>
+                                {group.description}
+                            </p>
                             <div className='feature-list'>
                                 {items.map((feature) => {
                                     const Icon = feature.icon;

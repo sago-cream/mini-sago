@@ -209,7 +209,12 @@
 }
 .feature-group h3 {
     font-size: 22px;
-    margin-block: 16px;
+    margin-block: 16px 4px;
+}
+.feature-group-description {
+    margin-bottom: 16px;
+    color: var(--clr-text-muted);
+    font-size: 13px;
 }
 .feature-row-example {
     padding: 0 44px 12px 52px;

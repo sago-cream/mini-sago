@@ -1,7 +1,7 @@
 # MiniSago website
 
 A one-page Next.js feature guide, scaffolded with `npm create rail`. Browse
-capabilities by task, copy example requests, or search and filter the same
+capabilities by audience, copy example requests, or search and filter the same
 catalogue. Examples can be hidden for a compact overview.
 
 From the repository root:

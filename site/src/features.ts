@@ -22,13 +22,16 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
+export type Audience = 'general' | 'nthu' | 'nthusa' | 'owner' | 'specific';
+
 export interface Feature {
     readonly id: string;
     readonly category: string;
+    readonly audience: Audience;
     readonly title: string;
     readonly description: string;
     readonly example: string;
-    readonly access: '一般功能' | '需設定' | '主人限定' | '開發中';
+    readonly access: '一般功能' | '需設定' | '擁有者限定' | '開發中';
     readonly note: string;
     readonly icon: LucideIcon;
     readonly guide: string;
@@ -37,24 +40,49 @@ export interface Feature {
 const REPO = 'https://github.com/sago-cream/mini-sago';
 export const REPOSITORY_URL = REPO;
 
-export const FEATURE_GROUPS = [
-    { category: '聊天與記憶', title: '整理聊天', icon: MessageCircle },
-    { category: 'Discord 日常', title: '照顧聊天室', icon: Bell },
-    { category: '檔案與媒體', title: '處理檔案', icon: FileImage },
-    { category: '資料與行程', title: '找資料與排程', icon: CalendarDays },
-    { category: '程式與管理', title: '寫程式與管理', icon: Code2 },
-] as const;
+export const AUDIENCE_GROUPS = [
+    {
+        audience: 'general',
+        title: '一般使用者',
+        description: '在已開放的聊天室使用。',
+    },
+    {
+        audience: 'nthu',
+        title: 'NTHU · 清大',
+        description: '查校園資訊、校務紀錄與校園討論。',
+    },
+    {
+        audience: 'nthusa',
+        title: 'NTHUSA · 清大學生會',
+        description: '學生會文件與會辦行程，依伺服器與身分組開放。',
+    },
+    {
+        audience: 'owner',
+        title: 'Sago 擁有者',
+        description: '限 Sago 擁有者操作；伺服器管理員不會自動取得權限。',
+    },
+    {
+        audience: 'specific',
+        title: '特定伺服器',
+        description: '供已設定的旅行與開發群組使用。',
+    },
+] as const satisfies ReadonlyArray<{
+    readonly audience: Audience;
+    readonly title: string;
+    readonly description: string;
+}>;
 
 export const ACCESS_LABELS = [
     '一般功能',
     '需設定',
-    '主人限定',
+    '擁有者限定',
     '開發中',
 ] as const;
 
 export const FEATURES = [
     {
         id: 'chat',
+        audience: 'general',
         category: '聊天與記憶',
         title: '聊天與摘要',
         description: '查對話、附件和網路，整理重點或回答問題。',
@@ -66,9 +94,10 @@ export const FEATURES = [
     },
     {
         id: 'ask',
+        audience: 'general',
         category: '聊天與記憶',
         title: '私下提問',
-        description: '/ask 私下回答；主人也能私訊 Sago。',
+        description: '/ask 私下回答；擁有者也能私訊 Sago。',
         example: '/ask 這段程式碼哪裡有問題？',
         access: '一般功能',
         note: '需先註冊 /ask 指令。',
@@ -77,6 +106,7 @@ export const FEATURES = [
     },
     {
         id: 'memory',
+        audience: 'general',
         category: '聊天與記憶',
         title: '伺服器記憶',
         description: '記住伺服器用語和事實，也能訂正或忘記。',
@@ -88,6 +118,7 @@ export const FEATURES = [
     },
     {
         id: 'context',
+        audience: 'general',
         category: '聊天與記憶',
         title: '聊天歷史',
         description: '找聊天歷史、辨認別名，查看前次回答的處理資訊。',
@@ -99,6 +130,7 @@ export const FEATURES = [
     },
     {
         id: 'reminders',
+        audience: 'general',
         category: 'Discord 日常',
         title: '提醒與排程',
         description: '設定一次或重複提醒，也能修改、取消。',
@@ -110,6 +142,7 @@ export const FEATURES = [
     },
     {
         id: 'mentions',
+        audience: 'general',
         category: 'Discord 日常',
         title: '成員通知',
         description: '用暱稱找成員，確認後標記通知。',
@@ -121,6 +154,7 @@ export const FEATURES = [
     },
     {
         id: 'quiet',
+        audience: 'general',
         category: 'Discord 日常',
         title: '暫停回覆',
         description: '暫停目前頻道或討論串的回覆與自動活動。',
@@ -132,17 +166,19 @@ export const FEATURES = [
     },
     {
         id: 'expressions',
+        audience: 'owner',
         category: 'Discord 日常',
         title: '表情與貼圖',
         description: '加入貼圖、複製 emoji，或替表情改名。',
         example: '@Sago 把這張圖加成 sago_happy emoji',
-        access: '主人限定',
+        access: '擁有者限定',
         note: '需要目的地伺服器的表情管理權限。',
         icon: ImagePlus,
         guide: 'docs/discord-setup.md#permissions',
     },
     {
         id: 'social',
+        audience: 'general',
         category: 'Discord 日常',
         title: '社群連結預覽',
         description: '改善 Instagram、X、Threads 連結預覽。',
@@ -154,17 +190,19 @@ export const FEATURES = [
     },
     {
         id: 'feeds',
+        audience: 'owner',
         category: 'Discord 日常',
         title: '頻道訂閱',
         description: '訂閱 TOEFL 單字、動畫瘋優惠碼或 X 動態。',
         example: '@Sago 把 TOEFL 單字訂閱到這裡',
-        access: '需設定',
-        note: '主人管理訂閱；另有社群反應與指定成員的秒回提醒。',
+        access: '擁有者限定',
+        note: '擁有者管理訂閱；另有社群反應與指定成員的秒回提醒。',
         icon: Radio,
         guide: 'docs/configuration.md#persistent-state',
     },
     {
         id: 'media',
+        audience: 'general',
         category: '檔案與媒體',
         title: '媒體處理',
         description: '調整圖片、擷取畫面，轉出 MP4、MP3、GIF。',
@@ -176,6 +214,7 @@ export const FEATURES = [
     },
     {
         id: 'python',
+        audience: 'general',
         category: '檔案與媒體',
         title: '計算與文件',
         description: '計算數據，處理圖片、PDF 和文件附件。',
@@ -187,17 +226,19 @@ export const FEATURES = [
     },
     {
         id: 'mac',
+        audience: 'owner',
         category: '檔案與媒體',
         title: 'Mac 檔案',
         description: '按檔名找允許目錄中的檔案，傳回聊天。',
         example: '@Sago 找 Mac 裡的活動海報.pdf',
-        access: '主人限定',
+        access: '擁有者限定',
         note: '只搜尋允許的目錄，不搜尋檔案內容。',
         icon: FolderSearch,
         guide: 'docs/workers.md#mac-helper',
     },
     {
         id: 'voice',
+        audience: 'general',
         category: '檔案與媒體',
         title: '語音聊天',
         description: '加入語音頻道，以 VOICEVOX 回答。',
@@ -209,6 +250,7 @@ export const FEATURES = [
     },
     {
         id: 'drive',
+        audience: 'nthusa',
         category: '資料與行程',
         title: '雲端文件',
         description: '搜尋核准的 NTHUSA 雲端文件，附上來源。',
@@ -220,6 +262,7 @@ export const FEATURES = [
     },
     {
         id: 'calendar',
+        audience: 'nthusa',
         category: '資料與行程',
         title: '日曆與邀請',
         description: '查會辦空檔、找聯絡人，安排活動與邀請。',
@@ -231,6 +274,7 @@ export const FEATURES = [
     },
     {
         id: 'trip',
+        audience: 'specific',
         category: '資料與行程',
         title: '九州行程',
         description: '查詢共享九州行程，依要求調整排程。',
@@ -242,6 +286,7 @@ export const FEATURES = [
     },
     {
         id: 'campus',
+        audience: 'nthu',
         category: '資料與行程',
         title: '校園資訊',
         description: '查清大公車、課程、公告、餐飲、圖書館與用電。',
@@ -253,6 +298,7 @@ export const FEATURES = [
     },
     {
         id: 'threads',
+        audience: 'nthu',
         category: '資料與行程',
         title: '脆文搜尋',
         description: '搜尋清大、NTHU、學生會的脆文與指定關鍵字。',
@@ -264,28 +310,31 @@ export const FEATURES = [
     },
     {
         id: 'ccxp',
+        audience: 'nthu',
         category: '資料與行程',
         title: '校務會議紀錄',
         description: '查校務會議紀錄，附頁碼與來源。',
         example: '@Sago 找課程改革的校務會議紀錄',
         access: '需設定',
-        note: '限註冊伺服器與核准索引；主人可刷新，登入異常會私訊通知。',
+        note: '限註冊伺服器與核准索引；擁有者可刷新，登入異常會私訊通知。',
         icon: BookOpen,
         guide: 'docs/ccxp-meetings.md',
     },
     {
         id: 'coding',
+        audience: 'owner',
         category: '程式與管理',
         title: '程式開發',
         description: '在討論串寫程式、追蹤進度、補充方向或暫停。',
         example: '@Sago 修這個問題，完成後開 draft PR',
-        access: '主人限定',
-        note: '主人發起；核准成員可補充方向。發布 PR、合併與部署需明確授權。',
+        access: '擁有者限定',
+        note: '擁有者發起；核准成員可補充方向。發布 PR、合併與部署需明確授權。',
         icon: Code2,
         guide: 'docs/workers.md#development-runtime-checks',
     },
     {
         id: 'reviews',
+        audience: 'specific',
         category: '程式與管理',
         title: 'PR review',
         description: '維護 PR review 討論串，回報部署結果。',
@@ -297,17 +346,19 @@ export const FEATURES = [
     },
     {
         id: 'controls',
+        audience: 'owner',
         category: '程式與管理',
         title: '功能與權限',
         description: '調整功能、身分組權限與背景訂閱。',
         example: '@Sago 開啟 Calendar，限指定身分組',
-        access: '主人限定',
+        access: '擁有者限定',
         note: '設定持久保存；另通知 Sago Media 存取申請。',
         icon: Settings2,
         guide: 'docs/configuration.md#feature-registrations-and-role-filters',
     },
     {
         id: 'usage',
+        audience: 'general',
         category: '程式與管理',
         title: '額度查詢',
         description: '查看回答所用 worker 的 Codex 額度與重設時間。',
