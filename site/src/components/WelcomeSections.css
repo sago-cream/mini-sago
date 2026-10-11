@@ -1,14 +1,16 @@
 .strength-band {
-    --strength-overlap: 24px;
     position: relative;
-    margin-top: calc(-1 * var(--strength-overlap));
+    margin-top: calc(-1 * var(--strength-wave-height));
     overflow: hidden;
 }
 .strength-wave {
     display: block;
     width: 100%;
-    height: 160px;
+    height: var(--strength-wave-height);
     fill: var(--clr-teal);
+}
+.strength-wave-mobile {
+    display: none;
 }
 .strength-band-body {
     background: var(--clr-teal);
@@ -80,17 +82,17 @@
     flex-shrink: 0;
 }
 @media (max-width: 900px) {
+    .strength-wave-desktop {
+        display: none;
+    }
+    .strength-wave-mobile {
+        display: block;
+    }
     .strengths {
         gap: 40px;
     }
 }
 @media (max-width: 600px) {
-    .strength-band {
-        --strength-overlap: 16px;
-    }
-    .strength-wave {
-        height: 80px;
-    }
     .strengths {
         grid-template-columns: 1fr;
         gap: 32px;

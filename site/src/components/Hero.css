@@ -1,5 +1,6 @@
 .hero {
     padding-top: 32px;
+    padding-bottom: calc(var(--strength-wave-height) - var(--strength-overlap));
     overflow: hidden;
     background:
         radial-gradient(ellipse at 22% 36%, #e6f4ff 0, transparent 47%),

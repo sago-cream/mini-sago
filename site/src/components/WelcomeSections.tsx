@@ -32,7 +32,14 @@ export function Strengths(): JSX.Element {
                 preserveAspectRatio='none'
                 viewBox='0 0 1440 160'
             >
-                <path d='M0 8C160 8 360 12 480 24C556 32 584 48 608 92C636 140 748 148 904 148H1440V160H0Z' />
+                <path
+                    className='strength-wave-desktop'
+                    d='M0 8C240 8 520 12 760 20C824 24 848 44 872 88C904 144 1040 148 1200 148H1440V160H0Z'
+                />
+                <path
+                    className='strength-wave-mobile'
+                    d='M0 16C360 0 1080 0 1440 16V160H0Z'
+                />
             </svg>
             <div className='strength-band-body'>
                 <div className='strengths section-width'>
@@ -62,7 +69,7 @@ export function Strengths(): JSX.Element {
                 preserveAspectRatio='none'
                 viewBox='0 0 1440 160'
             >
-                <path d='M0 0H1440V148C1280 160 1100 152 936 148C752 144 640 152 608 108C576 64 584 40 496 24C352 4 160 8 0 8Z' />
+                <path d='M0 0H1440V148C1320 160 1200 152 1120 148C1000 144 904 152 872 108C840 64 848 40 760 24C560 4 240 8 0 8Z' />
             </svg>
         </section>
     );
