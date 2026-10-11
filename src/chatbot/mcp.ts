@@ -381,6 +381,7 @@ export type ChatbotMcpSessionHandlers = {
       nextRunAt: string;
       cron?: string;
       timezone?: string;
+      skipIfImagePosted?: { threadId: string; userId: string };
     }>
   >;
   editReminder?: (input: {
@@ -396,6 +397,7 @@ export type ChatbotMcpSessionHandlers = {
         nextRunAt: string;
         cron?: string;
         timezone?: string;
+        skipIfImagePosted?: { threadId: string; userId: string };
       }
     | undefined
   >;
@@ -1534,7 +1536,7 @@ function createServer(session: ChatbotMcpSession) {
       "list_reminders",
       {
         description:
-          "List every reminder in the current Discord channel. Use this first when an edit or cancellation request does not include a reminder ID.",
+          "List every reminder in the current Discord channel, including any skipIfImagePosted condition. That condition skips an occurrence if its user posted an image in its thread that local day. Use this first when an edit or cancellation request does not include a reminder ID.",
         inputSchema: {},
         annotations: readAnnotations,
       },
@@ -1554,7 +1556,7 @@ function createServer(session: ChatbotMcpSession) {
       "edit_reminder",
       {
         description:
-          "Edit a reminder in the current Discord channel. Anyone in the channel may edit it. Provide content, a replacement runAt, or a replacement cron. Omitted content and schedule fields stay unchanged. Use list_reminders first when the reminder ID is not already known.",
+          "Edit a reminder in the current Discord channel. Anyone in the channel may edit it. Provide content, a replacement runAt, or a replacement cron. Omitted content and schedule fields stay unchanged. Operator-configured image skip conditions are preserved and cannot be changed through this tool. Use list_reminders first when the reminder ID is not already known.",
         inputSchema: {
           reminderId: z.string().uuid(),
           content: z.string().trim().min(1).max(1_500).optional(),

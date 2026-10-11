@@ -102,11 +102,13 @@ reminders per requester. Relative timers need no timezone; wall-clock and
 recurring requests need an IANA timezone or an unambiguous location.
 
 Operators can add `skipIfImagePosted: { threadId, userId }` to durable reminder
-state. Before sending, the host verifies the thread belongs to the reminder's
-channel and checks for that user's image attachments or embeds since local
-midnight. Legacy reminders use Asia/Taipei. A match skips that occurrence while
+state. Before sending, the host verifies the image thread belongs to the reminder's
+channel, or shares a parent with its destination thread, and checks for that
+user's image attachments or embeds since local midnight. Legacy reminders use
+Asia/Taipei. A match skips that occurrence while
 the recurring schedule advances; Discord failures leave it due for retry.
-Ordinary edits preserve the condition. Chat tools cannot configure it.
+Ordinary edits preserve the condition. Chat tools show it when listing or editing
+reminders but cannot configure it.
 
 ## Prompt harness and context policy
 

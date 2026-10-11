@@ -14,6 +14,7 @@ Codex-powered chat with server context, emote creation and cross-server migratio
 - Publishes daily TOEFL vocabulary, AniGamer forum voucher code updates, and Codex news on X to configured channels.
 - Improves Instagram, Twitter/X, and Threads embeds with `kkinstagram.com`, `fxtwitter.com`, and `fixthreads.seria.moe` links.
 - Creates reminders when asked to and pings you when the reminder expires.
+- Drawing reminders can post in a dedicated thread and skip days with an image in the artwork thread; see [Configuration](docs/configuration.md).
 - Listen to GitHub activities and maintains PR review threads for certain repo in configured server.
 - Find files in my Mac and send it in chat when asked by me.
 - Searches Threads on request for 清大, NTHU, 學生會 plus optional extra keywords.

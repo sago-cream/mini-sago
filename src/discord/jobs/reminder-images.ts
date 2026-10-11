@@ -24,7 +24,16 @@ export async function shouldSkipImageReminder(
     `/channels/${condition.threadId}`,
   );
   if (thread.parent_id !== reminder.channelId) {
-    throw new Error("Reminder image thread must belong to its channel.");
+    const destination = await request<{ type: number; parent_id?: string }>(
+      `/channels/${reminder.channelId}`,
+    );
+    if (
+      ![10, 11, 12].includes(destination.type) ||
+      !thread.parent_id ||
+      destination.parent_id !== thread.parent_id
+    ) {
+      throw new Error("Reminder image thread must belong to its channel.");
+    }
   }
 
   const day = new Intl.DateTimeFormat("en-CA", {

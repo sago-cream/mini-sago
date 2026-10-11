@@ -135,6 +135,46 @@ test("does not treat Discord failures or the wrong parent as permission to send"
   ).rejects.toThrow("belong");
 });
 
+test("checks artwork when delivery goes to the same or a sibling thread", async () => {
+  for (const channelId of ["789", "321"]) {
+    const paths: string[] = [];
+    const threadRequest = (async (path: string) => {
+      paths.push(path);
+      return path.includes("/messages?")
+        ? [message()]
+        : { type: 11, parent_id: "456" };
+    }) as DiscordRequest;
+    expect(
+      await shouldSkipImageReminder(
+        { ...reminder, channelId },
+        threadRequest,
+        now,
+      ),
+    ).toBe(true);
+    expect(paths.at(-1)).toBe("/channels/789/messages?limit=100");
+  }
+});
+
+test("rejects unrelated threads and non-thread destinations", async () => {
+  for (const destination of [
+    { type: 11, parent_id: "999" },
+    { type: 0, parent_id: "456" },
+    { type: 11 },
+  ]) {
+    const threadRequest = (async (path: string) =>
+      path === "/channels/789"
+        ? { parent_id: "456" }
+        : destination) as DiscordRequest;
+    await expect(
+      shouldSkipImageReminder(
+        { ...reminder, channelId: "321" },
+        threadRequest,
+        now,
+      ),
+    ).rejects.toThrow("belong");
+  }
+});
+
 test("persists a skipped day's advancement, preserves condition on edits, and sends the next day", async () => {
   const dir = await mkdtemp(join(tmpdir(), "reminder-images-"));
   const stateFile = join(dir, "reminders.json");
