@@ -301,10 +301,7 @@ export async function lookupGuildMembers({
   discordRequest: DiscordRequest;
 }) {
   const results = [];
-  for (const query of queries.slice(
-    0,
-    CHATBOT_CONTEXT_LIMITS.maximumMemberLookups,
-  )) {
+  for (const query of queries) {
     const member = await resolveGuildMember({
       guildId,
       memberQuery: query,

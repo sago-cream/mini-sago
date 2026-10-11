@@ -5,10 +5,11 @@ export type MemberMentionInput = { queries: string[]; content?: string };
 export type MemberMentionResult =
   | { status: "needs_clarification"; unresolvedQueries: string[] }
   | {
-      status: "complete";
-      messageId: string;
+      status: "complete" | "partial";
+      messageIds: string[];
       memberIds: string[];
       unresolvedQueries: string[];
+      unconfirmedMemberIds?: string[];
     };
 
 export function createMemberMentionHandler({
@@ -34,7 +35,6 @@ export function createMemberMentionHandler({
     const uniqueQueries = [...new Set(queries.map((query) => query.trim()))];
     if (
       !uniqueQueries.length ||
-      uniqueQueries.length > CHATBOT_CONTEXT_LIMITS.maximumMemberLookups ||
       uniqueQueries.some(
         (query) =>
           !query ||
@@ -43,7 +43,7 @@ export function createMemberMentionHandler({
       (content?.length ?? 0) > 1_400
     ) {
       throw new Error(
-        "Provide 1–20 member queries and at most 1400 content characters.",
+        "Provide member queries and at most 1400 content characters.",
       );
     }
 
@@ -61,30 +61,59 @@ export function createMemberMentionHandler({
     }
     if (delivery) return delivery;
     const memberIds = [...new Set(members.map((member) => member.id))];
-    const mentions = memberIds.map((id) => `<@${id}>`).join(" ");
-    delivery = discordRequest<{ id: string }>(
-      `/channels/${channelId}/messages`,
-      {
-        method: "POST",
-        body: {
-          content: [content?.trim(), mentions].filter(Boolean).join("\n"),
-          message_reference: {
-            message_id: requestMessageId,
-            fail_if_not_exists: false,
-          },
-          allowed_mentions: {
-            parse: [],
-            users: memberIds,
-            replied_user: false,
-          },
-        },
-      },
-    ).then((message) => ({
-      status: "complete",
-      messageId: message.id,
-      memberIds,
-      unresolvedQueries,
-    }));
+    delivery = (async (): Promise<MemberMentionResult> => {
+      const messageIds: string[] = [];
+      const confirmedIds: string[] = [];
+      let offset = 0;
+      while (offset < memberIds.length) {
+        const batch: string[] = [];
+        let text = messageIds.length === 0 ? (content?.trim() ?? "") : "";
+        while (offset + batch.length < memberIds.length && batch.length < 100) {
+          const id = memberIds[offset + batch.length]!;
+          const nextText = `${text}${text ? "\n" : ""}<@${id}>`;
+          if (nextText.length > 2_000) break;
+          batch.push(id);
+          text = nextText;
+        }
+        try {
+          const message = await discordRequest<{ id: string }>(
+            `/channels/${channelId}/messages`,
+            {
+              method: "POST",
+              body: {
+                content: text,
+                message_reference: {
+                  message_id: requestMessageId,
+                  fail_if_not_exists: false,
+                },
+                allowed_mentions: {
+                  parse: [],
+                  users: batch,
+                  replied_user: false,
+                },
+              },
+            },
+          );
+          messageIds.push(message.id);
+          confirmedIds.push(...batch);
+          offset += batch.length;
+        } catch {
+          return {
+            status: "partial",
+            messageIds,
+            memberIds: confirmedIds,
+            unresolvedQueries,
+            unconfirmedMemberIds: memberIds.slice(offset),
+          };
+        }
+      }
+      return {
+        status: "complete",
+        messageIds,
+        memberIds: confirmedIds,
+        unresolvedQueries,
+      };
+    })();
     return delivery;
   };
 }

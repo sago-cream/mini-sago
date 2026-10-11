@@ -536,7 +536,7 @@ function availableCapabilities(
       category: "discord",
       availability: "available",
       description:
-        "Resolve and notify up to 20 named members in the current server channel when explicitly requested. Report missing or ambiguous names without notifying uncertain matches.",
+        "Resolve and notify named members in the current server channel when explicitly requested, splitting large lists into Discord-sized messages. Report missing or ambiguous names without notifying uncertain matches.",
       tools: ["mention_members"],
     });
   }
@@ -1216,7 +1216,7 @@ function createServer(session: ChatbotMcpSession) {
       "mention_members",
       {
         description:
-          "Mention and notify up to 20 members in the current channel only when the requester explicitly asks to tag, ping, 標記 or notify them. Supply server nicknames, usernames, user IDs or <@id> mentions. The host resolves each query in the current guild and notifies only unambiguous matches. Include the requested notice in content when needed. Report unresolvedQueries and ask for clarification without guessing; a needs_clarification result posts nothing. A complete result already posted the resolved mentions; do not repeat them or claim unresolved people were notified. The guild, channel and reply target are host-bound. At most one notification message is posted per answer.",
+          "Mention and notify members in the current channel only when the requester explicitly asks to tag, ping, 標記 or notify them. Supply the whole requested list of server nicknames, usernames, user IDs or <@id> mentions; there is no member-count cap. The host resolves each query in the current guild and splits unambiguous matches into Discord-sized messages. Include the requested notice in content when needed. Report unresolvedQueries and ask for clarification without guessing; a needs_clarification result posts nothing. A complete result already posted the resolved mentions; do not repeat them or claim unresolved people were notified. A partial result confirms only memberIds; delivery to unconfirmedMemberIds is uncertain. Do not retry automatically after partial delivery. The guild, channel and reply target are host-bound. Repeated calls return the same delivery result.",
         inputSchema: {
           queries: z
             .array(
@@ -1226,8 +1226,7 @@ function createServer(session: ChatbotMcpSession) {
                 .min(1)
                 .max(CHATBOT_CONTEXT_LIMITS.maximumMemberQueryCharacters),
             )
-            .min(1)
-            .max(CHATBOT_CONTEXT_LIMITS.maximumMemberLookups),
+            .min(1),
           content: z.string().trim().max(1_400).optional(),
         },
         annotations: {

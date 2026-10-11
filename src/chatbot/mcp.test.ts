@@ -136,7 +136,7 @@ describe("MiniSago MCP server", () => {
         calls.push(input);
         return {
           status: "complete",
-          messageId: "message-1",
+          messageIds: ["message-1"],
           memberIds: ["123456789012345678"],
           unresolvedQueries: [],
         };
@@ -152,7 +152,10 @@ describe("MiniSago MCP server", () => {
     expect((await client.listTools()).tools.map((tool) => tool.name)).toContain(
       "mention_members",
     );
-    const queries = Array.from({ length: 20 }, (_, index) => `Member ${index}`);
+    const queries = Array.from(
+      { length: 125 },
+      (_, index) => `Member ${index}`,
+    );
     expect(
       (
         await client.callTool({
@@ -166,7 +169,7 @@ describe("MiniSago MCP server", () => {
       (
         await client.callTool({
           name: "mention_members",
-          arguments: { queries: [...queries, "Extra"] },
+          arguments: { queries: [] },
         })
       ).isError,
     ).toBe(true);
