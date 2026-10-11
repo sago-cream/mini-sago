@@ -85,6 +85,14 @@ conversation, attachment, reaction, development, Mac, and MCP features.
 Owner-only features are omitted for other requesters; the host binds identity
 and destinations wherever possible.
 
+A typed feature registry declares access modes, scopes, defaults, requirements,
+DM/voice rules, and capability metadata. The shared access guard binds trusted
+request identity, refreshes protected guild membership, and checks registration
+at execution and before releasing read results. MCP tools must declare a feature;
+owner-only tools remain owner-only. Integration credentials, Google resource ACLs,
+and Calendar confirmation remain additional checks. See
+[feature registration](feature-registration.md).
+
 Owners can change feature coverage without deploying. Persisted channel rules
 override guild rules. A separate subscription list selects destination channels
 for Gamer Forum, X reposts, and TOEFL; jobs read it before delivery. See

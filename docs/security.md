@@ -21,6 +21,12 @@ The hosted service checks requester identity before dispatch. The worker checks
 the declared capabilities again before Codex runs. Authorization never depends
 on matching phrases in the request.
 
+The shared feature registry declares request, owner-only, and registered access.
+The host binds identity and checks access at tool execution; protected reads
+refresh guild membership and recheck policy before releasing results. Google
+resource permissions and mutation confirmations still apply. See
+[feature registration](feature-registration.md).
+
 CCXP meeting tools require an explicit owner-managed guild registration and a
 configured read-only index mount. DMs and unregistered guilds have no access,
 even for the bot owner. Registration uses the persistent `ccxp_meetings`

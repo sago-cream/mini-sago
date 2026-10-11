@@ -1,3 +1,4 @@
+import { createFeatureAccess } from "../discord/feature-access";
 import { calendarSettings } from "./calendar/calendar-settings";
 import { afterEach, describe, expect, test } from "bun:test";
 
@@ -9,7 +10,7 @@ import {
   handleChatbotMcpRequest,
   normalizeReminderEdit,
   normalizeReminderSchedule,
-  registerChatbotMcpSession,
+  registerChatbotMcpSession as registerBoundChatbotMcpSession,
 } from "./mcp";
 
 const servers: Array<ReturnType<typeof Bun.serve>> = [];
@@ -196,6 +197,7 @@ describe("MiniSago MCP server", () => {
           developer_steering: policy,
           mail: policy,
           calendar: policy,
+          drive: policy,
         },
       }),
       configureFeatureAvailability: async (input) => {
@@ -218,6 +220,23 @@ describe("MiniSago MCP server", () => {
     expect(tools.tools.map((tool) => tool.name)).toContain(
       "configure_feature_availability",
     );
+    const listed = await client.callTool({
+      name: "list_feature_availability",
+      arguments: {},
+    });
+    expect(listed.structuredContent).toMatchObject({
+      definitions: {
+        drive: { access: "registered", scopes: ["guild"] },
+        mail: {
+          access: "registered",
+          scopes: ["guild", "channel"],
+          dm: "owner",
+          voice: false,
+        },
+        feature_availability: { access: "owner" },
+        reminders: { access: "request" },
+      },
+    });
     const result = await client.callTool({
       name: "configure_feature_availability",
       arguments: {
@@ -1383,7 +1402,9 @@ test("CCXP maintenance tools expose explicit queued/status actions separately fr
     ccxpSync: {
       call: async (name) => {
         calls.push(name);
-        return { status: name === "request_ccxp_sync" ? "queued" : "complete" };
+        return {
+          status: name === "request_ccxp_sync" ? "queued" : "complete",
+        };
       },
     },
   });
@@ -1414,3 +1435,111 @@ test("CCXP maintenance tools expose explicit queued/status actions separately fr
   await client.close();
   session.revoke();
 });
+
+test("bound feature access hides owner tools even if a handler is accidentally supplied", async () => {
+  let calls = 0;
+  const session = registerChatbotMcpSession(
+    {
+      ...handlers(),
+      sendChannelMessage: async () => {
+        calls++;
+        return {
+          id: "never-sent",
+          channelId: "1517766866964316201",
+          guildId: "1394943277836402779",
+          jumpUrl:
+            "https://discord.com/channels/1394943277836402779/1517766866964316201/never-sent",
+        };
+      },
+    },
+    {
+      featureAccess: (feature) =>
+        createFeatureAccess(
+          feature,
+          { requesterId: "member", ownerId: "owner" },
+          { isEnabled: () => false },
+        ),
+    },
+  );
+  expect(session.capabilities.some((c) => c.id === "channel_messaging")).toBe(
+    false,
+  );
+  const client = await connect(session.token);
+  expect(
+    (await client.listTools()).tools.some(
+      (t) => t.name === "send_channel_message",
+    ),
+  ).toBe(false);
+  expect(
+    (
+      await client.callTool({
+        name: "send_channel_message",
+        arguments: { channelId: "1517766866964316201", content: "never send" },
+      })
+    ).isError,
+  ).toBe(true);
+  expect(calls).toBe(0);
+  await client.close();
+  session.revoke();
+});
+
+test("MCP common guard rechecks membership and suppresses a read revoked during execution", async () => {
+  let registered = true,
+    roles: readonly string[] = ["allowed"],
+    calls = 0;
+  const session = registerChatbotMcpSession(
+    {
+      ...handlers(),
+      readTripPlan: async () => {
+        calls++;
+        registered = false;
+        return { status: "complete", text: "private itinerary" };
+      },
+    },
+    {
+      featureAccess: (feature) =>
+        createFeatureAccess(
+          feature,
+          {
+            guildId: "1394943277836402779",
+            roleIds: ["allowed"],
+            resolveRoleIds: async () => roles,
+          },
+          {
+            isEnabled: (_feature, context) =>
+              registered && Boolean(context.roleIds?.includes("allowed")),
+          },
+        ),
+    },
+  );
+  const client = await connect(session.token);
+  roles = [];
+  expect(
+    (await client.callTool({ name: "read_trip_plan", arguments: {} }))
+      .structuredContent,
+  ).toEqual({ status: "forbidden" });
+  expect(calls).toBe(0);
+  roles = ["allowed"];
+  expect(
+    (await client.callTool({ name: "read_trip_plan", arguments: {} }))
+      .structuredContent,
+  ).toEqual({ status: "forbidden" });
+  expect(calls).toBe(1);
+  await client.close();
+  session.revoke();
+});
+
+// These handlers are local fixtures; no real integration or Discord action is available.
+function fixtureFeatureAccess() {
+  return { available: () => true, allowed: async () => true };
+}
+
+function registerChatbotMcpSession(
+  handlers: Parameters<typeof registerBoundChatbotMcpSession>[0],
+  options: Partial<Parameters<typeof registerBoundChatbotMcpSession>[1]> = {},
+) {
+  return registerBoundChatbotMcpSession(handlers, {
+    featureAccess: fixtureFeatureAccess,
+    ...options,
+  });
+}

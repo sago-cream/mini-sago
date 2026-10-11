@@ -1,3 +1,7 @@
+import {
+  guardFeatureClient,
+  createFeatureAccess,
+} from "../../discord/feature-access";
 import { createHash, createPrivateKey, sign } from "node:crypto";
 import { z } from "zod";
 
@@ -237,23 +241,9 @@ export function createGoogleCalendarClient(
   > = getFeatureAvailabilityStore(),
 ) {
   const settings = calendarSettings(env);
-  if (
-    !settings ||
-    !context.guildId ||
-    !availability.isEnabled("calendar", context)
-  )
-    return undefined;
+  const access = createFeatureAccess("calendar", context, availability);
+  if (!settings || !context.guildId || !access.available()) return undefined;
   const config = { ...settings, guildId: context.guildId };
-  const allowed = async () => {
-    try {
-      const roleIds = context.resolveRoleIds
-        ? await context.resolveRoleIds()
-        : context.roleIds;
-      return availability.isEnabled("calendar", { ...context, roleIds });
-    } catch {
-      return false;
-    }
-  };
   const configured = env.MINISAGO_GOOGLE_CALENDAR_SERVICE_ACCOUNT_JSON;
   const oauthConfigured =
     env.DISCORD_CALENDAR_OAUTH_JSON || env.MINISAGO_GOOGLE_CALENDAR_OAUTH_JSON;
@@ -505,19 +495,13 @@ export function createGoogleCalendarClient(
       "Office availability could not be checked completely; no change was saved.",
     );
   }
-  return {
+  const client = {
     config,
     async call(
       name: CalendarToolName,
       raw: unknown,
     ): Promise<Record<string, unknown>> {
       try {
-        if (!(await allowed()))
-          return {
-            status: "forbidden",
-            failureKind: "unavailable",
-            error: "Calendar access is unavailable here.",
-          };
         calendarSchemas[name].parse(raw);
         if (name === "list_calendar_events") {
           const input = calendarSchemas.list_calendar_events.parse(raw);
@@ -689,6 +673,11 @@ export function createGoogleCalendarClient(
       }
     },
   };
+  return guardFeatureClient(
+    access,
+    client,
+    (name) => name === "list_calendar_events" || name === "get_calendar_event",
+  );
 }
 
 export type GoogleCalendarClient = NonNullable<

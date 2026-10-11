@@ -78,36 +78,39 @@ export function benchmarkCapabilities() {
   const unavailable = (): never => {
     throw new Error("Routing benchmark cannot execute tools.");
   };
-  const session = registerChatbotMcpSession({
-    supplementalCapabilities: supplementalCapabilities({
-      isOwner: true,
-      hasAttachments: false,
-      hasReactions: true,
-      availableRepositories: ["sago-cream/mini-sago"],
-      chatbotRepository: "sago-cream/mini-sago",
-      executionRoute: "chat",
-    }),
-    resolveContext: unavailable,
-    getCodexUsage: unavailable,
-    listFeatureAvailability: unavailable,
-    configureFeatureAvailability: unavailable,
-    listManagedServices: unavailable,
-    configureServiceSubscription: unavailable,
-    manageServerMemory: unavailable,
-    searchThreads: unavailable,
-    sendChannelMessage: unavailable,
-    pauseChannelActivity: unavailable,
-    joinVoiceChannel: unavailable,
-    leaveVoiceChannel: unavailable,
-    listSharedGuilds: unavailable,
-    listGuildEmojis: unavailable,
-    addGuildExpression: unavailable,
-    renameGuildEmoji: unavailable,
-    createReminder: unavailable,
-    listReminders: unavailable,
-    editReminder: unavailable,
-    cancelReminder: unavailable,
-  });
+  const session = registerChatbotMcpSession(
+    {
+      supplementalCapabilities: supplementalCapabilities({
+        isOwner: true,
+        hasAttachments: false,
+        hasReactions: true,
+        availableRepositories: ["sago-cream/mini-sago"],
+        chatbotRepository: "sago-cream/mini-sago",
+        executionRoute: "chat",
+      }),
+      resolveContext: unavailable,
+      getCodexUsage: unavailable,
+      listFeatureAvailability: unavailable,
+      configureFeatureAvailability: unavailable,
+      listManagedServices: unavailable,
+      configureServiceSubscription: unavailable,
+      manageServerMemory: unavailable,
+      searchThreads: unavailable,
+      sendChannelMessage: unavailable,
+      pauseChannelActivity: unavailable,
+      joinVoiceChannel: unavailable,
+      leaveVoiceChannel: unavailable,
+      listSharedGuilds: unavailable,
+      listGuildEmojis: unavailable,
+      addGuildExpression: unavailable,
+      renameGuildEmoji: unavailable,
+      createReminder: unavailable,
+      listReminders: unavailable,
+      editReminder: unavailable,
+      cancelReminder: unavailable,
+    },
+    { featureAccess: fixtureFeatureAccess },
+  );
   session.revoke();
   return session.capabilities;
 }
@@ -279,4 +282,9 @@ if (import.meta.main) {
     console.error(error instanceof Error ? error.message : "Benchmark failed.");
     process.exitCode = 1;
   });
+}
+
+// These handlers are local fixtures; no real integration or Discord action is available.
+function fixtureFeatureAccess() {
+  return { available: () => true, allowed: async () => true };
 }

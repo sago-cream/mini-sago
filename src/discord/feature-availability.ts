@@ -3,23 +3,17 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
-import { TARGET_GUILD_ID } from "./config";
-import { CALENDAR_GUILD_ID } from "../chatbot/calendar/calendar-settings";
+import {
+  featureDefinition,
+  REGISTERED_FEATURE_IDS,
+  type RegisteredFeatureId,
+} from "./features";
 
-export const SCOPED_FEATURE_DEFINITIONS = {
-  chatbot: "Answer mentions and /ask requests from non-owner members.",
-  ambient_reactions: "Occasionally react to messages without being mentioned.",
-  trip_planner: "Expose the shared Kyushu itinerary tools.",
-  ccxp_meetings:
-    "Search protected NTHU meeting records during related discussions. Owner registration is guild-only; requires a configured CCXP index.",
-  calendar:
-    "Expose Calendar tools in registered guilds, subject to optional role filters; requires configured Google credentials.",
-  mail: "Search and read approved Gmail mailboxes in explicitly registered guilds or channels, subject to role filters; replies are visible in the requesting conversation. Requires connected mailboxes. The owner also has private text DM access.",
-  developer_steering:
-    "Let non-owner humans steer existing coding tasks. Requires explicit guild registration; the owner can steer everywhere.",
-} as const;
-
-export type ScopedFeatureId = keyof typeof SCOPED_FEATURE_DEFINITIONS;
+// Preserve the public descriptions shape for existing callers.
+export const SCOPED_FEATURE_DEFINITIONS = Object.fromEntries(
+  REGISTERED_FEATURE_IDS.map((id) => [id, featureDefinition(id).description]),
+) as Record<RegisteredFeatureId, string>;
+export type ScopedFeatureId = RegisteredFeatureId;
 export type FeatureScope = "guild" | "channel";
 export type FeatureContext = {
   guildId?: string;
@@ -52,76 +46,17 @@ export type FeatureAvailabilityMutation = FeatureRoleFilters & {
 
 const DISCORD_SNOWFLAKE = /^\d{17,20}$/u;
 
-function parseSnowflakes(value: string | undefined) {
-  return (value ?? "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter((item) => DISCORD_SNOWFLAKE.test(item));
-}
-
-function enabledRules(
-  scope: FeatureScope,
-  targetIds: readonly string[],
-): FeatureRule[] {
-  return targetIds.map((targetId) => ({ scope, targetId, enabled: true }));
-}
-
 export function defaultFeatureAvailability(
   environment: NodeJS.ProcessEnv = process.env,
 ): FeatureAvailabilitySnapshot {
-  const guildIds = parseSnowflakes(environment.MINISAGO_CHATBOT_GUILD_IDS);
-  const channelIds = parseSnowflakes(environment.MINISAGO_CHATBOT_CHANNEL_IDS);
-  const chatRules = [
-    ...enabledRules("guild", guildIds),
-    ...enabledRules("channel", channelIds),
-  ];
-  const ambientEnabled =
-    environment.MINISAGO_AMBIENT_REACTIONS_ENABLED?.trim().toLowerCase() ===
-    "true";
-
   return {
     version: 1,
-    features: {
-      chatbot: { defaultEnabled: false, rules: chatRules },
-      ambient_reactions: {
-        defaultEnabled: false,
-        rules: ambientEnabled ? [...chatRules] : [],
-      },
-      trip_planner: {
-        defaultEnabled: false,
-        rules: enabledRules("guild", [TARGET_GUILD_ID]),
-      },
-      ccxp_meetings: {
-        defaultEnabled: false,
-        rules: enabledRules("guild", [
-          "1394943277836402779",
-          "1000249491494019092",
-        ]),
-      },
-      calendar: {
-        defaultEnabled: false,
-        rules: [
-          ...enabledRules(
-            "guild",
-            [environment.DISCORD_CALENDAR_GUILD_ID || CALENDAR_GUILD_ID].filter(
-              (id) => id !== "1394943277836402779",
-            ),
-          ),
-          // Owner-approved registration; applied once when upgrading legacy state.
-          {
-            scope: "guild",
-            targetId: "1394943277836402779",
-            enabled: true,
-            allowRoleIds: ["1394944058534920213"],
-          },
-        ],
-      },
-      developer_steering: {
-        defaultEnabled: false,
-        rules: enabledRules("guild", ["1521168712579682567"]),
-      },
-      mail: { defaultEnabled: false, rules: [] },
-    },
+    features: Object.fromEntries(
+      REGISTERED_FEATURE_IDS.map((id) => [
+        id,
+        featureDefinition(id).registration!.initialPolicy(environment),
+      ]),
+    ) as Record<ScopedFeatureId, FeaturePolicy>,
   };
 }
 
@@ -148,10 +83,6 @@ function rolesAllowed(rule: FeatureRule, context: FeatureContext) {
   );
 }
 
-function guildOnly(feature: ScopedFeatureId) {
-  return ["ccxp_meetings", "developer_steering", "calendar"].includes(feature);
-}
-
 function assertSnapshot(
   value: unknown,
   environment: NodeJS.ProcessEnv,
@@ -163,28 +94,14 @@ function assertSnapshot(
   if (snapshot.version !== 1 || !snapshot.features) {
     throw new Error("Unsupported feature availability format.");
   }
-  // Existing installations gain the initially approved registrations once.
-  // A saved CCXP policy, including an empty registration list, stays authoritative.
-  if (snapshot.features.ccxp_meetings === undefined) {
-    snapshot.features.ccxp_meetings = defaultFeatureAvailability(
-      {},
-    ).features.ccxp_meetings;
-  }
-  if (snapshot.features.developer_steering === undefined) {
-    snapshot.features.developer_steering = defaultFeatureAvailability(
-      {},
-    ).features.developer_steering;
-  }
-  if (snapshot.features.calendar === undefined) {
-    snapshot.features.calendar =
-      defaultFeatureAvailability(environment).features.calendar;
-  }
-  if (snapshot.features.mail === undefined) {
-    snapshot.features.mail = { defaultEnabled: false, rules: [] };
-  }
-  for (const feature of Object.keys(
-    SCOPED_FEATURE_DEFINITIONS,
-  ) as ScopedFeatureId[]) {
+  for (const feature of REGISTERED_FEATURE_IDS) {
+    const registration = featureDefinition(feature).registration!;
+    if (
+      snapshot.features[feature] === undefined &&
+      !registration.legacyRequired
+    ) {
+      snapshot.features[feature] = registration.initialPolicy(environment);
+    }
     const policy = snapshot.features[feature];
     if (!policy || typeof policy.defaultEnabled !== "boolean") {
       throw new Error(`Feature availability is missing ${feature}.`);
@@ -202,18 +119,16 @@ function assertSnapshot(
     ) {
       throw new Error(`Feature availability has invalid ${feature} rules.`);
     }
-    if (feature === "mail" && policy.defaultEnabled) {
+    if (!registration.allowDefaultEnabled && policy.defaultEnabled) {
       throw new Error(
-        "mail requires explicit registrations with a disabled default.",
+        `${feature} requires explicit ${registration.scopes.length === 1 ? registration.scopes[0] + " " : ""}registrations with a disabled default.`,
       );
     }
     if (
-      guildOnly(feature) &&
-      (policy.defaultEnabled ||
-        policy.rules.some((rule) => rule.scope !== "guild"))
+      policy.rules.some((rule) => !registration.scopes.includes(rule.scope))
     ) {
       throw new Error(
-        `${feature} requires explicit guild registrations with a disabled default.`,
+        `${feature} requires explicit ${registration.scopes.join(" or ")} registrations.`,
       );
     }
   }
@@ -244,7 +159,8 @@ export class FeatureAvailabilityStore {
   }
 
   isEnabled(feature: ScopedFeatureId, context: FeatureContext) {
-    if (guildOnly(feature) && !context.guildId) return false;
+    const registration = featureDefinition(feature).registration!;
+    if (!context.guildId && registration.dm === "none") return false;
     const policy = this.snapshot.features[feature];
     const channelRule = context.channelId
       ? policy.rules.find(
@@ -266,9 +182,12 @@ export class FeatureAvailabilityStore {
   }
 
   configure(input: FeatureAvailabilityMutation): Promise<FeaturePolicy> {
-    if (guildOnly(input.feature) && input.scope !== "guild") {
+    const registration = featureDefinition(input.feature).registration;
+    if (!registration || !registration.scopes.includes(input.scope)) {
       return Promise.reject(
-        new Error(`${input.feature} registration requires guild scope.`),
+        new Error(
+          `${input.feature} registration requires ${registration?.scopes.join(" or ") ?? "supported"} scope.`,
+        ),
       );
     }
     if (!validRoleIds(input.allowRoleIds) || !validRoleIds(input.denyRoleIds)) {

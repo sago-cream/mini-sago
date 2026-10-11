@@ -207,7 +207,7 @@ describe("request-scoped media registry", () => {
     });
     const session = registerChatbotMcpSession(
       { ...handlers(), mediaRegistry: registry },
-      { ttlMs: 1_000 },
+      { featureAccess: fixtureFeatureAccess, ttlMs: 1_000 },
     );
     const authorization = { authorization: `Bearer ${session.token}` };
 
@@ -256,3 +256,8 @@ describe("request-scoped media registry", () => {
     await expect(registry.read("missing")).rejects.toThrow("unavailable");
   });
 });
+
+// These handlers are local fixtures; no real integration or Discord action is available.
+function fixtureFeatureAccess() {
+  return { available: () => true, allowed: async () => true };
+}
