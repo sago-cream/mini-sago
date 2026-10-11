@@ -1,5 +1,3 @@
-'use client';
-
 import type { JSX } from 'react';
 import { ChevronDown } from 'lucide-react';
 
@@ -44,45 +42,42 @@ export function FeatureExplorer(): JSX.Element {
                         <div className='feature-list'>
                             {FEATURES.filter(
                                 (feature) => feature.audience === group.audience
-                            ).map((feature) => {
-                                const Icon = feature.icon;
-                                return (
-                                    <article
-                                        className='feature-row'
-                                        key={feature.id}
-                                    >
-                                        <details>
-                                            <summary>
-                                                <Icon
-                                                    aria-hidden='true'
-                                                    className='feature-row-icon'
-                                                    size={24}
-                                                />
-                                                <div className='feature-row-copy'>
+                            ).map((feature) => (
+                                <article
+                                    className='feature-row'
+                                    key={feature.id}
+                                >
+                                    <details>
+                                        <summary>
+                                            <div className='feature-row-copy'>
+                                                <div className='feature-row-title'>
                                                     <h4>{feature.title}</h4>
-                                                    <p>{feature.description}</p>
+                                                    {(feature.access ===
+                                                        '需設定' ||
+                                                        feature.access ===
+                                                            '開發中') && (
+                                                        <FeatureBadge
+                                                            feature={feature}
+                                                        />
+                                                    )}
                                                 </div>
-                                                <FeatureBadge
-                                                    feature={feature}
-                                                />
-                                                <ChevronDown
-                                                    aria-hidden='true'
-                                                    className='row-chevron'
-                                                    size={20}
-                                                />
-                                            </summary>
-                                            <div className='feature-row-body'>
-                                                <FeatureConditions
-                                                    feature={feature}
-                                                />
+                                                <p>{feature.description}</p>
                                             </div>
-                                        </details>
-                                        <div className='feature-row-example'>
+                                            <ChevronDown
+                                                aria-hidden='true'
+                                                className='row-chevron'
+                                                size={16}
+                                            />
+                                        </summary>
+                                        <div className='feature-row-body'>
                                             <FeatureExample feature={feature} />
+                                            <FeatureConditions
+                                                feature={feature}
+                                            />
                                         </div>
-                                    </article>
-                                );
-                            })}
+                                    </details>
+                                </article>
+                            ))}
                         </div>
                     </section>
                 ))}

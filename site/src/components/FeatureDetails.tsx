@@ -95,16 +95,8 @@ export function AccessGuide(): JSX.Element {
             <summary>功能標籤怎麼看？</summary>
             <dl>
                 <div>
-                    <dt>一般功能</dt>
-                    <dd>在已開放的頻道中使用。</dd>
-                </div>
-                <div>
                     <dt>需設定</dt>
                     <dd>請擁有者先開啟對應服務與權限。</dd>
-                </div>
-                <div>
-                    <dt>擁有者限定</dt>
-                    <dd>僅迷你西米露擁有者可以操作。</dd>
                 </div>
                 <div>
                     <dt>開發中</dt>

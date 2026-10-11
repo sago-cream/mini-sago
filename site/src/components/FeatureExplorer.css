@@ -20,11 +20,11 @@
     margin-top: 48px;
 }
 .feature-group h3 {
-    font-size: 24px;
+    font-size: 20px;
     margin-block: 16px 4px;
 }
 .feature-group-description {
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     color: var(--clr-text-muted);
     font-size: 14px;
 }
@@ -32,23 +32,21 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
-    gap: 12px;
+    gap: 0 40px;
 }
 .feature-row {
-    background: var(--clr-surface);
-    border: 1px solid var(--clr-border);
-    border-radius: 16px;
+    border-bottom: 1px solid var(--clr-border);
 }
 .feature-row summary {
     display: grid;
-    grid-template-columns: 24px 1fr auto 20px;
+    grid-template-columns: 1fr 16px;
     gap: 16px;
     align-items: center;
     min-height: 88px;
-    padding: 20px;
+    padding: 16px 8px;
     cursor: pointer;
     list-style: none;
-    border-radius: 16px;
+    border-radius: 8px;
 }
 .feature-row summary::-webkit-details-marker {
     display: none;
@@ -60,20 +58,22 @@
 .feature-row-copy {
     min-width: 0;
 }
+.feature-row-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+}
 .feature-row h4 {
-    margin: 0 0 4px;
-    font-size: 18px;
+    margin: 0;
+    font-size: 17px;
     font-weight: 700;
     line-height: 1.5;
 }
 .feature-row-copy p {
+    margin-top: 4px;
     color: var(--clr-text-muted);
     font-size: 14px;
-}
-.feature-row-icon {
-    color: var(--clr-teal-ink);
-    align-self: start;
-    margin-top: 4px;
 }
 .row-chevron {
     color: var(--clr-text-muted);
@@ -82,12 +82,9 @@
     transform: rotate(180deg);
 }
 .feature-row-body {
-    padding: 0 56px 20px 60px;
+    padding: 8px 8px 16px;
 }
-.feature-row-example {
-    padding: 0 20px 20px 60px;
-}
-.feature-row-example .feature-prompt {
+.feature-row-body .feature-prompt {
     background: color-mix(in srgb, var(--clr-teal) 16%, var(--clr-surface));
     color: var(--clr-teal-ink);
     font-size: 14px;
@@ -104,32 +101,6 @@
 @media (max-width: 600px) {
     .feature-section {
         padding-top: 32px;
-    }
-    .feature-row summary {
-        grid-template-columns: 20px 1fr 20px;
-        gap: 8px 12px;
-        padding: 16px;
-    }
-    .feature-row-icon {
-        width: 20px;
-        height: 20px;
-    }
-    .feature-row .access-badge {
-        grid-row: 2;
-        grid-column: 2;
-    }
-    .row-chevron {
-        grid-row: 1;
-        grid-column: 3;
-    }
-    .feature-row-body {
-        padding: 0 16px 16px 48px;
-    }
-    .feature-row-example {
-        padding: 0 16px 16px;
-    }
-    .feature-row h4 {
-        font-size: 17px;
     }
     .feature-group + .feature-group {
         margin-top: 32px;

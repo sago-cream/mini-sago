@@ -2,18 +2,12 @@
     display: inline-flex;
     align-items: center;
     width: fit-content;
-    padding: 3px 10px;
-    border: 1px solid var(--clr-border);
-    border-radius: 20px;
     color: var(--clr-text-muted);
-    background: var(--clr-bg);
     font-size: 12px;
     white-space: nowrap;
 }
 .access-development {
     color: #946c47;
-    background: #fff6e9;
-    border-color: #f1e2cd;
 }
 .feature-prompt {
     padding: 12px 16px;
