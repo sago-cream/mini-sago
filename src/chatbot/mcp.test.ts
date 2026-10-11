@@ -1225,6 +1225,64 @@ test("exposes on-demand Threads search and validates extra keywords", async () =
   session.revoke();
 });
 
+test("Mail tools are conditional, read-only, and preserve strict schemas through MCP", async () => {
+  const absentSession = registerChatbotMcpSession(handlers());
+  const absent = await connect(absentSession.token);
+  expect(
+    (await absent.listTools()).tools.some(
+      (tool) => tool.name === "search_mail",
+    ),
+  ).toBe(false);
+  expect(absentSession.capabilities.some((item) => item.id === "mail")).toBe(
+    false,
+  );
+  const calls: unknown[] = [];
+  const session = registerChatbotMcpSession({
+    ...handlers(),
+    mail: {
+      call: async (name, input) => {
+        calls.push({ name, input });
+        return { status: "complete" };
+      },
+    },
+  });
+  expect(
+    session.capabilities.find((item) => item.id === "mail")?.tools,
+  ).toEqual(["list_mail_accounts", "search_mail", "read_mail"]);
+  const client = await connect(session.token);
+  const tools = (await client.listTools()).tools.filter(
+    (tool) => tool.name.endsWith("_mail") || tool.name === "list_mail_accounts",
+  );
+  expect(tools).toHaveLength(3);
+  for (const tool of tools)
+    expect(tool.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+    });
+  await client.callTool({
+    name: "search_mail",
+    arguments: { account: "all", query: "in:inbox" },
+  });
+  expect(calls).toHaveLength(1);
+  expect(
+    (
+      await client.callTool({
+        name: "read_mail",
+        arguments: {
+          account: "nthusc@gapp.nthu.edu.tw",
+          messageId: "abcdef123456",
+          requesterId: "other",
+        },
+      })
+    ).isError,
+  ).toBe(true);
+  expect(calls).toHaveLength(1);
+  await client.close();
+  await absent.close();
+  session.revoke();
+  absentSession.revoke();
+});
+
 test("Drive tools are conditional, read-only, and preserve strict schemas through MCP", async () => {
   const emptySession = registerChatbotMcpSession(handlers());
   const absent = await connect(emptySession.token);
