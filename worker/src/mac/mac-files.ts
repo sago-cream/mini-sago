@@ -113,8 +113,3 @@ export class MacFileSearch {
     return matches;
   }
 }
-
-export const macFileSearchLimits = {
-  results: MAX_RESULTS,
-  visitedEntries: MAX_VISITED_ENTRIES,
-};

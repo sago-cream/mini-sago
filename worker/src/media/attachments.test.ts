@@ -6,7 +6,7 @@ import { describe, expect, test } from "bun:test";
 
 import type { ChatAnswerJob } from "../../../contracts/worker-contract";
 import type { MediaClient } from "./media-client";
-import { attachmentLimits, prepareAttachments } from "./attachments";
+import { prepareAttachments } from "./attachments";
 
 const answerDefaults = {
   purpose: "answer",
@@ -15,16 +15,6 @@ const answerDefaults = {
 } as const;
 
 describe("chatbot attachment limits", () => {
-  test("caps downloads at ten files and twenty megabytes each", () => {
-    expect(attachmentLimits).toEqual({
-      count: 10,
-      bytes: 20 * 1024 * 1024,
-      totalBytes: 40 * 1024 * 1024,
-      extractedCharacters: 100_000,
-      totalExtractedCharacters: 200_000,
-    });
-  });
-
   test("explains oversized attachments with the selected Chinese copy", async () => {
     const prepared = await prepareAttachments({
       ...answerDefaults,

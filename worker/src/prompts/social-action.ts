@@ -56,7 +56,3 @@ ${JSON.stringify(job.availableTools ?? [])}
 ${JSON.stringify(messages)}
 </conversation_messages_json>`;
 }
-
-export function buildSocialActionPrompt(job: SocialActionJob) {
-  return `${SOCIAL_ACTION_INSTRUCTIONS}\n\n${SOCIAL_ACTION_TASK_INSTRUCTION}\n\n${socialActionContext(job)}`;
-}

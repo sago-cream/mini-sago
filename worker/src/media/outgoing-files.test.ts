@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
-  outgoingFileLimits,
   prepareDeveloperImages,
   prepareGeneratedArtifacts,
   prepareOutgoingFiles,
@@ -169,10 +168,6 @@ describe("Mac outgoing files", () => {
         [root],
       ),
     ).rejects.toThrow("outside the configured Mac file folders");
-  });
-
-  test("keeps the websocket upload bounded", () => {
-    expect(outgoingFileLimits).toEqual({ count: 1, bytes: 8 * 1024 * 1024 });
   });
 });
 

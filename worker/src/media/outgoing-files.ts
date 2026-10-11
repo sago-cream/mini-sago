@@ -298,8 +298,3 @@ export async function prepareDeveloperImages(
     files,
   };
 }
-
-export const outgoingFileLimits = {
-  count: 1,
-  bytes: MAX_OUTGOING_FILE_BYTES,
-};

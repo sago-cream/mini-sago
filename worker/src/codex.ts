@@ -39,7 +39,6 @@ import type { CodexAppServerManager } from "./codex-app-server";
 export {
   ARTIFACT_ANSWER_OUTPUT_SCHEMA,
   ANSWER_OUTPUT_SCHEMA,
-  buildCodexPrompt,
   EXECUTION_ROUTE_OUTPUT_SCHEMA,
   outputSchemaForJob,
   PROMPT_VERSION,

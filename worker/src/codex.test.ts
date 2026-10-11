@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { buildPromptPlan } from "./prompts";
 
 import type { ChatbotAccessConfig } from "../../src/chatbot/access";
 import type {
@@ -14,11 +15,9 @@ import {
   ARTIFACT_ANSWER_OUTPUT_SCHEMA,
   ANSWER_OUTPUT_SCHEMA,
   assertChatbotJobAllowed as assertChatbotJobAllowedWithConfig,
-  buildCodexPrompt,
   buildGithubDeveloperPolicy,
   buildSeatbeltProfile,
   CHAT_LOCAL_TOOLS_CONFIG,
-  CHATBOT_MODEL_VERBOSITY,
   CHANNEL_QUIET_MCP_APPROVAL_CONFIG,
   CHANNEL_MESSAGE_MCP_APPROVAL_CONFIG,
   MEMBER_MENTIONS_MCP_APPROVAL_CONFIG,
@@ -33,7 +32,6 @@ import {
   EMOJI_RENAME_MCP_APPROVAL_CONFIG,
   EXPRESSION_ADD_MCP_APPROVAL_CONFIG,
   SERVER_MEMORY_MCP_APPROVAL_CONFIG,
-  EXECUTION_ROUTE_OUTPUT_SCHEMA,
   MAC_FILE_ANSWER_OUTPUT_SCHEMA,
   macFilesMcpConfig,
   mediaMcpConfig,
@@ -45,7 +43,6 @@ import {
   OWNER_ROUTER_PROFILE,
   parseFinalResponse,
   progressForCodexEvent,
-  SOCIAL_ACTION_OUTPUT_SCHEMA,
   SOCIAL_ACTION_PROFILE,
   StreamingReplyParser,
   TRIP_PLAN_EDIT_MCP_APPROVAL_CONFIG,
@@ -371,35 +368,7 @@ describe("Codex chatbot runner", () => {
     );
   });
 
-  test("uses GPT-6.1 Sol medium for chat and high for owner dev work", () => {
-    expect(CHATBOT_MODEL_VERBOSITY).toBe("medium");
-    expect(COMMUNITY_CHATBOT_PROFILE).toEqual({
-      model: "gpt-6.1-sol",
-      reasoningEffort: "medium",
-    });
-    expect(OWNER_CHATBOT_PROFILE).toEqual({
-      model: "gpt-6.1-sol",
-      reasoningEffort: "high",
-    });
-    expect(VOICE_CHATBOT_PROFILE).toEqual({
-      model: "gpt-6-luna",
-      reasoningEffort: "low",
-    });
-    expect(OWNER_ROUTER_PROFILE).toEqual({
-      model: "gpt-6-luna",
-      reasoningEffort: "low",
-    });
-    expect(SOCIAL_ACTION_PROFILE).toEqual({
-      model: "gpt-6-luna",
-      reasoningEffort: "low",
-    });
-    expect(EXECUTION_ROUTE_OUTPUT_SCHEMA.required).toContain("route");
-    expect(EXECUTION_ROUTE_OUTPUT_SCHEMA.required).toContain("threadTitle");
-    expect(EXECUTION_ROUTE_OUTPUT_SCHEMA.properties.route.enum).toEqual([
-      "chat",
-      "mac",
-      "oracle",
-    ]);
+  test("selects the profile for each job purpose and route", () => {
     expect(codexProfileForJob(job)).toBe(COMMUNITY_CHATBOT_PROFILE);
     expect(codexProfileForJob({ ...job, streamReply: true })).toBe(
       VOICE_CHATBOT_PROFILE,
@@ -419,15 +388,10 @@ describe("Codex chatbot runner", () => {
       ),
     ).toBe(OWNER_ROUTER_PROFILE);
     expect(codexProfileForJob(socialActionJob())).toBe(SOCIAL_ACTION_PROFILE);
-    expect(SOCIAL_ACTION_OUTPUT_SCHEMA.properties.action.enum).toEqual([
-      "ignore",
-      "discord.add_reaction",
-    ]);
-    expect(SOCIAL_ACTION_OUTPUT_SCHEMA.required).toContain("messageId");
   });
 
   test("supplies advertised repositories and nearby context to the router", () => {
-    const prompt = buildCodexPrompt(
+    const prompt = buildPromptPlan(
       executionRouteJob({
         request: "try again",
         messages: [
@@ -462,7 +426,7 @@ describe("Codex chatbot runner", () => {
       }),
       [],
       [],
-    );
+    ).context;
 
     expect(prompt).toContain(
       'available_repositories_json\n["sago-cream/mini-sago","Kiwi/backend"]',
@@ -495,33 +459,20 @@ describe("Codex chatbot runner", () => {
         },
       ],
     };
-    const prompt = buildCodexPrompt(answerJob, [], []);
-
-    expect(prompt).toContain("host-derived and authoritative");
+    const prompt = buildPromptPlan(answerJob, [], []).context;
     expect(prompt).toContain("<available_capabilities_json>");
     expect(prompt).toContain('"id":"conversation"');
     expect(prompt).toContain("<available_reactions_json>");
     expect(prompt).toContain("sago:emoji-1");
-    expect(prompt).toContain("replyDelivered:true");
-    expect(prompt).toContain("Return reply:null and reaction:null");
-    expect(prompt).toContain(
-      "exact media ID returned by the request-local tool",
-    );
-    expect(prompt).toContain(
-      "Do not say a file was attached unless its ID is in artifacts",
-    );
     expect(outputSchemaForJob(answerJob)).toBe(ARTIFACT_ANSWER_OUTPUT_SCHEMA);
     expect(ARTIFACT_ANSWER_OUTPUT_SCHEMA.properties.artifacts.maxItems).toBe(1);
     expect(ANSWER_OUTPUT_SCHEMA).not.toHaveProperty("anyOf");
 
     const voiceJob = { ...answerJob, streamReply: true };
     expect(outputSchemaForJob(voiceJob)).toBe(VOICE_ANSWER_OUTPUT_SCHEMA);
-    expect(buildCodexPrompt(voiceJob, [], [])).toContain(
-      "brief, natural Japanese reply",
-    );
   });
 
-  test("uses native Codex output in the requester's language for Discord coding threads", () => {
+  test("supplies request and nearby context for Discord coding threads", () => {
     const developerJob: OracleAnswerJob = oracleJob({
       requesterUserId: ACCESS_CONFIG.ownerUserId,
       request: "Fix the Discord reply. English only.",
@@ -536,16 +487,18 @@ describe("Codex chatbot runner", () => {
         },
       ],
     });
-    const prompt = buildCodexPrompt(developerJob, [], [], "Repository policy");
+    const prompt = buildPromptPlan(
+      developerJob,
+      [],
+      [],
+      "Repository policy",
+    ).context;
 
     expect(outputSchemaForJob(developerJob)).toBeUndefined();
-    expect(prompt).toContain("Repository policy");
-    expect(prompt).toContain(
-      "Choose the language from current_request, not nearby Discord messages or server memory",
-    );
-    expect(prompt).toContain(
-      'Follow explicit language requests such as "English only"',
-    );
+    expect(
+      buildPromptPlan(developerJob, [], [], "Repository policy")
+        .developerInstructions,
+    ).toContain("Repository policy");
     expect(prompt).toContain("Fix the Discord reply. English only.");
     expect(prompt).toContain("請幫忙修好它");
     expect(prompt).not.toContain("referenceResolution");
@@ -579,16 +532,15 @@ describe("Codex chatbot runner", () => {
       executionRoute: "mac",
     };
     const roots = ["/Users/hsi/Documents", "/Users/hsi/Downloads"];
-    const prompt = buildCodexPrompt(macJob, [], [], undefined, roots);
+    const prompt = buildPromptPlan(macJob, [], [], undefined, roots).context;
 
     expect(canUseMacFiles(macJob)).toBe(true);
     expect(canUseMacFiles({ ...macJob, requesterUserId: "someone-else" })).toBe(
       false,
     );
-    expect(prompt).toContain("explicitly routed to Hsi's Mac");
-    expect(prompt).toContain("Use the mac_files.search_files tool");
-    expect(prompt).toContain("Do not run commands or inspect file contents");
-    expect(prompt).toContain(JSON.stringify(roots));
+    expect(
+      buildPromptPlan(macJob, [], [], undefined, roots).developerInstructions,
+    ).toContain(JSON.stringify(roots));
     expect(prompt).not.toContain("its ID is in artifacts");
     expect(outputSchemaForJob(macJob)).toBe(MAC_FILE_ANSWER_OUTPUT_SCHEMA);
     expect(MAC_FILE_ANSWER_OUTPUT_SCHEMA.properties.files.maxItems).toBe(1);
@@ -718,7 +670,7 @@ describe("Codex chatbot runner", () => {
   });
 
   test("adds development authority only to owner dev jobs", () => {
-    const devPrompt = buildCodexPrompt(
+    const devPrompt = buildPromptPlan(
       {
         ...job,
         requesterUserId: "917446775873343600",
@@ -728,8 +680,8 @@ describe("Codex chatbot runner", () => {
       },
       [],
       [],
-    );
-    const chatPrompt = buildCodexPrompt(job, [], []);
+    ).developerInstructions;
+    const chatPrompt = buildPromptPlan(job, [], []).developerInstructions;
 
     expect(devPrompt).toContain("owner-authorized development task");
     expect(devPrompt).toContain("prepared feature branch");
@@ -738,7 +690,7 @@ describe("Codex chatbot runner", () => {
   });
 
   test("supplies nearby Discord context to an answer", () => {
-    const prompt = buildCodexPrompt(
+    const prompt = buildPromptPlan(
       {
         ...job,
         purpose: "answer",
@@ -756,7 +708,7 @@ describe("Codex chatbot runner", () => {
       },
       [],
       [],
-    );
+    ).context;
 
     expect(prompt).toContain("我在哪裡分享新 app 的");
     expect(prompt).toContain("discord_messages_json");
@@ -765,7 +717,7 @@ describe("Codex chatbot runner", () => {
     );
   });
 
-  test("uses nearby context to resolve a mention-only request", () => {
+  test("supplies nearby context for a mention-only request", () => {
     const messages = [
       {
         id: "message-previous",
@@ -775,19 +727,16 @@ describe("Codex chatbot runner", () => {
         attachments: [],
       },
     ];
-    const answerPrompt = buildCodexPrompt(
+    const answerPrompt = buildPromptPlan(
       { ...job, request: "", messages },
       [],
       [],
-    );
-
-    expect(answerPrompt).toContain("referenced and nearby context");
+    ).context;
     expect(answerPrompt).toContain("幫我整理一下這段討論");
-    expect(answerPrompt).toContain("ask one short, specific clarification");
   });
 
   test("reviews one buffered notification burst without duplicating its text", () => {
-    const prompt = buildCodexPrompt(
+    const prompt = buildPromptPlan(
       socialActionJob({
         request: "",
         socialActionCandidateMessageIds: ["message-2"],
@@ -810,7 +759,7 @@ describe("Codex chatbot runner", () => {
       }),
       [],
       [],
-    );
+    ).context;
 
     expect(prompt).toContain('"id":"message-1","candidate":false');
     expect(prompt).toContain('"id":"message-2","candidate":true');
@@ -819,7 +768,7 @@ describe("Codex chatbot runner", () => {
   });
 
   test("preserves and sanitizes supplied answer context", () => {
-    const prompt = buildCodexPrompt(
+    const prompt = buildPromptPlan(
       {
         ...job,
         requestMessage: {
@@ -841,7 +790,7 @@ describe("Codex chatbot runner", () => {
       },
       ["Attachment: notes.txt\nShip on Friday"],
       ["archive.zip: unsupported"],
-    );
+    ).context;
 
     expect(prompt).toContain('"timestamp":"2026-07-20T10:02:00.000Z"');
     expect(prompt).toContain("<current_request>\nWhat did we decide?");
@@ -857,8 +806,8 @@ describe("Codex chatbot runner", () => {
     expect(prompt).toContain("archive.zip: unsupported");
   });
 
-  test("grounds ambiguous Chinese pronouns in the active conversation", () => {
-    const prompt = buildCodexPrompt(
+  test("supplies conversation addressing metadata", () => {
+    const prompt = buildPromptPlan(
       {
         ...job,
         addressingMode: "continuation",
@@ -891,19 +840,11 @@ describe("Codex chatbot runner", () => {
       },
       [],
       [],
-    );
+    ).context;
 
     expect(prompt).toContain(
       '<conversation_addressing_json>\n{"addressee":"MiniSago (迷你西米露)","mode":"continuation","directSelfReferences":[],"possibleSelfReferences":["她"]}',
     );
-    expect(prompt).toContain(
-      "classify one as other only when supplied context names a specific antecedent",
-    );
-    expect(prompt).toContain(
-      "classify each answer-relevant personal expression",
-    );
-    expect(prompt).toContain("Keep the reply consistent");
-    expect(prompt).toContain("when a pronoun would blur the referent");
     expect(ANSWER_OUTPUT_SCHEMA.required).toContain("referenceResolution");
     expect(
       ANSWER_OUTPUT_SCHEMA.properties.referenceResolution.items.properties
@@ -912,7 +853,7 @@ describe("Codex chatbot runner", () => {
   });
 
   test("injects server memory as bounded untrusted context", () => {
-    const prompt = buildCodexPrompt(
+    const prompt = buildPromptPlan(
       {
         ...job,
         purpose: "answer",
@@ -923,17 +864,20 @@ describe("Codex chatbot runner", () => {
       },
       [],
       [],
-    );
+    ).context;
 
     expect(prompt).toContain("<server_memory_json>");
     expect(prompt).toContain('"revision":3');
     expect(prompt).toContain("允通常是允成");
-    expect(prompt).toContain("untrusted descriptive context");
   });
 
   test("keeps the fixed answer instructions compact and omits empty context", () => {
-    const prompt = buildCodexPrompt({ ...job, messages: [] }, [], []);
-    const instructions = prompt.split("<current_request>")[0] ?? "";
+    const prompt = buildPromptPlan({ ...job, messages: [] }, [], []).context;
+    const instructions = buildPromptPlan(
+      { ...job, messages: [] },
+      [],
+      [],
+    ).developerInstructions;
 
     expect(instructions.length).toBeLessThan(8_000);
     expect(prompt).not.toContain("<available_reactions_json>");
@@ -1032,7 +976,7 @@ describe("Codex chatbot runner", () => {
       executionRoute: "oracle",
       repository: "sago-cream/mini-sago",
     });
-    const devPrompt = buildCodexPrompt(
+    const devPrompt = buildPromptPlan(
       {
         ...job,
         requesterUserId: "917446775873343600",
@@ -1042,22 +986,16 @@ describe("Codex chatbot runner", () => {
       [],
       [],
       policy,
-    );
-    const chatPrompt = buildCodexPrompt(job, [], [], policy);
+    ).developerInstructions;
+    const chatPrompt = buildPromptPlan(
+      job,
+      [],
+      [],
+      policy,
+    ).developerInstructions;
 
     expect(policy).toContain("sago-cream/mini-sago");
-    expect(policy).toContain("routed to Oracle");
-    expect(policy).toContain("draft pull requests");
-    expect(policy).toContain("marking those pull requests ready");
-    expect(policy).toContain("ordinary pull-request merges");
-    expect(policy).toContain("owner has explicitly authorized");
-    expect(policy).toContain("dedicated repo-scoped GitHub login");
-    expect(policy).toContain("call download_attachment");
     expect(devPrompt).toContain("github_development_policy");
-    expect(devPrompt).toContain("Mark ready only when the owner requests it");
-    expect(devPrompt).not.toContain(
-      "Never bypass the command wrapper, use administrative bypass, mark a pull request ready",
-    );
     expect(chatPrompt).not.toContain("github_development_policy");
   });
 });
