@@ -26,64 +26,71 @@ export function startPromptEvalHost(
   callLog: string,
   context: PromptEvalContext = {},
 ) {
-  const session = registerChatbotMcpSession({
-    resolveContext: async () => {
-      return {
-        history: {
-          status: "complete",
-          messages: (context.history ?? []).map((message, index) => ({
-            ...message,
-            id: `history-${index}`,
-            timestamp: "2026-08-27T00:00:00.000Z",
-            attachments: [],
-          })),
-        },
-        search: { status: "not_requested", results: [] },
-        members: {
-          status: "complete",
-          results: (context.members ?? []).map((member) => ({
-            ...member,
-            mention: `<@${member.id}>`,
-            avatar: {
-              mediaId: `avatar-${member.id}`,
-              filename: "avatar.png",
-              contentType: "image/png",
-            },
-          })),
-        },
-        previousTrace: { status: "not_requested" },
-      };
+  const session = registerChatbotMcpSession(
+    {
+      resolveContext: async () => {
+        return {
+          history: {
+            status: "complete",
+            messages: (context.history ?? []).map((message, index) => ({
+              ...message,
+              id: `history-${index}`,
+              timestamp: "2026-08-27T00:00:00.000Z",
+              attachments: [],
+            })),
+          },
+          search: { status: "not_requested", results: [] },
+          members: {
+            status: "complete",
+            results: (context.members ?? []).map((member) => ({
+              ...member,
+              mention: `<@${member.id}>`,
+              avatar: {
+                mediaId: `avatar-${member.id}`,
+                filename: "avatar.png",
+                contentType: "image/png",
+              },
+            })),
+          },
+          previousTrace: { status: "not_requested" },
+        };
+      },
+      manageServerMemory: async (input) => {
+        return {
+          revision: 2,
+          action: input.action,
+          entryId: "mem_012345abcdef",
+        };
+      },
+      createReminder: async (input) => {
+        return {
+          id: "reminder-eval",
+          ...input,
+          nextRunAt: input.runAt ?? "2026-08-28T00:00:00.000Z",
+        };
+      },
+      listReminders: async () => [],
+      editReminder: async () => undefined,
+      cancelReminder: async () => false,
+      sendChannelMessage: async (input) => {
+        const channel = context.channels?.find((channel) =>
+          input.channelId
+            ? channel.id === input.channelId
+            : channel.name === input.channel,
+        );
+        if (!channel)
+          throw new Error("No matching channel in the evaluation fixture.");
+        return {
+          id: "message-eval",
+          channelId: channel.id,
+          channelName: channel.name,
+          guildId: "guild-eval",
+          jumpUrl: `https://discord.com/channels/guild-eval/${channel.id}/message-eval`,
+        };
+      },
     },
-    manageServerMemory: async (input) => {
-      return { revision: 2, action: input.action, entryId: "mem_012345abcdef" };
-    },
-    createReminder: async (input) => {
-      return {
-        id: "reminder-eval",
-        ...input,
-        nextRunAt: input.runAt ?? "2026-08-28T00:00:00.000Z",
-      };
-    },
-    listReminders: async () => [],
-    editReminder: async () => undefined,
-    cancelReminder: async () => false,
-    sendChannelMessage: async (input) => {
-      const channel = context.channels?.find((channel) =>
-        input.channelId
-          ? channel.id === input.channelId
-          : channel.name === input.channel,
-      );
-      if (!channel)
-        throw new Error("No matching channel in the evaluation fixture.");
-      return {
-        id: "message-eval",
-        channelId: channel.id,
-        channelName: channel.name,
-        guildId: "guild-eval",
-        jumpUrl: `https://discord.com/channels/guild-eval/${channel.id}/message-eval`,
-      };
-    },
-  });
+    { featureAccess: fixtureFeatureAccess },
+  );
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
@@ -152,4 +159,9 @@ if (import.meta.main) {
     },
   );
   await server.connect(new StdioServerTransport());
+}
+
+// These handlers are local fixtures; no real integration or Discord action is available.
+function fixtureFeatureAccess() {
+  return { available: () => true, allowed: async () => true };
 }

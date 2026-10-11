@@ -1,3 +1,17 @@
+import {
+  createFeatureAccess,
+  guardFeatureClient,
+  type FeatureAccessContext,
+} from "../../discord/feature-access";
+import {
+  getFeatureAvailabilityStore,
+  type FeatureAvailabilityStore,
+} from "../../discord/feature-availability";
+import {
+  INITIAL_DRIVE_GUILD_ID,
+  DRIVE_SERVER_CONTEXT,
+  DRIVE_CONTEXT_DESCRIPTION,
+} from "../../discord/features";
 import { createPrivateKey, sign, randomUUID } from "node:crypto";
 import { z } from "zod";
 import {
@@ -12,14 +26,11 @@ import {
   type DriveRequester,
 } from "./google-drive-permissions";
 
-export const DRIVE_GUILD_ID = "1514899496797212683";
+export const DRIVE_GUILD_ID = INITIAL_DRIVE_GUILD_ID;
 export const DRIVE_SERVICE_ACCOUNT =
   "discord-drive@nthusa-discord-drive.iam.gserviceaccount.com";
-export const DRIVE_SERVER_CONTEXT = {
-  organization: "國立清華大學學生會 (NTHUSA)",
-  currentTerm: 35,
-} as const;
-export const driveContextDescription = `This server represents ${DRIVE_SERVER_CONTEXT.organization}, 第${DRIVE_SERVER_CONTEXT.currentTerm}屆. Interpret this term as term ${DRIVE_SERVER_CONTEXT.currentTerm}; honor requests for other terms or historical material. Folder structures differ between shared drives: inspect each drive's actual folders and parentIds when term matters. Do not assume every drive has a numeric term folder, or infer a document's term from its modification date. State when its term cannot be verified.`;
+export { DRIVE_SERVER_CONTEXT };
+export const driveContextDescription = DRIVE_CONTEXT_DESCRIPTION;
 export const APPROVED_DRIVES = {
   "0AC2l8G4mW9Y0Uk9PVA": "行政中心 | 社群小組",
   "0AISARuEUwgm0Uk9PVA": "行政中心 | 活動規劃部",
@@ -144,14 +155,25 @@ class DriveError extends Error {}
 
 export function createGoogleDriveClient(
   env: Record<string, string | undefined>,
-  context: {
-    guildId?: string;
+  context: FeatureAccessContext & {
     resolveRequester: () => Promise<DriveRequester>;
   },
   media: ChatbotMediaRegistry,
   request: typeof fetch = fetch,
+  availability: Pick<
+    FeatureAvailabilityStore,
+    "isEnabled"
+  > = getFeatureAvailabilityStore(),
 ) {
-  if (context.guildId !== DRIVE_GUILD_ID) return undefined;
+  const access = createFeatureAccess(
+    "drive",
+    {
+      ...context,
+      resolveRoleIds: async () => (await context.resolveRequester()).roleIds,
+    },
+    availability,
+  );
+  if (!access.available()) return undefined;
   if (env.MINISAGO_GOOGLE_DRIVE_ACCESS !== "roles") return undefined;
   let credentials: z.infer<typeof credentialsSchema>;
   let privateKey: ReturnType<typeof createPrivateKey>;
@@ -257,7 +279,7 @@ export function createGoogleDriveClient(
       );
     return file;
   }
-  return {
+  return guardFeatureClient(access, {
     async call(
       name: DriveToolName,
       raw: unknown,
@@ -533,6 +555,10 @@ export function createGoogleDriveClient(
           contentType: exportType ?? file.mimeType,
           bytes,
           authorize: async () => {
+            if (!(await access.allowed()))
+              throw new DriveError(
+                "Drive registration is no longer available.",
+              );
             const current = await metadata(file.id);
             if (
               current.capabilities?.canDownload !== true ||
@@ -567,7 +593,7 @@ export function createGoogleDriveClient(
         };
       }
     },
-  };
+  });
 }
 export type GoogleDriveClient = NonNullable<
   ReturnType<typeof createGoogleDriveClient>

@@ -720,3 +720,20 @@ test("calendar role filtering denies unknown members and rechecks fresh roles an
     "complete",
   );
 });
+
+test("calendar guard suppresses read results revoked during the Google request", async () => {
+  let enabled = true;
+  const { request } = fixture(() => {
+    enabled = false;
+    return json({ items: [{ id: "private-event", summary: "private event" }] });
+  });
+  const client = createGoogleCalendarClient(env, context, request, {
+    isEnabled: () => enabled,
+  })!;
+  expect(
+    await client.call("list_calendar_events", {
+      start: "2026-10-01T00:00:00Z",
+      end: "2026-11-01T00:00:00Z",
+    }),
+  ).toEqual({ status: "forbidden" });
+});

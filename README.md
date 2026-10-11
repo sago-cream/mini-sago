@@ -18,6 +18,7 @@ Codex-powered chat with server context, emote creation and cross-server migratio
 - Listen to GitHub activities and maintains PR review threads for certain repo in configured server.
 - Find files in my Mac and send it in chat when asked by me.
 - Searches and reads approved Gmail mailboxes in owner-registered Discord guilds/channels with optional role filters, or the owner’s private DM, after each mailbox owner approves read-only access through discord-mail. See [mail setup](docs/mail.md).
+- Manages guild/channel feature registrations and role filters through one shared access layer, including Mail, Calendar, Drive, and meeting records. See [feature registration](docs/feature-registration.md).
 - Searches Threads on request for 清大, NTHU, 學生會 plus optional extra keywords.
 - Retrieves relevant CCXP meeting records during discussions in owner-registered servers; runs independently on Oracle and DMs the owner when login needs attention.
 - Runs coding tasks in dedicated Discord threads with progress reports,

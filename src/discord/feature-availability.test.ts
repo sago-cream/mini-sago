@@ -70,6 +70,7 @@ describe("feature availability", () => {
       "calendar",
       "developer_steering",
       "mail",
+      "drive",
     ]);
   });
 

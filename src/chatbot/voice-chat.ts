@@ -1,3 +1,5 @@
+import { featureCapability } from "../discord/features";
+import { createFeatureAccess } from "../discord/feature-access";
 import { randomUUID } from "node:crypto";
 
 import type {
@@ -165,14 +167,25 @@ export async function respondToVoiceChat(
     channelName: "voice chat",
   };
   const messages = contextMessages(input.history, input.channelId);
-  const mcpSession = registerChatbotMcpSession({
-    resolveContext: async () => ({
-      history: { status: "complete", messages },
-      search: { status: "not_requested", results: [] },
-      members: { status: "not_requested", results: [] },
-      previousTrace: { status: "not_requested" },
-    }),
-  });
+  const mcpSession = registerChatbotMcpSession(
+    {
+      resolveContext: async () => ({
+        history: { status: "complete", messages },
+        search: { status: "not_requested", results: [] },
+        members: { status: "not_requested", results: [] },
+        previousTrace: { status: "not_requested" },
+      }),
+    },
+    {
+      featureAccess: (feature) =>
+        createFeatureAccess(feature, {
+          guildId: input.guildId,
+          channelId: input.channelId,
+          requesterId: input.userId,
+          streamReply: true,
+        }),
+    },
+  );
   const job: AnswerJob = {
     id: randomUUID(),
     requesterUserId: input.userId,
@@ -185,9 +198,7 @@ export async function respondToVoiceChat(
     mcpAccessToken: mcpSession.token,
     capabilities: [
       {
-        id: "conversation",
-        category: "conversation",
-        availability: "available",
+        ...featureCapability("conversation"),
         description:
           "Reply naturally in Japanese using at most two short sentences for a live Discord group voice chat. The local voice is Japanese-only, so do not include English words, emoji, Markdown, URLs, or other text that would sound unclear when spoken.",
       },

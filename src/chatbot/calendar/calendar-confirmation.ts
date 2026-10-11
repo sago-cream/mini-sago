@@ -16,7 +16,7 @@ import {
   calendarPreviewText,
   type CalendarPreview,
 } from "./calendar-message";
-import { getFeatureAvailabilityStore } from "../../discord/feature-availability";
+import { createFeatureAccess } from "../../discord/feature-access";
 import { resolveDriveRequester } from "../drive/drive-discord-access";
 
 const draftSchema = z.object({
@@ -223,8 +223,8 @@ export function withCalendarConfirmation(
   client: GoogleCalendarClient,
   context: Context,
   discord: DiscordRequest,
-  allowed: () => Promise<boolean> = async () =>
-    getFeatureAvailabilityStore().isEnabled("calendar", context),
+  allowed: () => Promise<boolean> = createFeatureAccess("calendar", context)
+    .allowed,
 ): GoogleCalendarClient {
   return {
     config: client.config,
