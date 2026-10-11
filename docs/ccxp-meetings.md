@@ -114,7 +114,7 @@ Rejected credentials remain paused until the file changes.
 ## Install on Oracle
 
 The collector is optional and independent of the chat worker. It has no public
-port. `compose.ccxp.yaml` sets a one-CPU, 2 GiB limit and persistent volumes.
+port. `deploy/compose.ccxp.yaml` sets a one-CPU, 2 GiB limit and persistent volumes.
 
 1. Create a dedicated secret directory containing **only** `ccxp.env`:
 
@@ -130,7 +130,7 @@ port. `compose.ccxp.yaml` sets a one-CPU, 2 GiB limit and persistent volumes.
    secret directory into the collector.
 
 2. After the PR is merged and the collector image is published, copy
-   `compose.ccxp.yaml` to the operations checkout and start it:
+   `deploy/compose.ccxp.yaml` to the root of the operations checkout and start it:
 
    ```bash
    CCXP_SECRETS_DIR=/srv/sago-cloud/secrets/ccxp \
@@ -196,7 +196,7 @@ bun run --cwd ccxp build
 bun test src/chatbot/ccxp/ccxp-sync.test.ts ccxp/src/main.test.ts \
   src/chatbot/ccxp/ccxp-meetings.test.ts src/chatbot/mcp.test.ts \
   src/discord/jobs/ccxp-auth-notifications.test.ts ccxp/src/sync.test.ts
-docker build -f Dockerfile.ccxp -t minisago-ccxp:test .
+docker build -f deploy/Dockerfile.ccxp -t minisago-ccxp:test .
 docker run --rm --init --shm-size=256m \
   -e CCXP_TEST_EXTENSION=/opt/ccxplite minisago-ccxp:test bun test
 ```

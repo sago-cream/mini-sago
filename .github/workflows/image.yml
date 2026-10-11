@@ -17,13 +17,13 @@ jobs:
       matrix:
         include:
           - name: core
-            dockerfile: Dockerfile
+            dockerfile: deploy/Dockerfile
             image: ghcr.io/sago-cream/minisago
           - name: worker
-            dockerfile: Dockerfile.worker
+            dockerfile: deploy/Dockerfile.worker
             image: ghcr.io/sago-cream/minisago-worker
           - name: ccxp
-            dockerfile: Dockerfile.ccxp
+            dockerfile: deploy/Dockerfile.ccxp
             image: ghcr.io/sago-cream/minisago-ccxp
     steps:
       - uses: actions/checkout@v7

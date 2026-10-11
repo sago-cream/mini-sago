@@ -1,3 +1,5 @@
+# From the checkout root:
+# docker compose --project-directory . -f deploy/compose.ccxp.yaml up -d
 # Add the ccxp-index volume read-only to bot-core at /ccxp-index and set
 # MINISAGO_CCXP_INDEX_PATH=/ccxp-index/meetings.sqlite in the core environment.
 # Also mount ccxp-control read-write in core at /ccxp-control and set
@@ -6,7 +8,7 @@ services:
   ccxp-collector:
     build:
       context: .
-      dockerfile: Dockerfile.ccxp
+      dockerfile: deploy/Dockerfile.ccxp
     image: ghcr.io/sago-cream/minisago-ccxp:main
     restart: unless-stopped
     init: true

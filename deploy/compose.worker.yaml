@@ -1,9 +1,11 @@
+# From the checkout root:
+# docker compose --project-directory . -f deploy/compose.worker.yaml up -d
 services:
   worker:
     image: minisago-worker:local
     build:
       context: .
-      dockerfile: Dockerfile.worker
+      dockerfile: deploy/Dockerfile.worker
     restart: unless-stopped
     init: true
     env_file: .env.worker

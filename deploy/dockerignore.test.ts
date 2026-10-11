@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-const rules = (await Bun.file(".dockerignore").text())
+const rules = (
+  await Bun.file(new URL("../.dockerignore", import.meta.url)).text()
+)
   .split("\n")
   .map((line) => line.trim())
   .filter(Boolean);

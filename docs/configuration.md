@@ -6,7 +6,7 @@ The checked-in environment examples are the mechanical source of truth:
 - `.env.production.example` for the hosted Discord service; and
 - `.env.worker.example` for the headless Oracle worker.
 
-Image and installer defaults live in `Dockerfile.worker` and
+Image and installer defaults live in `deploy/Dockerfile.worker` and
 `scripts/worker.mjs`. This reference explains each setting; setup procedures
 live in [Discord setup](discord-setup.md) and [Workers](workers.md).
 

@@ -38,15 +38,18 @@ GitHub CLI, traces, repositories, and worktrees require persistent volumes.
 Confirm current OCI pricing, capacity, and reclamation policy in official
 sources.
 
-On Ubuntu AArch64 with Docker Engine and the Compose plugin:
+On Ubuntu AArch64 with Docker Engine and the Compose plugin, run these commands
+from the checkout root. `--project-directory .` keeps environment paths and
+persistent volume names based on the checkout:
 
 ```bash
 cp .env.worker.example .env.worker
 chmod 600 .env.worker
-docker compose -f compose.worker.yaml build
-docker compose -f compose.worker.yaml run --rm worker codex login --device-auth
-docker compose -f compose.worker.yaml up -d
-docker compose -f compose.worker.yaml logs -f worker
+docker compose --project-directory . -f deploy/compose.worker.yaml build
+docker compose --project-directory . -f deploy/compose.worker.yaml run --rm \
+  worker codex login --device-auth
+docker compose --project-directory . -f deploy/compose.worker.yaml up -d
+docker compose --project-directory . -f deploy/compose.worker.yaml logs -f worker
 ```
 
 The Linux worker compose file also starts an internal sandbox broker. It alone
@@ -62,9 +65,10 @@ to the persistent Codex volume.
 Authenticate the dedicated fine-grained GitHub login over standard input:
 
 ```bash
-docker compose -f compose.worker.yaml run --rm worker gh auth login --hostname github.com --git-protocol https --with-token
-docker compose -f compose.worker.yaml up -d --force-recreate
-docker compose -f compose.worker.yaml exec worker gh auth status
+docker compose --project-directory . -f deploy/compose.worker.yaml run --rm \
+  worker gh auth login --hostname github.com --git-protocol https --with-token
+docker compose --project-directory . -f deploy/compose.worker.yaml up -d --force-recreate
+docker compose --project-directory . -f deploy/compose.worker.yaml exec worker gh auth status
 ```
 
 Restart the worker after changing the GitHub login or its repository access so
