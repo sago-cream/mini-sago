@@ -2638,13 +2638,15 @@ describe("Discord chatbot", () => {
 });
 
 test.each([
-  [null, false],
-  ["辦公室在二樓。", false],
-  [null, true],
-  ["辦公室在二樓。", true],
+  [null, false, false],
+  ["辦公室在二樓。", false, false],
+  [null, true, false],
+  ["辦公室在二樓。", true, false],
+  [null, false, true],
+  [null, true, true],
 ] as const)(
-  "calendar tool delivery keeps one bot message (additional reply: %s, private command: %s)",
-  async (reply, privateCommand) => {
+  "calendar tool delivery keeps one bot message (additional reply: %s, private command: %s, worker failure: %s)",
+  async (reply, privateCommand, workerFailure) => {
     const { mkdtempSync, rmSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");
     const { join } = await import("node:path");
@@ -2767,8 +2769,10 @@ test.each([
         JSON.stringify({
           type: "result",
           jobId: job.job.id,
-          ok: true,
-          content: JSON.stringify({ reply, reaction: null }),
+          ok: !workerFailure,
+          ...(workerFailure
+            ? { error: "Worker stopped", failureKind: "internal" }
+            : { content: JSON.stringify({ reply, reaction: null }) }),
         }),
       );
       expect(await handled).toBe(true);
@@ -2781,6 +2785,7 @@ test.each([
       expect(dismissed).toBe(privateCommand ? 1 : 0);
       expect(posts[0].body.embeds[0].title).toBe("Meeting");
       expect(JSON.stringify(calls)).not.toContain("我剛剛卡住了");
+      expect(JSON.stringify(calls)).not.toContain("我這次沒完成");
       const patches = calls.filter(
         (call) =>
           call.method === "PATCH" &&

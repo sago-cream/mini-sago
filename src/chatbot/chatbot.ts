@@ -2017,7 +2017,7 @@ export async function handleChatbotMention({
     );
     reply = decision.reply;
     reacted ||= decision.reacted;
-  } else {
+  } else if (!mcpSnapshot.calendarDraftId) {
     reply = chatbotFailureReply(result.failureKind);
   }
 
