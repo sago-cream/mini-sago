@@ -9,12 +9,12 @@ import {
   ReplySpeechCache,
   SpeechCache,
   synthesizeSpeech,
-} from "../discord/local-speech";
+} from "../discord/voice/local-speech";
 import type {
   VoiceChatResponse,
   VoiceChatTurn,
   VoiceReplyInput,
-} from "../discord/voice-conversation";
+} from "../discord/voice/voice-conversation";
 import { macAgentBridge } from "./bridge";
 import { registerChatbotMcpSession } from "./mcp";
 

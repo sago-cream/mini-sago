@@ -1,5 +1,5 @@
 /** Deterministic gate experiment; supplied voice labels are not an acoustic accuracy test. */
-import { VoiceActivityGate } from "../../src/discord/voice-activity";
+import { VoiceActivityGate } from "../../src/discord/voice/voice-activity";
 for (const silenceMs of [700, 500, 360]) {
   for (const pauseMs of [0, 300, 450, 600]) {
     const emittedAt: number[] = [];

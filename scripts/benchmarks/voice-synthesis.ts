@@ -1,6 +1,6 @@
 /** Run inside the bot container to use the same VOICEVOX settings and PCM conversion as Discord. */
 import { AsyncLocalStorage } from "node:async_hooks";
-import { synthesizeSpeech } from "../../src/discord/local-speech";
+import { synthesizeSpeech } from "../../src/discord/voice/local-speech";
 
 // Optional independent engine; route only this benchmark's requests.
 const secondEngine = process.env.BENCH_SECOND_VOICEVOX_URL;

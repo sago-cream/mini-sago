@@ -31,7 +31,7 @@ import {
   type DiscordApplicationCommandInteraction,
 } from "./interactions";
 import { ChannelQuietTracker } from "./channel-quiet";
-import { transcribeSpeech } from "./local-speech";
+import { transcribeSpeech } from "./voice/local-speech";
 import {
   getChatbotAccessConfig,
   type ChatbotAccessConfig,
@@ -55,7 +55,10 @@ import {
   type LeaveVoiceChannelResult,
   type VoiceGateway,
 } from "./api/voice";
-import { DiscordVoiceChat, type DiscordVoiceChatOptions } from "./voice-chat";
+import {
+  DiscordVoiceChat,
+  type DiscordVoiceChatOptions,
+} from "./voice/voice-chat";
 import type { DiscordGatewayAdapterLibraryMethods } from "@discordjs/voice";
 import { getFeatureAvailabilityStore } from "./feature-availability";
 
