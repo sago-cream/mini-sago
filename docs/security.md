@@ -6,16 +6,16 @@ permissions.
 
 ## Capability boundary
 
-| Capability                                        | Community | Owner                    |
-| ------------------------------------------------- | --------- | ------------------------ |
-| Conversation and public web research              | Yes       | Yes                      |
-| Permission-filtered Discord context               | Yes       | Yes                      |
-| Host-bound reminders and voice actions            | Yes       | Yes                      |
-| Cross-channel messaging and expression management | No        | Yes                      |
-| Repository checkout and developer commands        | No        | Yes                      |
-| GitHub mutation                                   | No        | Owner-routed tasks only  |
-| Mac file search and upload                        | No        | Explicit Mac target only |
-| Approved Gmail mailbox search and read            | No        | Private text DMs only    |
+| Capability                                        | Community                        | Owner                                      |
+| ------------------------------------------------- | -------------------------------- | ------------------------------------------ |
+| Conversation and public web research              | Yes                              | Yes                                        |
+| Permission-filtered Discord context               | Yes                              | Yes                                        |
+| Host-bound reminders and voice actions            | Yes                              | Yes                                        |
+| Cross-channel messaging and expression management | No                               | Yes                                        |
+| Repository checkout and developer commands        | No                               | Yes                                        |
+| GitHub mutation                                   | No                               | Owner-routed tasks only                    |
+| Mac file search and upload                        | No                               | Explicit Mac target only                   |
+| Approved Gmail mailbox search and read            | Registered guild/channel + roles | Registered guild/channel + roles; owner DM |
 
 The hosted service checks requester identity before dispatch. The worker checks
 the declared capabilities again before Codex runs. Authorization never depends
@@ -37,9 +37,13 @@ remain manual, with deduplicated owner DMs when login requires attention. See
 discord-mail keeps encrypted per-mailbox refresh tokens and the OAuth client
 secret on core. Invitations bind approval to an allowlisted address, verified
 Google identity and Gmail profile; browser-bound state and PKCE protect the
-callback. Mail tools are absent outside the bot owner's private text DMs and
-recheck configured account access and stored grants on every call. Email content
-is untrusted reference data, never instructions or server memory. See
+callback. Mail tools require explicit guild/channel registration and current Discord
+membership with role filters, or the bot owner’s private text DM. Unregistered
+guilds, other DMs, and voice have no mail tools. Every call rechecks policy,
+configured accounts, and stored grants; in-flight revocation withholds results.
+Role filters restrict requesters; everyone who can view the requesting channel
+can see the reply. Email content is untrusted reference data, never instructions
+or server memory. See
 [mail setup and retention](mail.md).
 
 Chatbot access uses an owner ID, allowed guilds, and optional channel

@@ -194,6 +194,7 @@ describe("MiniSago MCP server", () => {
           trip_planner: policy,
           ccxp_meetings: policy,
           developer_steering: policy,
+          mail: policy,
           calendar: policy,
         },
       }),

@@ -70,7 +70,8 @@ Development runs until completion, cancellation, or worker disconnection.
 discord-mail serves hosted Google consent pages under `/mail`. A host-only
 encrypted SQLite store holds one read-only grant per approved mailbox and short
 lived invitation/OAuth state. The MCP capability and search/read tools are bound
-to the owner's private text DM; workers receive only bounded results. See
+to owner-registered guilds/channels with current Discord membership and role
+filters, or the owner’s private text DM. Workers receive only bounded results. See
 [mail setup](mail.md).
 
 The host exposes one Streamable HTTP MCP endpoint. Tokens expire after 16
