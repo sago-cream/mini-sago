@@ -16,6 +16,12 @@ processing, office work, Discord tools, and development. Settings are a separate
 sidebar item. Conversation summaries include older channel discussions; web
 search has its own example.
 
+The temporary sidebar sorter lets reviewers drag categories and features, move
+features between categories, reset the preview, and copy the proposed order.
+Alt+Up/Down reorders the focused item; Alt+Left/Right moves a feature between
+categories. Drafts stay in browser local storage and do not change `src/features.ts`
+or the copy review page. Apply a submitted order to the catalogue only when requested.
+
 Both pages explain access through shared Discord servers and link to the
 repository's self-host guide for readers who want their own instance.
 
