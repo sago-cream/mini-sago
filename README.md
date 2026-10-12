@@ -48,6 +48,8 @@ The [feature website](site/README.md) lives in `site/`. Preview it with
 The landing page introduces natural-language use; `/features/` demonstrates
 individual capabilities through sample Discord conversations. Both pages explain
 access through shared servers and link to the self-host instructions.
+Privacy and terms pages at `/privacy/` and `/terms/` explain the hosted service's
+data handling, support contact, and usage scope.
 The website runs at `http://localhost:3101`; root `bun dev` starts the Discord bot
 and requires the configuration described in [Discord setup](docs/discord-setup.md).
 

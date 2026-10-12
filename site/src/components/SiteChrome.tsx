@@ -55,7 +55,11 @@ export function SiteFooter(): JSX.Element {
             >
                 mini sago
             </a>
-            <GitHubLink />
+            <nav aria-label='網站資訊' className='footer-links'>
+                <Link href='/privacy/'>隱私權政策</Link>
+                <Link href='/terms/'>使用條款</Link>
+                <GitHubLink />
+            </nav>
         </footer>
     );
 }

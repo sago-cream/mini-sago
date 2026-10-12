@@ -2,12 +2,18 @@
 
 A Next.js landing page and an interactive feature guide, scaffolded with
 `npm create rail`. The landing page introduces natural-language use with an
-animated Discord example. `/features/` groups detailed capabilities in a sidebar;
+three animated Discord examples. `/features/` groups detailed capabilities in a sidebar;
 each selection plays a sample conversation. Examples play once when visible,
 support pause/replay, and show the complete conversation for reduced motion.
 
 Both pages explain access through shared Discord servers and link to the
 repository's self-host guide for readers who want their own instance.
+
+`/privacy/` explains the hosted bot's data processing and deletion requests;
+`/terms/` explains access, acceptable use, and service limitations. Both use the
+shared header and footer. The support address and policy update date live in
+`src/policies.ts`. Review these pages when data handling or service scope changes;
+self-hosted operators need policies that match their own setup.
 
 From the repository root:
 

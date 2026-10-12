@@ -187,3 +187,12 @@ Traces are owner-readable, expire after 14 days, and are pruned oldest-first
 above 250 MB. `resolve_context` can expose bounded operational metadata from the
 same channel when `includePreviousTrace` is requested. It never returns private
 chain-of-thought.
+
+The hosted website's `/privacy/` page describes data handling and provides the
+support address for correction and deletion requests. Operators should verify
+the requester and relevant data scope before handling a request. Removing a guild
+memory entry stops using it but does not erase its local Git history; complete
+deletion requests must also cover retained memory history, traces, and any
+relevant development workspaces. Discord and other providers' copies follow
+their own deletion processes. Self-hosted operators must supply their own contact
+and privacy policy rather than adopting the hosted service's contact details.

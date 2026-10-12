@@ -114,6 +114,19 @@ h2 {
     font: 900 26px / 1.2 var(--ff-display);
     letter-spacing: -1px;
 }
+.footer-links {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 24px;
+    font-size: 14px;
+}
+.footer-links > a:not(.github-link) {
+    color: var(--clr-text-muted);
+}
+.footer-links > a:not(.github-link):hover {
+    color: var(--clr-accent);
+}
 .site-footer a {
     display: flex;
     align-items: center;
