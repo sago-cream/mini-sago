@@ -38,7 +38,7 @@
     font-size: 27px;
     font-weight: 900;
     line-height: 1;
-    letter-spacing: -1px;
+    letter-spacing: -0.8px;
 }
 .brand > span {
     display: inline-flex;
