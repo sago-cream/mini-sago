@@ -3,9 +3,10 @@
     grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
     gap: 24px 64px;
     align-items: center;
-    padding-block: 96px;
+    padding-block: 56px;
 }
 .natural-copy h2 {
+    margin-bottom: -16px;
     font-size: clamp(28px, 3vw, 40px);
     line-height: 1.5;
     letter-spacing: -1px;
@@ -53,11 +54,9 @@
     .natural-section {
         grid-template-columns: 1fr;
         gap: 32px;
-        padding-block: 64px;
     }
     .natural-copy p {
         max-width: 640px;
-        margin-top: 16px;
     }
 }
 @media (max-width: 700px) {
