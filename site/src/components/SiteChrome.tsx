@@ -13,7 +13,7 @@ export function SiteHeader(): JSX.Element {
             <a className='skip-link' href='#main'>
                 跳到主要內容
             </a>
-            <header className='site-header'>
+            <header className='site-header' id='top'>
                 <div className='header-inner section-width'>
                     <Link aria-label='MiniSago 首頁' className='brand' href='/'>
                         <Image
@@ -47,7 +47,13 @@ export function SiteHeader(): JSX.Element {
 export function SiteFooter(): JSX.Element {
     return (
         <footer className='site-footer section-width'>
-            <div className='footer-brand'>mini sago</div>
+            <a
+                aria-label='MiniSago 回到頁首'
+                className='footer-brand'
+                href='#top'
+            >
+                mini sago
+            </a>
             <a href={REPOSITORY_URL}>
                 <Image alt='' height={20} src='/logos/github.svg' width={20} />
                 GitHub <ArrowUpRight size={14} />
