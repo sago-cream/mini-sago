@@ -348,19 +348,20 @@ export const FEATURES = [
         section: 'lookup',
         title: '網路資料搜尋',
         description: '根據網路資料，整理成有確切來源的答案。',
-        channel: '活動籌備',
+        channel: '日常聊天',
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 幫我找清大兩校區區間車的官方時刻表。',
+                text: '@迷你西米露 幫我找 Discord 官方的 Markdown 說明，公告想用粗體和條列，要怎麼寫？',
             },
             {
                 author: 'sago',
-                text: '可以搭兩校區區間車。這裡是校方的路線、上車位置與班表；先確認活動當天適用的版本。',
+                text: '找到 Discord 官方的 Markdown 說明了。粗體用兩個星號包住文字；條列在每行開頭加上減號和空格。',
+                code: '**活動公告**\n- 週五晚上 7 點集合\n- 記得帶水壺',
                 links: [
                     {
-                        label: '清大兩校區區間車時刻表',
-                        href: 'https://affairs.site.nthu.edu.tw/p/412-1165-20979.php?Lang=zh-tw',
+                        label: 'Discord 官方 · Markdown Text 101',
+                        href: 'https://support.discord.com/hc/en-us/articles/210298617-Markdown-Text-101-Chat-Formatting-Bold-Italic-Underline',
                     },
                 ],
             },

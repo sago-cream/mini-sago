@@ -17,6 +17,9 @@ The carousel's migration and discussion dialogue is illustrative, not a transcri
 of additional bot tests. Campus feature source links point to NTHU's official
 shuttle information; the examples do not specify current departures. The history
 search source link opens the original fictional message on the copy review page.
+The public web-search example uses Discord's official
+[Markdown Text 101](https://support.discord.com/hc/en-us/articles/210298617-Markdown-Text-101-Chat-Formatting-Bold-Italic-Underline)
+support article as its source.
 Other conversations illustrate capabilities; the calendar confirmation embed and
 buttons follow `src/chatbot/calendar/calendar-message.ts`.
 
