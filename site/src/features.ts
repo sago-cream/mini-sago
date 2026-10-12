@@ -1,11 +1,27 @@
+export interface DemoFile {
+    readonly name: string;
+    readonly detail: string;
+    readonly kind: 'document' | 'image' | 'text';
+    readonly src?: string;
+    readonly preview?: string;
+    readonly width?: number;
+    readonly height?: number;
+}
 export interface DemoMessage {
     readonly author: 'user' | 'sago' | 'notice';
     readonly text: string;
-    readonly file?: {
-        readonly name: string;
-        readonly detail: string;
-        readonly kind: 'document' | 'chart' | 'image' | 'event' | 'link';
+    readonly file?: DemoFile;
+    readonly replyTo?: string;
+    readonly list?: readonly string[];
+    readonly emoji?: { readonly name: string; readonly src: string };
+    readonly embed?: {
+        readonly author: string;
+        readonly title: string;
+        readonly description: string;
+        readonly footer: string;
+        readonly color: string;
     };
+    readonly buttons?: readonly string[];
 }
 export interface Feature {
     readonly id: string;
@@ -17,7 +33,7 @@ export interface Feature {
     readonly note: string;
 }
 export const REPOSITORY_URL = 'https://github.com/sago-cream/mini-sago';
-export const CONTACT_URL = 'https://discord.com/users/917446775873343600';
+export const SELF_HOST_URL = `${REPOSITORY_URL}#self-host-minisago`;
 export const FEATURE_SECTIONS = [
     {
         id: 'chat',
@@ -51,29 +67,33 @@ export const FEATURE_SECTIONS = [
 export const LANDING_CONVERSATION = [
     {
         author: 'user',
-        text: '@迷你西米露 幫我整理這份報名表：算出各組人數、做成長條圖，再提醒我明天台北時間晚上八點把結果傳給大家。',
+        text: '@迷你西米露 幫我整理這份範例報名表：算出總人數和各組人數，做成長條圖 PNG，並把整理後的 CSV 一起傳給我。',
         file: {
-            name: '活動報名.xlsx',
-            detail: '表格附件',
+            name: '活動報名.csv',
+            detail: '1 KB',
+            kind: 'text',
+            preview: '組別,人數\nA 組,18\nB 組,14\nC 組,16',
+            src: '/demos/registration.csv',
+        },
+    },
+    {
+        author: 'sago',
+        text: '我算好了 總共 48 人',
+        file: {
+            name: 'python-539d1000-5711-4473-b722-73a64b3a80ad.zip',
+            detail: '19.50 KB',
             kind: 'document',
+            src: '/demos/python-539d1000-5711-4473-b722-73a64b3a80ad.zip',
         },
     },
     {
         author: 'sago',
-        text: '好，我先整理各組人數，再做成圖表，最後幫你設提醒。',
+        text: '',
+        list: ['A 組 18 人', 'B 組 14 人', 'C 組 16 人'],
     },
     {
         author: 'sago',
-        text: '整理好了，共 48 人；A 組 18、B 組 14、C 組 16。',
-        file: {
-            name: '各組報名人數.png',
-            detail: 'A 組 18 · B 組 14 · C 組 16',
-            kind: 'chart',
-        },
-    },
-    {
-        author: 'sago',
-        text: '提醒也設好了。明天台北時間 20:00，我會在這裡標記你，提醒你把結果傳給大家。',
+        text: '已附上 ZIP 內含長條圖 PNG 和加入總計列的 CSV\n圖表使用英文標籤 CSV 保留中文組名',
     },
 ] as const satisfies readonly DemoMessage[];
 export const FEATURES = [
@@ -260,28 +280,30 @@ export const FEATURES = [
         section: 'files',
         title: '圖片與影片',
         description: '調整圖片、擷取畫面，或把影片轉成 GIF、MP4、MP3。',
-        channel: '檔案處理',
+        channel: 'mini-sago',
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 把這支影片的前五秒轉成 GIF，寬度 480 就好。',
+                text: '@迷你西米露 把這張圖片縮成 128 × 128 的 PNG，保留透明背景，直接傳回圖片檔。',
                 file: {
-                    name: '活動片段.mp4',
-                    detail: '影片附件',
-                    kind: 'document',
+                    name: 'minisago3.png',
+                    detail: '圖片附件',
+                    kind: 'image',
+                    src: '/images/minisago3.png',
+                    width: 320,
+                    height: 320,
                 },
             },
             {
                 author: 'sago',
-                text: '好，我會取前五秒、調整成 480px 寬，再轉成 GIF。',
-            },
-            {
-                author: 'sago',
-                text: '完成，這份可以直接下載。',
+                text: '我已縮成 128 × 128 PNG 並保留透明背景',
                 file: {
-                    name: '活動片段.gif',
-                    detail: '480px · 前 5 秒',
-                    kind: 'document',
+                    name: 'media-f111ee3f-f470-4496-aa80-3d66da2a585e.png',
+                    detail: '128 × 128',
+                    kind: 'image',
+                    src: '/demos/minisago-128.webp',
+                    width: 128,
+                    height: 128,
                 },
             },
         ],
@@ -293,30 +315,7 @@ export const FEATURES = [
         title: '表格與文件',
         description: '算數據、做圖表，處理 PDF 與文件附件。',
         channel: '檔案處理',
-        messages: [
-            {
-                author: 'user',
-                text: '@迷你西米露 幫我算各組報名人數，做成長條圖。',
-                file: {
-                    name: '活動報名.xlsx',
-                    detail: '表格附件',
-                    kind: 'document',
-                },
-            },
-            {
-                author: 'sago',
-                text: '我先整理組別與人數，再做成圖表。',
-            },
-            {
-                author: 'sago',
-                text: '整理好了，共 48 人；A 組 18、B 組 14、C 組 16。',
-                file: {
-                    name: '各組報名人數.png',
-                    detail: 'A 組 18 · B 組 14 · C 組 16',
-                    kind: 'chart',
-                },
-            },
-        ],
+        messages: LANDING_CONVERSATION,
         note: '需先設定檔案處理服務。',
     },
     {
@@ -324,33 +323,31 @@ export const FEATURES = [
         section: 'files',
         title: '表情與貼圖',
         description: '用附件新增 emoji 或貼圖，也能複製、改名 emoji。',
-        channel: '日常聊天',
+        channel: 'mini-sago',
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 把這張圖加成 sago_happy emoji。',
+                text: '@迷你西米露 把這張圖片新增成這個伺服器的 emoji，叫做 sago_site_demo。完成後傳一次這個 emoji 給我看。',
                 file: {
-                    name: 'sago_happy.png',
+                    name: 'minisago3.png',
                     detail: '圖片附件',
                     kind: 'image',
+                    src: '/images/minisago3.png',
                 },
             },
             {
                 author: 'sago',
-                text: '已加到這個伺服器，名字是 sago_happy。',
-                file: {
-                    name: ':sago_happy:',
-                    detail: '新的伺服器表情',
-                    kind: 'image',
+                text: '',
+                emoji: {
+                    name: 'sago_site_demo',
+                    src: '/demos/sago-site-demo.webp',
                 },
             },
             {
-                author: 'user',
-                text: '改叫 sago_smile 好了。',
-            },
-            {
                 author: 'sago',
-                text: '改好了，現在是 :sago_smile:。',
+                text: '我已新增 sago_site_demo 也傳了一次給你看',
+                replyTo:
+                    '@迷你西米露 把這張圖片新增成這個伺服器的 emoji，叫做 sago_site_demo。完成後傳一次這個 emoji 給我看。',
             },
         ],
         note: '所有成員都能使用；她需有表情權限。跨伺服器操作限你與她共同加入的伺服器。',
@@ -369,12 +366,7 @@ export const FEATURES = [
             },
             {
                 author: 'sago',
-                text: '',
-                file: {
-                    name: '分享的貼文',
-                    detail: '顯示貼文內容與原始連結，保留分享者資訊。',
-                    kind: 'link',
-                },
+                text: 'https://kkinstagram.com/p/示範貼文/',
             },
         ],
         note: '需擁有者先開啟；貼連結即可，不用標記她。',
@@ -540,20 +532,16 @@ export const FEATURES = [
             },
             {
                 author: 'sago',
-                text: '請確認這份邀請：\n下週三 15:00–16:00（台北時間）\n地點：會辦\n參加者：小明、小花\n\n確認後才會建立活動並寄出邀請。',
-                file: {
-                    name: '會議邀請預覽',
-                    detail: '等待提問者確認',
-                    kind: 'event',
+                text: '確認後才會建立活動並寄出邀請。',
+                embed: {
+                    author: '待你確認',
+                    title: '會議',
+                    description:
+                        '下週三 15:00–16:00（台北時間）\n地點：會辦\n參加者：小明、小花',
+                    footer: '15:10 到期',
+                    color: '#e7bc74',
                 },
-            },
-            {
-                author: 'user',
-                text: '確認，寄出。',
-            },
-            {
-                author: 'sago',
-                text: '好了，活動已建立，邀請也寄出了。',
+                buttons: ['確認建立', '取消'],
             },
         ],
         note: '需先設定日曆；修改與邀請由原提問者確認。',

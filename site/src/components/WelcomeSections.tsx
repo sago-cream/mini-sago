@@ -2,7 +2,7 @@ import type { JSX } from 'react';
 import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 
-import { CONTACT_URL, LANDING_CONVERSATION } from '@/features';
+import { LANDING_CONVERSATION, SELF_HOST_URL } from '@/features';
 import { DiscordDemo } from './DiscordDemo';
 
 import './WelcomeSections.css';
@@ -16,21 +16,18 @@ export function NaturalLanguage(): JSX.Element {
         >
             <div className='natural-copy'>
                 <h2 id='natural-title'>
-                    一個請求，
+                    不用背指令，
                     <br />
-                    可以不只一件事。
+                    有事直接說。
                 </h2>
                 <p>
-                    像跟朋友說話一樣，告訴她你想做什麼。條件、附件、好幾件事，都可以放在同一個請求裡。
+                    像平常聊天一樣，標記迷你西米露，直接說你想做什麼。她能理解你的意思，也能接著對話，問清楚再幫忙。
                 </p>
-                <p>她能接著追問、找資料，再動手完成。你只要專心在事情本身。</p>
-            </div>
-            <DiscordDemo channel='活動籌備' messages={LANDING_CONVERSATION} />
-            <div className='natural-guide-cta'>
                 <Link className='text-link' href='/features/'>
                     探索功能導覽 <ArrowRight aria-hidden='true' size={20} />
                 </Link>
             </div>
+            <DiscordDemo channel='活動籌備' messages={LANDING_CONVERSATION} />
         </section>
     );
 }
@@ -42,15 +39,15 @@ export function AccessSago(): JSX.Element {
             id='access'
         >
             <div>
-                <h2 id='access-title'>想讓迷你西米露幫上忙？</h2>
+                <h2 id='access-title'>想和迷你西米露聊聊？</h2>
                 <p>
-                    目前僅供個人使用，尚未開放自由加入伺服器。
+                    如果你認識我，很可能已經能在我們的 Discord 伺服器裡使用她。
                     <br />
-                    想試試看，可以先私訊我，聊聊你的需求與使用權限。
+                    想在自己的伺服器使用？你也可以依照開源指南，架設自己的迷你西米露。
                 </p>
             </div>
-            <a className='button' href={CONTACT_URL}>
-                私訊我，申請使用 <ArrowUpRight aria-hidden='true' size={18} />
+            <a className='button' href={SELF_HOST_URL}>
+                自行架設指南 <ArrowUpRight aria-hidden='true' size={18} />
             </a>
         </section>
     );

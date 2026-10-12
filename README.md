@@ -46,8 +46,8 @@ Dockerfiles and Compose configurations live in [`deploy/`](deploy/).
 The [feature website](site/README.md) lives in `site/`. Preview it with
 `npm --prefix site ci` and `bun run dev:site` from the repository root.
 The landing page introduces natural-language use; `/features/` demonstrates
-individual capabilities through sample Discord conversations. Access requests
-go to the owner's Discord profile while MiniSago is for personal use.
+individual capabilities through sample Discord conversations. Both pages explain
+access through shared servers and link to the self-host instructions.
 The website runs at `http://localhost:3101`; root `bun dev` starts the Discord bot
 and requires the configuration described in [Discord setup](docs/discord-setup.md).
 

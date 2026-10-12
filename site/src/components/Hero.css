@@ -107,13 +107,3 @@
         padding-inline: 16px;
     }
 }
-
-.hero-guide-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 44px;
-    font-size: 14px;
-    color: var(--clr-teal-ink);
-    font-weight: 600;
-}

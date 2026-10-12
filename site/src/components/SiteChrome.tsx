@@ -7,11 +7,7 @@ import { REPOSITORY_URL } from '@/features';
 
 import './SiteChrome.css';
 
-export function SiteHeader({
-    active = 'home',
-}: {
-    readonly active?: 'home' | 'features';
-}): JSX.Element {
+export function SiteHeader(): JSX.Element {
     return (
         <>
             <a className='skip-link' href='#main'>
@@ -27,22 +23,6 @@ export function SiteHeader({
                     />
                     <span>mini sago</span>
                 </Link>
-                <nav aria-label='主要導覽'>
-                    <Link
-                        aria-current={active === 'home' ? 'page' : undefined}
-                        href='/'
-                    >
-                        認識迷你西米露
-                    </Link>
-                    <Link
-                        aria-current={
-                            active === 'features' ? 'page' : undefined
-                        }
-                        href='/features/'
-                    >
-                        功能導覽
-                    </Link>
-                </nav>
                 <a
                     aria-label='MiniSago GitHub 原始碼'
                     className='header-github'

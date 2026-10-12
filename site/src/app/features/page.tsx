@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function FeatureGuidePage() {
     return (
         <>
-            <SiteHeader active='features' />
+            <SiteHeader />
             <main id='main'>
                 <div className='guide-heading section-width'>
                     <h1>功能導覽</h1>

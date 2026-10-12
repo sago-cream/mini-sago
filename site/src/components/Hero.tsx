@@ -1,7 +1,6 @@
 import type { JSX } from 'react';
-import { ArrowDown, ArrowRight } from 'lucide-react';
+import { ArrowDown } from 'lucide-react';
 import Image from 'next/image';
-import Link from 'next/link';
 
 import './Hero.css';
 
@@ -44,9 +43,6 @@ export function Hero(): JSX.Element {
                         <a className='button' href='#about'>
                             看看她能做什麼 <ArrowDown size={18} />
                         </a>
-                        <Link className='hero-guide-link' href='/features/'>
-                            功能導覽 <ArrowRight size={18} />
-                        </Link>
                     </div>
                 </div>
             </div>

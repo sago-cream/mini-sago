@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { JSX } from 'react';
-import { FileText, Hash, Pause, Play, Plus, RotateCcw } from 'lucide-react';
+import { Hash, Pause, Play, RotateCcw, Smile } from 'lucide-react';
 import Image from 'next/image';
 
 import type { DemoMessage } from '@/features';
+import { DiscordAttachment } from './DiscordAttachment';
 
 import './DiscordDemo.css';
 
@@ -22,8 +23,6 @@ export function DiscordDemo({ channel, messages }: DemoProps): JSX.Element {
     const [reduced, setReduced] = useState(false);
     const complete = shown >= messages.length;
     const next = messages.at(shown);
-    const idleStatus = paused ? '示範已暫停' : ' ';
-    const statusText = complete ? '示範完成' : idleStatus;
 
     useEffect(() => {
         const motion = globalThis.matchMedia(
@@ -89,136 +88,215 @@ export function DiscordDemo({ channel, messages }: DemoProps): JSX.Element {
 
     return (
         <div className='discord-demo' ref={shell}>
-            <div className='discord-channel'>
-                <Hash aria-hidden='true' size={22} />
-                <strong>{channel}</strong>
-                <span>對話示範</span>
-            </div>
-            <div
-                aria-label={`${channel}的示範對話`}
-                className='discord-log'
-                ref={log}
-            >
-                {messages.slice(0, shown).map((message, index) => (
-                    <div
-                        className={`discord-message message-${message.author}`}
-                        key={`${message.author}-${index}`}
-                    >
-                        {message.author === 'notice' ? (
-                            <p className='discord-notice'>{message.text}</p>
-                        ) : (
-                            <>
-                                {message.author === 'sago' ? (
-                                    <Image
-                                        alt=''
-                                        className='discord-avatar'
-                                        height={40}
-                                        src='/images/minisago3.png'
-                                        width={40}
-                                    />
-                                ) : (
+            <div className='discord-chat'>
+                <div className='discord-channel'>
+                    <Hash aria-hidden='true' size={22} />
+                    <strong>{channel}</strong>
+                    <span>對話示範</span>
+                </div>
+                <div
+                    aria-label={`${channel}的示範對話`}
+                    className='discord-log'
+                    ref={log}
+                >
+                    {messages.slice(0, shown).map((message, index) => (
+                        <div
+                            className={`discord-message message-${message.author} ${message.replyTo === undefined ? '' : 'message-reply'} ${messages.at(index - 1)?.author === message.author && index > 0 && message.replyTo === undefined ? 'message-continuation' : ''}`}
+                            key={`${message.author}-${index}`}
+                        >
+                            {message.replyTo !== undefined && (
+                                <div className='discord-reply-context'>
                                     <span
                                         aria-hidden='true'
-                                        className='discord-avatar human-avatar'
+                                        className='human-avatar reply-avatar'
                                     >
                                         你
                                     </span>
-                                )}
-                                <div className='discord-message-body'>
-                                    <div className='discord-author'>
-                                        <strong>
-                                            {message.author === 'sago'
-                                                ? '迷你西米露'
-                                                : '你'}
-                                        </strong>
-                                        {message.author === 'sago' && (
-                                            <span className='discord-app-tag'>
-                                                APP
-                                            </span>
-                                        )}
-                                        <time>
-                                            今天 15:
-                                            {String(24 + index).padStart(
-                                                2,
-                                                '0'
-                                            )}
-                                        </time>
-                                    </div>
-                                    {message.text !== '' && (
-                                        <p>{message.text}</p>
-                                    )}
-                                    {message.file && (
-                                        <div
-                                            className={`discord-attachment attachment-${message.file.kind}`}
-                                        >
-                                            {message.file.kind === 'chart' && (
-                                                <div
-                                                    aria-label='A 組 18 人、B 組 14 人、C 組 16 人'
-                                                    className='demo-chart'
-                                                >
-                                                    <span>
-                                                        A 組<i />
-                                                    </span>
-                                                    <span>
-                                                        B 組<i />
-                                                    </span>
-                                                    <span>
-                                                        C 組<i />
-                                                    </span>
-                                                </div>
-                                            )}
-                                            {message.file.kind === 'image' && (
-                                                <Image
-                                                    alt='示範表情圖片'
-                                                    className='demo-image'
-                                                    height={80}
-                                                    src='/images/minisago3.png'
-                                                    width={80}
-                                                />
-                                            )}
-                                            <div className='attachment-caption'>
-                                                <FileText
-                                                    aria-hidden='true'
-                                                    size={20}
-                                                />
-                                                <div>
-                                                    <strong>
-                                                        {message.file.name}
-                                                    </strong>
-                                                    <small>
-                                                        {message.file.detail}
-                                                    </small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
+                                    <strong>@你</strong>
+                                    <span>{message.replyTo}</span>
                                 </div>
-                            </>
-                        )}
+                            )}
+                            {message.author === 'notice' ? (
+                                <p className='discord-notice'>{message.text}</p>
+                            ) : (
+                                <>
+                                    {message.author === 'sago' ? (
+                                        <Image
+                                            alt=''
+                                            className='discord-avatar'
+                                            height={40}
+                                            src='/images/minisago3.png'
+                                            width={40}
+                                        />
+                                    ) : (
+                                        <span
+                                            aria-hidden='true'
+                                            className='discord-avatar human-avatar'
+                                        >
+                                            你
+                                        </span>
+                                    )}
+                                    <div className='discord-message-body'>
+                                        <div className='discord-author'>
+                                            <strong>
+                                                {message.author === 'sago'
+                                                    ? '迷你西米露'
+                                                    : '你'}
+                                            </strong>
+                                            {message.author === 'sago' && (
+                                                <span className='discord-app-tag'>
+                                                    應用
+                                                </span>
+                                            )}
+                                            <time>
+                                                今天 下午3:
+                                                {String(24 + index).padStart(
+                                                    2,
+                                                    '0'
+                                                )}
+                                            </time>
+                                        </div>
+                                        {message.text !== '' && (
+                                            <p>
+                                                {message.text.startsWith(
+                                                    '@迷你西米露'
+                                                ) ? (
+                                                    <>
+                                                        <span className='discord-mention'>
+                                                            @迷你西米露
+                                                        </span>
+                                                        {message.text.slice(
+                                                            '@迷你西米露'.length
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    message.text
+                                                )}
+                                            </p>
+                                        )}
+                                        {message.list && (
+                                            <ul className='discord-message-list'>
+                                                {message.list.map((item) => (
+                                                    <li key={item}>{item}</li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                        {message.emoji && (
+                                            <Image
+                                                alt={`:${message.emoji.name}:`}
+                                                className='discord-emoji'
+                                                height={48}
+                                                src={message.emoji.src}
+                                                width={48}
+                                            />
+                                        )}
+                                        {message.file && (
+                                            <DiscordAttachment
+                                                file={message.file}
+                                            />
+                                        )}
+                                        {message.embed && (
+                                            <div
+                                                className='discord-embed'
+                                                style={{
+                                                    borderLeftColor:
+                                                        message.embed.color,
+                                                }}
+                                            >
+                                                <span>
+                                                    {message.embed.author}
+                                                </span>
+                                                <strong>
+                                                    {message.embed.title}
+                                                </strong>
+                                                <p>
+                                                    {message.embed.description}
+                                                </p>
+                                                <small>
+                                                    {message.embed.footer}
+                                                </small>
+                                            </div>
+                                        )}
+                                        {message.buttons && (
+                                            <div
+                                                aria-hidden='true'
+                                                className='discord-component-buttons'
+                                            >
+                                                {message.buttons.map(
+                                                    (label) => (
+                                                        <span key={label}>
+                                                            {label}
+                                                        </span>
+                                                    )
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    ))}
+                </div>
+                <div aria-live='polite' className='discord-status'>
+                    {!complete &&
+                    playing &&
+                    !paused &&
+                    next?.author === 'sago' ? (
+                        <>
+                            <span aria-hidden='true' className='typing-dots'>
+                                <i />
+                                <i />
+                                <i />
+                            </span>
+                            <span>迷你西米露 正在輸入…</span>
+                        </>
+                    ) : (
+                        <span />
+                    )}
+                </div>
+                <div aria-hidden='true' className='discord-composer'>
+                    <Image
+                        alt=''
+                        height={24}
+                        src='/demos/discord-icons/plus.svg'
+                        width={24}
+                    />
+                    <span>
+                        {shown === 0 && next?.author === 'user'
+                            ? next.text
+                            : `傳訊息到 #${channel}`}
+                    </span>
+                    <div className='composer-tools'>
+                        <Image
+                            alt=''
+                            className='composer-extra'
+                            height={24}
+                            src='/demos/discord-icons/gift.svg'
+                            width={24}
+                        />
+                        <Image
+                            alt=''
+                            className='composer-extra'
+                            height={24}
+                            src='/demos/discord-icons/gif.svg'
+                            width={24}
+                        />
+                        <Image
+                            alt=''
+                            className='composer-extra'
+                            height={24}
+                            src='/demos/discord-icons/sticker.svg'
+                            width={24}
+                        />
+                        <Smile size={22} />
+                        <Image
+                            alt=''
+                            height={24}
+                            src='/demos/discord-icons/apps.svg'
+                            width={24}
+                        />
                     </div>
-                ))}
-            </div>
-            <div aria-live='polite' className='discord-status'>
-                {!complete && playing && !paused && next?.author === 'sago' ? (
-                    <>
-                        <span aria-hidden='true' className='typing-dots'>
-                            <i />
-                            <i />
-                            <i />
-                        </span>
-                        <span>迷你西米露 正在輸入…</span>
-                    </>
-                ) : (
-                    <span>{statusText}</span>
-                )}
-            </div>
-            <div aria-hidden='true' className='discord-composer'>
-                <Plus size={20} />
-                <span>
-                    {shown === 0 && next?.author === 'user'
-                        ? next.text
-                        : `訊息 #${channel}`}
-                </span>
+                </div>
             </div>
             <div className='demo-controls'>
                 <p>情境示範，非即時操作</p>

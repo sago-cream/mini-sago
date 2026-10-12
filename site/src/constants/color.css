@@ -12,7 +12,10 @@
     --clr-blue: #e7f4fc;
     --clr-pink: #fff0f5;
     --shadow-surface: 0 12px 32px #79709d0d;
-    --discord-bg: #313338;
-    --discord-text: #e1e2e7;
+    --discord-bg: oklab(0.322446 0.0015464 -0.0105554);
+    --discord-text: oklab(0.964427 0.000418067 -0.00125384);
+    --discord-muted: oklab(0.700617 0.00173205 -0.0100245);
+    --discord-composer: oklab(0.350185 0.00197871 -0.0120009);
+    --discord-border: oklab(0.678923 0.00325415 -0.0111644 / 0.121569);
     accent-color: var(--clr-accent);
 }

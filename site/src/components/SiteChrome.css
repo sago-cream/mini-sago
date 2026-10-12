@@ -46,22 +46,11 @@
 .brand img {
     border-radius: 50%;
 }
-.site-header nav {
-    display: flex;
-    gap: 36px;
-    font-size: 14px;
-    font-weight: 600;
-}
 .site-header a {
     min-height: 44px;
     display: inline-flex;
     align-items: center;
 }
-.site-header nav a {
-    transition: color 180ms ease;
-}
-.site-header nav a[aria-current='page'],
-.site-header nav a:hover,
 .text-link:hover {
     color: var(--clr-accent);
 }
@@ -128,9 +117,6 @@ h2 {
     min-height: 44px;
 }
 @media (max-width: 900px) {
-    .site-header nav {
-        gap: 20px;
-    }
     .site-footer {
         flex-direction: column;
     }
@@ -140,10 +126,9 @@ h2 {
         width: calc(100% - 40px);
     }
     .site-header {
-        height: 108px;
+        height: 80px;
         padding-inline: 20px;
         gap: 8px;
-        flex-wrap: wrap;
     }
     .brand {
         font-size: 22px;
@@ -152,13 +137,6 @@ h2 {
     .brand img {
         width: 32px;
         height: 32px;
-    }
-    .site-header nav {
-        display: flex;
-        width: 100%;
-        order: 3;
-        justify-content: center;
-        font-size: 12px;
     }
     .header-github {
         padding: 8px 12px;

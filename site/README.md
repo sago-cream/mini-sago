@@ -6,8 +6,8 @@ animated Discord example. `/features/` groups detailed capabilities in a sidebar
 each selection plays a sample conversation. Examples play once when visible,
 support pause/replay, and show the complete conversation for reduced motion.
 
-MiniSago is currently for personal use. Both pages link to the owner's Discord
-profile for access requests.
+Both pages explain access through shared Discord servers and link to the
+repository's self-host guide for readers who want their own instance.
 
 From the repository root:
 
@@ -25,8 +25,8 @@ exports a static site to `site/out/`; serve that directory with any static host.
 No bot credentials or backend connection are needed.
 
 Update `src/features.ts` when capabilities or access requirements change, including
-the example conversations and any setup notes. Keep `CONTACT_URL` aligned with
-the owner’s public Discord profile.
+the example conversations and any setup notes. `SELF_HOST_URL` links to the
+README's self-host section.
 
 The hero and avatar use the original `public/images/minisago3.png` artwork.
 Keep the asset unchanged.
