@@ -10,9 +10,9 @@ interface MessageProps {
     readonly index: number;
     readonly continuation: boolean;
     readonly cancelled: boolean;
-    readonly onConfirm: () => void;
-    readonly onCancel: () => void;
-    readonly onDismiss: () => void;
+    readonly onConfirm?: () => void;
+    readonly onCancel?: () => void;
+    readonly onDismiss?: () => void;
 }
 
 function MentionText({ text }: { readonly text: string }): JSX.Element {
@@ -184,10 +184,18 @@ export function DiscordMessage({
                         )}
                         {message.confirmation && (
                             <div className='discord-component-buttons'>
-                                <button onClick={onConfirm} type='button'>
+                                <button
+                                    disabled={onConfirm === undefined}
+                                    onClick={onConfirm}
+                                    type='button'
+                                >
                                     {message.confirmation.confirmLabel}
                                 </button>
-                                <button onClick={onCancel} type='button'>
+                                <button
+                                    disabled={onCancel === undefined}
+                                    onClick={onCancel}
+                                    type='button'
+                                >
                                     {message.confirmation.cancelLabel}
                                 </button>
                             </div>
@@ -203,7 +211,11 @@ export function DiscordMessage({
                             width={16}
                         />
                         <span>只有您才能看到這個 ·</span>
-                        <button onClick={onDismiss} type='button'>
+                        <button
+                            disabled={onDismiss === undefined}
+                            onClick={onDismiss}
+                            type='button'
+                        >
                             刪除這則訊息
                         </button>
                     </div>

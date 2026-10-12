@@ -13,6 +13,9 @@ posting again; explanatory captions and sample sources identify illustrative dat
 Both pages explain access through shared Discord servers and link to the
 repository's self-host guide for readers who want their own instance.
 
+`/features/review/` shows all feature descriptions, complete conversations, and
+notes together without playback, for reviewing and annotating the copy in Codex.
+
 `/privacy/` explains the hosted bot's data processing and deletion requests;
 `/terms/` explains access, acceptable use, and service limitations. Both use the
 shared header and footer. The support address and policy update date live in
