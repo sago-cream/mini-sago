@@ -10,6 +10,21 @@ permissions:
   contents: read
 
 jobs:
+  website:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+      - run: npm run check
+
   typecheck:
     runs-on: ubuntu-24.04
     steps:

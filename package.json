@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/server.ts",
+    "dev:site": "bun run --cwd site dev --port 3101",
     "deploy": "bun scripts/deploy.mjs",
     "release": "bun run deploy && bun run worker:update",
     "build": "tsc --noEmit",

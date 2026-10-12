@@ -1,0 +1,81 @@
+.feature-guide-page {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+}
+.feature-guide-page .site-header {
+    flex-shrink: 0;
+}
+.feature-guide-main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+.feature-guide-footer {
+    flex-shrink: 0;
+    border-top: 1px solid var(--clr-border);
+    padding-block: 12px;
+}
+.feature-guide-footer .feature-access-note {
+    max-width: none;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    text-align: center;
+}
+.feature-guide-page .feature-workspace {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+    padding-block: 24px;
+}
+.feature-guide-page .feature-sidebar {
+    position: static;
+    min-height: 0;
+    max-height: none;
+}
+.feature-guide-page .feature-preview {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.feature-guide-page .feature-preview-heading,
+.feature-guide-page .feature-note {
+    flex-shrink: 0;
+}
+.feature-guide-page .discord-demo,
+.feature-guide-page .discord-chat {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+.feature-guide-page .discord-log {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+}
+.feature-guide-page .discord-channel,
+.feature-guide-page .discord-status,
+.feature-guide-page .discord-composer {
+    flex-shrink: 0;
+}
+@media (max-width: 700px) {
+    .feature-guide-page .feature-workspace {
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: 12px;
+        padding-block: 16px;
+    }
+    .feature-guide-page .feature-workspace:has(.sidebar-open) {
+        grid-template-rows: auto auto minmax(0, 1fr);
+    }
+    .feature-guide-page .feature-sidebar.sidebar-open {
+        max-height: min(24dvh, 192px);
+    }
+    .feature-guide-page .feature-preview-heading {
+        margin-bottom: 12px;
+    }
+}

@@ -49,8 +49,9 @@ persistent Whisper service transcribes speech. The configured Codex worker
 streams complete Japanese sentences to a private VOICEVOX engine, so playback
 can begin before the full reply is ready. The voice credit is
 `VOICEVOX:猫使ビィ`. Create Expressions is needed in every destination guild
-where the owner may add emoji. Manage Expressions is needed where the owner may
-rename emoji.
+where members may add emoji or stickers. Manage Expressions is needed where
+members may rename emoji. Every chatbot member can request these actions;
+cross-server operations require membership in both servers shared with MiniSago.
 
 Once joined, MiniSago answers speech while idle without a wake word. During an
 answer, a direct call to Sago or a correction from the current speaker can

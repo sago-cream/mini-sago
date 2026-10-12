@@ -5,6 +5,7 @@ import {
   addGuildEmojiFromMedia,
   addGuildStickerFromMedia,
   copyGuildEmoji,
+  expressionRequestForMember,
   listGuildEmojis,
   listSharedEmojiGuilds,
   renameGuildEmoji,
@@ -14,6 +15,105 @@ const CREATE_EXPRESSIONS = (1n << 43n).toString();
 const MANAGE_EXPRESSIONS = (1n << 30n).toString();
 
 describe("guild expression tools", () => {
+  test("members can use the suite without expression roles, only in shared guilds", async () => {
+    const writes: string[] = [];
+    const request = expressionRequestForMember(async (path, options) => {
+      if (path === "/users/@me/guilds") {
+        return [
+          { id: "source", name: "Source", permissions: "0" },
+          {
+            id: "target",
+            name: "Target",
+            permissions: (
+              BigInt(CREATE_EXPRESSIONS) | BigInt(MANAGE_EXPRESSIONS)
+            ).toString(),
+          },
+          { id: "private", name: "Private", permissions: CREATE_EXPRESSIONS },
+          { id: "failed", name: "Failed", permissions: CREATE_EXPRESSIONS },
+        ] as never;
+      }
+      if (path.endsWith("/members/member-1")) {
+        if (path.includes("/failed/"))
+          throw new Error("membership unavailable");
+        return {
+          user: {
+            id: path.includes("/private/") ? "other-member" : "member-1",
+          },
+          roles: [],
+        } as never;
+      }
+      if (options?.method) {
+        writes.push(path);
+        return { id: "123456789012345678", name: "wave" } as never;
+      }
+      return [{ id: "123456789012345678", name: "wave" }] as never;
+    }, "member-1");
+
+    expect(
+      (await listSharedEmojiGuilds(request)).map((guild) => guild.name),
+    ).toEqual(["Source", "Target"]);
+    expect(
+      (await listGuildEmojis({ guild: "Source", discordRequest: request }))
+        .emojis[0]?.name,
+    ).toBe("wave");
+    await addGuildEmojiFromMedia({
+      destinationGuild: "Target",
+      media: { filename: "wave.png", bytes: new Uint8Array([1]) },
+      discordRequest: request,
+    });
+    await addGuildStickerFromMedia({
+      destinationGuild: "Target",
+      media: { filename: "wave.png", bytes: new Uint8Array([1]) },
+      name: "Wave",
+      tags: "👋",
+      discordRequest: request,
+    });
+    await copyGuildEmoji({
+      sourceGuild: "Source",
+      destinationGuild: "Target",
+      emoji: "wave",
+      discordRequest: request,
+      fetchEmoji: async () => new Response(new Uint8Array([1])),
+    });
+    await renameGuildEmoji({
+      guild: "Target",
+      emoji: "wave",
+      name: "hello",
+      discordRequest: request,
+    });
+    expect(writes).toEqual([
+      "/guilds/target/emojis",
+      "/guilds/target/stickers",
+      "/guilds/target/emojis",
+      "/guilds/target/emojis/123456789012345678",
+    ]);
+
+    await expect(
+      addGuildEmojiFromMedia({
+        destinationGuild: "Private",
+        media: { filename: "wave.png", bytes: new Uint8Array([1]) },
+        discordRequest: request,
+      }),
+    ).rejects.toThrow("not in a guild");
+    await expect(
+      copyGuildEmoji({
+        sourceGuild: "Private",
+        destinationGuild: "Target",
+        emoji: "wave",
+        discordRequest: request,
+      }),
+    ).rejects.toThrow("not in a guild");
+    await expect(
+      renameGuildEmoji({
+        guild: "Failed",
+        emoji: "wave",
+        name: "hello",
+        discordRequest: request,
+      }),
+    ).rejects.toThrow("not in a guild");
+    expect(writes).toHaveLength(4);
+  });
+
   test("lists every shared guild and reports expression permissions", async () => {
     const guilds = await listSharedEmojiGuilds(
       async () =>

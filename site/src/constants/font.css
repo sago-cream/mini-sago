@@ -1,0 +1,7 @@
+:root {
+    --ff-body: 'Avenir Next', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+    --ff-display: var(--font-rounded), 'Arial Rounded MT Bold', sans-serif;
+    --font-body-md: 500 16px / 1.8 var(--ff-body);
+    --size-content-max: 1200px;
+    --radius-card: 24px;
+}

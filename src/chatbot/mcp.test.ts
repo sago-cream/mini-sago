@@ -740,7 +740,7 @@ describe("MiniSago MCP server", () => {
     session.revoke();
   });
 
-  test("exposes the owner-bound guild expression tool", async () => {
+  test("exposes the host-bound guild expression suite", async () => {
     const additions: unknown[] = [];
     const renames: unknown[] = [];
     const session = registerChatbotMcpSession({

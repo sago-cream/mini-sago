@@ -59,6 +59,7 @@ import {
   addGuildEmojiFromMedia,
   addGuildStickerFromMedia,
   copyGuildEmoji,
+  expressionRequestForMember,
   listGuildEmojis,
   listSharedEmojiGuilds,
   renameGuildEmoji,
@@ -1375,6 +1376,10 @@ export async function handleChatbotMention({
       historyDone();
       const mediaRegistry = new ChatbotMediaRegistry(undefined, discordRequest);
       mediaRegistry.registerMessages([requestMessage, ...messages]);
+      const expressionRequest =
+        requesterUserId === accessConfig.ownerUserId
+          ? discordRequest
+          : expressionRequestForMember(discordRequest, requesterUserId);
       let contextChannelId = message.channel_id;
       let contextRequestMessageId = message.id;
       let serverMemory: ChatbotJob["serverMemory"];
@@ -1682,28 +1687,30 @@ export async function handleChatbotMention({
             previousTrace,
           };
         },
-        ...(requesterUserId === accessConfig.ownerUserId && message.guild_id
+        ...(message.guild_id
           ? {
               listSharedGuilds: async () =>
-                (await listSharedEmojiGuilds(discordRequest)).map((guild) => ({
-                  ...guild,
-                  current: guild.id === message.guild_id,
-                })),
+                (await listSharedEmojiGuilds(expressionRequest)).map(
+                  (guild) => ({
+                    ...guild,
+                    current: guild.id === message.guild_id,
+                  }),
+                ),
               listGuildEmojis: (guild: string) =>
-                listGuildEmojis({ guild, discordRequest }),
+                listGuildEmojis({ guild, discordRequest: expressionRequest }),
               addGuildExpression: (input: ChatbotGuildExpressionInput) =>
                 addGuildExpressionForRequest({
                   input,
                   guildId: message.guild_id!,
                   mediaRegistry,
-                  discordRequest,
+                  discordRequest: expressionRequest,
                 }),
               renameGuildEmoji: (input: ChatbotGuildEmojiRenameInput) =>
                 renameGuildEmoji({
                   guild: input.guild ?? message.guild_id!,
                   emoji: input.emoji,
                   name: input.name,
-                  discordRequest,
+                  discordRequest: expressionRequest,
                 }),
             }
           : {}),
