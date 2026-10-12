@@ -20,14 +20,15 @@
     padding: 12px;
 }
 .site-header {
-    height: 96px;
-    padding-inline: 40px;
+    height: 72px;
+    width: 100%;
+}
+.header-inner {
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 24px;
-    width: min(1360px, 100%);
-    margin: auto;
 }
 .brand {
     display: flex;
@@ -125,9 +126,7 @@ h2 {
     .section-width {
         width: calc(100% - 40px);
     }
-    .site-header {
-        height: 80px;
-        padding-inline: 20px;
+    .header-inner {
         gap: 8px;
     }
     .brand {

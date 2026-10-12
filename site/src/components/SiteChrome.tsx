@@ -14,29 +14,31 @@ export function SiteHeader(): JSX.Element {
                 跳到主要內容
             </a>
             <header className='site-header'>
-                <Link aria-label='MiniSago 首頁' className='brand' href='/'>
-                    <Image
-                        alt=''
-                        height={40}
-                        src='/images/minisago3.png'
-                        width={40}
-                    />
-                    <span>mini sago</span>
-                </Link>
-                <a
-                    aria-label='MiniSago GitHub 原始碼'
-                    className='header-github'
-                    href={REPOSITORY_URL}
-                >
-                    <Image
-                        alt=''
-                        height={20}
-                        src='/logos/github.svg'
-                        width={20}
-                    />
-                    <span>GitHub</span>
-                    <ArrowUpRight size={16} />
-                </a>
+                <div className='header-inner section-width'>
+                    <Link aria-label='MiniSago 首頁' className='brand' href='/'>
+                        <Image
+                            alt=''
+                            height={40}
+                            src='/images/minisago3.png'
+                            width={40}
+                        />
+                        <span>mini sago</span>
+                    </Link>
+                    <a
+                        aria-label='MiniSago GitHub 原始碼'
+                        className='header-github'
+                        href={REPOSITORY_URL}
+                    >
+                        <Image
+                            alt=''
+                            height={20}
+                            src='/logos/github.svg'
+                            width={20}
+                        />
+                        <span>GitHub</span>
+                        <ArrowUpRight size={16} />
+                    </a>
+                </div>
             </header>
         </>
     );

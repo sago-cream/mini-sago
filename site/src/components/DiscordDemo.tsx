@@ -93,6 +93,34 @@ export function DiscordDemo({ channel, messages }: DemoProps): JSX.Element {
                     <Hash aria-hidden='true' size={22} />
                     <strong>{channel}</strong>
                     <span>對話示範</span>
+                    <div className='demo-controls'>
+                        {!complete && !reduced && (
+                            <button
+                                aria-label={paused ? '繼續示範' : '暫停示範'}
+                                onClick={() => {
+                                    setPaused((value) => !value);
+                                }}
+                                title={paused ? '繼續示範' : '暫停示範'}
+                                type='button'
+                            >
+                                {paused ? (
+                                    <Play aria-hidden='true' size={16} />
+                                ) : (
+                                    <Pause aria-hidden='true' size={16} />
+                                )}
+                            </button>
+                        )}
+                        {!reduced && (
+                            <button
+                                aria-label='重播'
+                                onClick={replay}
+                                title='重播'
+                                type='button'
+                            >
+                                <RotateCcw aria-hidden='true' size={16} />
+                            </button>
+                        )}
+                    </div>
                 </div>
                 <div
                     aria-label={`${channel}的示範對話`}
@@ -296,29 +324,6 @@ export function DiscordDemo({ channel, messages }: DemoProps): JSX.Element {
                             width={24}
                         />
                     </div>
-                </div>
-            </div>
-            <div className='demo-controls'>
-                <p>情境示範，非即時操作</p>
-                <div>
-                    {!complete && !reduced && (
-                        <button
-                            aria-label={paused ? '繼續示範' : '暫停示範'}
-                            onClick={() => {
-                                setPaused((value) => !value);
-                            }}
-                            type='button'
-                        >
-                            {paused ? <Play size={15} /> : <Pause size={15} />}
-                            {paused ? '繼續' : '暫停'}
-                        </button>
-                    )}
-                    {!reduced && (
-                        <button onClick={replay} type='button'>
-                            <RotateCcw size={15} />
-                            重播
-                        </button>
-                    )}
                 </div>
             </div>
         </div>

@@ -15,16 +15,12 @@ export function NaturalLanguage(): JSX.Element {
             id='about'
         >
             <div className='natural-copy'>
-                <h2 id='natural-title'>
-                    不用背指令，
-                    <br />
-                    有事直接說。
-                </h2>
+                <h2 id='natural-title'>以自然語言取代成堆指令</h2>
                 <p>
-                    像平常聊天一樣，標記迷你西米露，直接說你想做什麼。她能理解你的意思，也能接著對話，問清楚再幫忙。
+                    標記迷你西米露並直接告訴她你想做什麼。她能自主思考並調用工具完成你的需求。
                 </p>
                 <Link className='text-link' href='/features/'>
-                    探索功能導覽 <ArrowRight aria-hidden='true' size={20} />
+                    探索所有工具 <ArrowRight aria-hidden='true' size={20} />
                 </Link>
             </div>
             <DiscordDemo channel='活動籌備' messages={LANDING_CONVERSATION} />

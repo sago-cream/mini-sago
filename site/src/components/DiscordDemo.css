@@ -32,10 +32,15 @@
     color: var(--discord-muted);
 }
 .discord-channel strong {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     font-size: 16px;
     font-weight: 600;
 }
 .discord-channel > span {
+    flex-shrink: 0;
     margin-left: auto;
     color: var(--discord-muted);
     font-size: 12px;
@@ -347,34 +352,28 @@
     animation-delay: 240ms;
 }
 .demo-controls {
-    min-height: 44px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    color: var(--clr-text-muted);
-}
-.demo-controls p {
-    font-size: 12px;
-}
-.demo-controls > div {
-    display: flex;
-    gap: 12px;
+    flex-shrink: 0;
+    color: var(--discord-muted);
 }
 .demo-controls button {
     display: inline-flex;
-    gap: 8px;
     align-items: center;
     justify-content: center;
-    min-height: 44px;
+    width: 44px;
+    height: 44px;
     border: 0;
-    padding: 4px;
+    padding: 0;
     color: inherit;
     background: transparent;
-    font-size: 12px;
 }
 .demo-controls button:hover {
-    color: var(--clr-accent);
+    color: var(--discord-text);
+}
+.demo-controls button:focus-visible {
+    outline: 2px solid var(--discord-text);
+    outline-offset: -4px;
+    border-radius: 6px;
 }
 @keyframes typing {
     50% {
@@ -405,8 +404,5 @@
     }
     .composer-tools {
         gap: 12px;
-    }
-    .demo-controls {
-        gap: 8px;
     }
 }

@@ -25,7 +25,7 @@ export function Hero(): JSX.Element {
                         <span>Discord 機器人</span>
                     </h1>
                     <p className='hero-description'>
-                        <span>迷你西米是你在 Discord 裡的 AI 小幫手。</span>
+                        <span>迷你西米露是你在 Discord 裡的 AI 小幫手。</span>
                         <span>
                             聊天、查資料、
                             <span className='hero-description-phrase'>
