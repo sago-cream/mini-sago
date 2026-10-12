@@ -210,7 +210,7 @@ export const FEATURES = [
         id: 'search',
         section: 'chat',
         title: '資料與歷史搜尋',
-        description: '找網路資料或之前的訊息，整理成有來源的答案。',
+        description: '根據網路資料或之前的訊息，整理成有確切來源的答案。',
         channel: '活動籌備',
         messages: [
             {
@@ -257,13 +257,13 @@ export const FEATURES = [
                 ],
             },
         ],
-        note: '聊天歷史只搜尋你有權限閱讀的頻道。',
+        note: '',
     },
     {
         id: 'ask',
         section: 'chat',
         title: '私下提問',
-        description: '用 /ask 提問，回答只會讓你看見。',
+        description: '/ask 以偷偷問她問題。',
         channel: '日常聊天',
         messages: [
             {
@@ -277,13 +277,13 @@ export const FEATURES = [
                 code: "const user = users[0];\nconst name = user?.name ?? '尚無使用者';\n\n// 或先判斷沒有資料時要顯示的內容\nif (!user) return '目前沒有使用者';",
             },
         ],
-        note: '這個示範的回答僅提問者可見；/ask 需先註冊。',
+        note: '',
     },
     {
         id: 'memory',
         section: 'chat',
         title: '伺服器記憶',
-        description: '教她聊天室裡的用語與事實，也能訂正或請她忘記。',
+        description: '教她慣用語或奇怪事實。',
         channel: '日常聊天',
         messages: [
             {
@@ -315,13 +315,13 @@ export const FEATURES = [
                 text: '已移除這個記憶項目，之後不再把「會辦」當成固定用語。',
             },
         ],
-        note: '記憶依伺服器分開，不用拿來保存秘密。',
+        note: '',
     },
     {
         id: 'reminders',
         section: 'chat',
-        title: '提醒與排程',
-        description: '一次提醒、重複提醒，修改或取消都用說的。',
+        title: '設置提醒',
+        description: '設置一次性或重複提醒。',
         channel: '日常聊天',
         messages: [
             {
@@ -370,7 +370,7 @@ export const FEATURES = [
         id: 'quiet',
         section: 'chat',
         title: '暫停回覆',
-        description: '想讓聊天室安靜一下，直接請她暫停。',
+        description: '她一直插話時也能直接請她安靜。',
         channel: '日常聊天',
         messages: [
             {
@@ -400,7 +400,7 @@ export const FEATURES = [
                 text: '我回來了！',
             },
         ],
-        note: '她會直接安靜，不另發確認回覆；再次請她回覆即可恢復。',
+        note: '',
     },
     {
         id: 'media',
@@ -434,7 +434,7 @@ export const FEATURES = [
                 },
             },
         ],
-        note: '需先設定媒體處理服務。',
+        note: '',
     },
     {
         id: 'documents',
@@ -450,7 +450,7 @@ export const FEATURES = [
                 text: '平均每組 16 人。A 組 18 人，超過平均；C 組剛好 16 人，B 組 14 人低於平均。',
             },
         ],
-        note: '需先設定檔案處理服務。',
+        note: '',
     },
     {
         id: 'expressions',
@@ -498,7 +498,7 @@ export const FEATURES = [
                 },
             },
         ],
-        note: '所有成員都能使用；她需有表情權限。跨伺服器操作限你與她共同加入的伺服器。',
+        note: '',
     },
     {
         id: 'social',
@@ -540,7 +540,7 @@ export const FEATURES = [
                 },
             },
         ],
-        note: '由擁有者開啟後，貼上連結就會自動處理；預覽內容取決於來源網站。',
+        note: '貼上連結就會自動處理；預覽內容取決於來源網站。',
     },
     {
         id: 'feeds',
@@ -592,7 +592,7 @@ export const FEATURES = [
                 ],
             },
         ],
-        note: '由擁有者設定來源與頻道，頻道內的所有人都能接收更新。',
+        note: '',
     },
     {
         id: 'voice',
@@ -664,7 +664,7 @@ export const FEATURES = [
                 text: '要確認當期公告的假日班表與停駛日期，不能直接沿用平日班次。剛剛的校方頁面會列出適用期間與最新公告。',
             },
         ],
-        note: '需開啟校園查詢服務；示範不代表即時公車班次。',
+        note: '示範不代表即時公車班次。',
     },
     {
         id: 'ccxp',
@@ -697,7 +697,7 @@ export const FEATURES = [
                 text: '對。這段紀錄只能支持「正在規劃、待後續討論」，不能當作已核定的開課公告。',
             },
         ],
-        note: '文件為示範資料；實際查詢限核准索引，來源文件可能需登入。',
+        note: '文件為示範資料。',
     },
     {
         id: 'threads',
@@ -772,7 +772,7 @@ export const FEATURES = [
                 quote: '器材負責人：12:30 完成投影與音響測試。',
             },
         ],
-        note: '企劃為示範資料；實際存取依 Discord 身分組與 Google 文件權限。',
+        note: '企劃為示範資料。',
     },
     {
         id: 'calendar',
@@ -863,7 +863,7 @@ export const FEATURES = [
                 text: '討論串已封存',
             },
         ],
-        note: 'PR 與人物為示範資料；需擁有者設定儲存庫、webhook 與通知頻道。',
+        note: 'PR 與人物為示範資料。',
     },
     {
         id: 'coding',
@@ -894,7 +894,7 @@ export const FEATURES = [
                 text: '驗證完成：空陣列、有資料的列表都通過。已依你的要求開 draft PR（#42，示範），等待 review；還沒有合併或部署。',
             },
         ],
-        note: '限擁有者發起；PR 編號為示範，合併與部署仍需明確授權。',
+        note: 'PR 編號為示範，合併與部署仍需明確授權。',
     },
     {
         id: 'mac',
@@ -926,7 +926,7 @@ export const FEATURES = [
                 },
             },
         ],
-        note: '檔案為示範資料；限擁有者，只搜尋允許的目錄與檔名。',
+        note: '檔案為示範資料。',
     },
     {
         id: 'controls',
@@ -960,6 +960,6 @@ export const FEATURES = [
                 text: 'Calendar：已開啟\n使用對象：工作人員\n每日單字：#每日單字（未變更）',
             },
         ],
-        note: '只有迷你西米露擁有者能調整。',
+        note: '',
     },
 ] as const satisfies readonly Feature[];

@@ -2,6 +2,7 @@ import { Hash } from 'lucide-react';
 import type { Metadata } from 'next';
 
 import { DiscordMessage } from '@/components/DiscordMessage';
+import { FeatureAccessNote } from '@/components/FeatureAccessNote';
 import { SiteFooter, SiteHeader } from '@/components/SiteChrome';
 import { FEATURE_SECTIONS, FEATURES } from '@/features';
 import type { DemoMessage } from '@/features';
@@ -22,6 +23,7 @@ export default function FeatureCopyReviewPage() {
             <main className='feature-review section-width' id='main'>
                 <header className='feature-review-heading'>
                     <h1>功能文案總覽</h1>
+                    <FeatureAccessNote />
                     <a href='/features/'>回到功能導覽</a>
                 </header>
                 {FEATURE_SECTIONS.map((section) => (

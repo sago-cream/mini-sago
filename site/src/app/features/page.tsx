@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 
+import { FeatureAccessNote } from '@/components/FeatureAccessNote';
 import { FeatureExplorer } from '@/components/FeatureExplorer';
 import { SiteFooter, SiteHeader } from '@/components/SiteChrome';
 import { AccessSago } from '@/components/WelcomeSections';
@@ -17,6 +18,7 @@ export default function FeatureGuidePage() {
             <main id='main'>
                 <div className='guide-heading section-width'>
                     <h1>功能導覽</h1>
+                    <FeatureAccessNote />
                 </div>
                 <FeatureExplorer />
                 <AccessSago />
