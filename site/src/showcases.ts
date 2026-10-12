@@ -10,46 +10,6 @@ interface Showcase {
 
 export const SHOWCASES = [
     {
-        id: 'emotes',
-        title: '製作與搬移表情',
-        channel: '表情工坊',
-        messages: [
-            {
-                author: 'user',
-                text: '@迷你西米露 把這張圖片新增成這裡的 emoji，叫做 sago_site_demo，傳一次給我看。',
-                file: {
-                    name: 'minisago3.png',
-                    detail: '圖片附件',
-                    kind: 'image',
-                    src: '/images/minisago3.png',
-                    width: 240,
-                    height: 240,
-                },
-            },
-            {
-                author: 'sago',
-                text: '新增好了，這顆就是 sago_site_demo。',
-                emoji: {
-                    name: 'sago_site_demo',
-                    src: '/demos/sago-site-demo.webp',
-                },
-            },
-            {
-                author: 'user',
-                text: '再把這顆 emoji 複製到我們都加入的 Sago Lab。',
-            },
-            {
-                author: 'sago',
-                replyTo: '再把這顆 emoji 複製到我們都加入的 Sago Lab。',
-                text: '也複製到 Sago Lab 了，兩邊都能使用。',
-                emoji: {
-                    name: 'sago_site_demo',
-                    src: '/demos/sago-site-demo.webp',
-                },
-            },
-        ],
-    },
-    {
         id: 'discussion',
         title: '整理對話懶人包',
         channel: '活動討論',
@@ -91,8 +51,48 @@ export const SHOWCASES = [
     },
     {
         id: 'documents',
-        title: '統計報名資料',
+        title: '日常文書處理',
         channel: '活動籌備',
         messages: LANDING_CONVERSATION,
+    },
+    {
+        id: 'emotes',
+        title: '製作與搬移表情',
+        channel: '表情工坊',
+        messages: [
+            {
+                author: 'user',
+                text: '@迷你西米露 把這張圖片新增成這裡的 emoji，叫做 sago_site_demo，傳一次給我看。',
+                file: {
+                    name: 'minisago3.png',
+                    detail: '圖片附件',
+                    kind: 'image',
+                    src: '/images/minisago3.png',
+                    width: 240,
+                    height: 240,
+                },
+            },
+            {
+                author: 'sago',
+                text: '新增好了，這顆就是 sago_site_demo。',
+                emoji: {
+                    name: 'sago_site_demo',
+                    src: '/demos/sago-site-demo.webp',
+                },
+            },
+            {
+                author: 'user',
+                text: '順便丟到另一個群組 Sago Lab',
+            },
+            {
+                author: 'sago',
+                replyTo: '順便丟到另一個群組 Sago Lab',
+                text: '也複製到 Sago Lab 了，兩邊都能使用。',
+                emoji: {
+                    name: 'sago_site_demo',
+                    src: '/demos/sago-site-demo.webp',
+                },
+            },
+        ],
     },
 ] as const satisfies readonly Showcase[];
