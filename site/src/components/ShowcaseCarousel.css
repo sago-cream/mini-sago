@@ -3,8 +3,14 @@
 }
 .showcase-navigation {
     display: flex;
+    align-items: center;
     gap: 16px;
     margin-bottom: 16px;
+}
+.showcase-more {
+    color: var(--clr-text-muted);
+    font-size: 14px;
+    white-space: nowrap;
 }
 .showcase-navigation button {
     min-height: 44px;
@@ -26,10 +32,15 @@
 }
 @media (max-width: 600px) {
     .showcase-navigation {
+        flex-wrap: wrap;
         gap: 12px;
     }
     .showcase-navigation button {
-        flex: 1;
+        flex: 1 0 24%;
         padding-inline: 4px;
+    }
+    .showcase-more {
+        flex-basis: 100%;
+        text-align: right;
     }
 }

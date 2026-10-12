@@ -3,7 +3,7 @@
     grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
     gap: 24px 64px;
     align-items: center;
-    padding-block: 56px;
+    padding-block: 96px;
 }
 .natural-copy h2 {
     margin-bottom: -16px;
@@ -37,6 +37,9 @@
         var(--clr-pink)
     );
 }
+.natural-section + .access-sago {
+    margin-block: 160px;
+}
 .access-sago h2 {
     font-size: clamp(26px, 2.5vw, 32px);
     letter-spacing: -1px;
@@ -54,6 +57,10 @@
     .natural-section {
         grid-template-columns: 1fr;
         gap: 32px;
+        padding-block: 64px;
+    }
+    .natural-section + .access-sago {
+        margin-block: 96px;
     }
     .natural-copy p {
         max-width: 640px;
@@ -70,5 +77,8 @@
     }
     .natural-section {
         padding-block: 48px;
+    }
+    .natural-section + .access-sago {
+        margin-block: 64px;
     }
 }

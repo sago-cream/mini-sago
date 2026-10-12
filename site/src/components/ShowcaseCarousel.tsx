@@ -35,6 +35,7 @@ export function ShowcaseCarousel(): JSX.Element {
                         {showcase.title}
                     </button>
                 ))}
+                <span className='showcase-more'>…還有更多！</span>
             </nav>
             <div
                 aria-label={selected.title}
