@@ -1,10 +1,14 @@
 # MiniSago website
 
 A Next.js landing page and an interactive feature guide, scaffolded with
-`npm create rail`. The landing page introduces natural-language use with an
+`npm create rail`. The landing page introduces natural-language use with
 three animated Discord examples. `/features/` groups detailed capabilities in a sidebar;
 each selection plays a sample conversation. Examples play once when visible,
-support pause/replay, and show the complete conversation for reduced motion.
+disable replay during playback, and show the conversation without animation for
+reduced motion. Calendar examples wait for confirmation or cancellation; their
+buttons affect only the local demonstration. Slash-command replies use Discord's
+private-response layout. Time skips show reminders arriving and subscriptions
+posting again; explanatory captions and sample sources identify illustrative data.
 
 Both pages explain access through shared Discord servers and link to the
 repository's self-host guide for readers who want their own instance.
