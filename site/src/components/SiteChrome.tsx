@@ -33,7 +33,12 @@ export function SiteHeader({ activePage }: SiteHeaderProps = {}): JSX.Element {
             </a>
             <header className='site-header' id='top'>
                 <div className='header-inner section-width'>
-                    <Link aria-label='MiniSago 首頁' className='brand' href='/'>
+                    {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- Native fragment navigation also scrolls repeated homepage clicks. */}
+                    <a
+                        aria-label='MiniSago 首頁'
+                        className='brand'
+                        href='/#top'
+                    >
                         <Image
                             alt=''
                             height={40}
@@ -41,16 +46,17 @@ export function SiteHeader({ activePage }: SiteHeaderProps = {}): JSX.Element {
                             width={40}
                         />
                         <span>mini sago</span>
-                    </Link>
+                    </a>
                     <nav aria-label='主要導覽' className='header-navigation'>
-                        <Link
+                        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- Use the same native top navigation as the brand. */}
+                        <a
                             aria-current={
                                 activePage === 'intro' ? 'page' : undefined
                             }
-                            href='/'
+                            href='/#top'
                         >
                             簡介
-                        </Link>
+                        </a>
                         <Link
                             aria-current={
                                 activePage === 'features' ? 'page' : undefined

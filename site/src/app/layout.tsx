@@ -24,7 +24,11 @@ interface RootLayoutProps {
 
 export default function RootLayout({ children }: RootLayoutProps): JSX.Element {
     return (
-        <html className={rounded.variable} lang='zh-Hant'>
+        <html
+            className={rounded.variable}
+            data-scroll-behavior='smooth'
+            lang='zh-Hant'
+        >
             <body>{children}</body>
         </html>
     );
