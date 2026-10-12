@@ -29,6 +29,13 @@
     color: var(--clr-teal-ink);
     line-height: 2;
 }
+.hero-description > span {
+    display: block;
+    text-wrap: balance;
+}
+.hero-description-phrase {
+    white-space: nowrap;
+}
 .hero-actions {
     display: flex;
     align-items: center;
