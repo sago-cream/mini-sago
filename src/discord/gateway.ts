@@ -1,3 +1,4 @@
+import { createFeatureAccess } from "./feature-access";
 import { getGuildMemoryStore } from "../chatbot/guild-memory";
 import { routeWithJev } from "../chatbot/jev-routing";
 import {
@@ -746,11 +747,15 @@ class InstagramGatewayClient implements VoiceGateway {
       }
 
       if (
-        this.featureAvailability.isEnabled("ambient_reactions", {
-          guildId: message.guild_id,
-          channelId: message.channel_id,
-          roleIds: message.member?.roles,
-        })
+        createFeatureAccess(
+          "ambient_reactions",
+          {
+            guildId: message.guild_id,
+            channelId: message.channel_id,
+            roleIds: message.member?.roles,
+          },
+          this.featureAvailability,
+        ).available()
       ) {
         this.ambientReactions.observe({
           message,

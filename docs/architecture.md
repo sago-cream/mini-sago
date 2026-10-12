@@ -67,6 +67,13 @@ Development runs until completion, cancellation, or worker disconnection.
 
 ## Context and MCP
 
+discord-mail serves hosted Google consent pages under `/mail`. A host-only
+encrypted SQLite store holds one read-only grant per approved mailbox and short
+lived invitation/OAuth state. The MCP capability and search/read tools are bound
+to owner-registered guilds/channels with current Discord membership and role
+filters, or the owner’s private text DM. Workers receive only bounded results. See
+[mail setup](mail.md).
+
 The host exposes one Streamable HTTP MCP endpoint. Tokens expire after 16
 minutes and bind to one workflow's requester, guild, channel, worker profile,
 and repository. `resolve_context` batches history, guild search, member lookup,
@@ -77,6 +84,14 @@ management. The request's capability catalog lists available and conditional
 conversation, attachment, reaction, development, Mac, and MCP features.
 Owner-only features are omitted for other requesters; the host binds identity
 and destinations wherever possible.
+
+A typed feature registry declares access modes, scopes, defaults, requirements,
+DM/voice rules, and capability metadata. The shared access guard binds trusted
+request identity, refreshes protected guild membership, and checks registration
+at execution and before releasing read results. MCP tools must declare a feature;
+owner-only tools remain owner-only. Integration credentials, Google resource ACLs,
+and Calendar confirmation remain additional checks. See
+[feature registration](feature-registration.md).
 
 Owners can change feature coverage without deploying. Persisted channel rules
 override guild rules. A separate subscription list selects destination channels
@@ -102,11 +117,13 @@ reminders per requester. Relative timers need no timezone; wall-clock and
 recurring requests need an IANA timezone or an unambiguous location.
 
 Operators can add `skipIfImagePosted: { threadId, userId }` to durable reminder
-state. Before sending, the host verifies the thread belongs to the reminder's
-channel and checks for that user's image attachments or embeds since local
-midnight. Legacy reminders use Asia/Taipei. A match skips that occurrence while
+state. Before sending, the host verifies the image thread belongs to the reminder's
+channel, or shares a parent with its destination thread, and checks for that
+user's image attachments or embeds since local midnight. Legacy reminders use
+Asia/Taipei. A match skips that occurrence while
 the recurring schedule advances; Discord failures leave it due for retry.
-Ordinary edits preserve the condition. Chat tools cannot configure it.
+Ordinary edits preserve the condition. Chat tools show it when listing or editing
+reminders but cannot configure it.
 
 ## Prompt harness and context policy
 

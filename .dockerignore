@@ -6,6 +6,7 @@
 .next
 .vercel
 node_modules
+.data
 **/node_modules
 workspace
 site

@@ -1,5 +1,10 @@
 # Configuration
 
+For optional multi-mailbox Gmail read-only access, hosted owner consent, and
+`MINISAGO_MAIL_*` host settings, see [discord-mail setup](mail.md). Mail tools are
+available in the bot owner’s private DM and explicitly registered guilds or
+channels, with optional role filters. Mail is disabled elsewhere by default.
+
 The checked-in environment examples are the mechanical source of truth:
 
 - `.env.example` for local development and the Mac helper;
@@ -46,6 +51,14 @@ live in [Discord setup](discord-setup.md) and [Workers](workers.md).
 
 See `.env.production.example` for production state paths and the complete
 scheduled-monitor variable names.
+
+Operators can set a reminder's `channelId` to a Discord thread. For drawing
+reminders, `skipIfImagePosted: { threadId, userId }` checks that user's images
+since midnight in the reminder's timezone. The image thread may be the
+destination or a sibling thread under the same parent channel. A matching image
+skips that day's reminder; its schedule continues. These fields live in
+`MINISAGO_REMINDER_STATE_FILE`; chat edits preserve the condition.
+Image-conditioned reminders send the user mention followed by the stored copy.
 
 `MINISAGO_CCXP_INDEX_PATH` enables read-only CCXP meeting retrieval in guilds
 registered under the owner-managed `ccxp_meetings` feature. Initial registrations
@@ -144,8 +157,9 @@ and `.data/feature-availability.json` elsewhere. The first change saves a policy
 initialized from environment settings and built-in defaults; saved policy then
 takes precedence. Owners can list, enable, disable, or restore inherited coverage
 for an exact guild or channel. Channel rules override guild rules, then feature
-defaults. Calendar, CCXP, and developer steering require explicit guild
-registrations; always-on capabilities are omitted. See
+defaults. Calendar, CCXP, Drive, and developer steering require explicit guild
+registrations. The owner listing also describes request and owner-only access
+modes; those modes cannot be made public through registration. See
 [role filters](#feature-registrations-and-role-filters) below.
 
 Background subscriptions default to `.data/service-subscriptions.json`,
@@ -184,9 +198,20 @@ send empty arrays to remove filtering. Disable denies the whole scope; inherit
 removes that scope's rule. Filters are accepted only with enable.
 
 Channel rules take precedence over guild rules, including a filtered channel
-rule that denies a member. Calendar, CCXP, and developer steering require guild
+rule that denies a member. Calendar, CCXP, Drive, and developer steering require guild
 registrations and a disabled global default. Other features support both scopes.
-Existing rules retain their coverage without role filters.
+Mail supports both guild and channel registration with a disabled global default.
+Register `mail` through `configure_feature_availability`; role filters control
+who may request mail, while responses are visible to everyone who can view the
+requesting conversation. Existing rules retain their coverage without role filters.
+
+The shared [feature registry and access guard](feature-registration.md) generate
+supported registration scopes, initial policies, and agent capability metadata.
+Drive is registered under `drive`: older state gains its previous guild
+`1514899496797212683` once, then saved policy controls coverage. Registration does
+not replace Google file ACLs or mapped Discord role checks. Protected tool calls
+refresh membership, and revoked registrations cannot release in-flight read
+results or previously issued Drive document media.
 
 Calendar is now a registered feature. Legacy state gains the original configured
 Calendar guild and the owner-approved registration for guild

@@ -1,3 +1,7 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { FeatureAvailabilityStore } from "../../discord/feature-availability";
 import { generateKeyPairSync, verify } from "node:crypto";
 import { expect, test } from "bun:test";
 import {
@@ -696,4 +700,98 @@ test("contact lookup reads only configured CSV identity columns, rechecks access
     ).status,
   ).toBe("unavailable");
   expect(requests).toHaveLength(all);
+});
+
+test("Drive uses persistent registration in place of the fixed guild gate and keeps file ACLs", async () => {
+  const root = await mkdtemp(join(tmpdir(), "minisago-drive-registration-"));
+  try {
+    const store = new FeatureAvailabilityStore(join(root, "features.json"), {});
+    const guildId = "1394943277836402779",
+      roleId = DRIVE_ROLE_MAPPINGS[0].roleId;
+    let roles: readonly string[] = [roleId];
+    const requestContext = {
+      guildId,
+      roleIds: [roleId],
+      resolveRequester: async () => ({ roleIds: roles }),
+    };
+    const data = fixture(() => Response.json({ files: [file] }));
+    expect(
+      createGoogleDriveClient(
+        env,
+        requestContext,
+        data.media,
+        data.request,
+        store,
+      ),
+    ).toBeUndefined();
+    await store.configure({
+      feature: "drive",
+      scope: "guild",
+      targetId: guildId,
+      action: "enable",
+      allowRoleIds: [roleId],
+    });
+    const client = createGoogleDriveClient(
+      env,
+      requestContext,
+      data.media,
+      data.request,
+      store,
+    )!;
+    expect(
+      (await client.call("search_drive_files", { driveId })).files,
+    ).toHaveLength(1);
+    roles = [];
+    const calls = data.calls.length;
+    expect(await client.call("search_drive_files", { driveId })).toEqual({
+      status: "forbidden",
+    });
+    expect(data.calls).toHaveLength(calls);
+    roles = [roleId];
+    await store.configure({
+      feature: "drive",
+      scope: "guild",
+      targetId: guildId,
+      action: "disable",
+    });
+    expect(await client.call("search_drive_files", { driveId })).toEqual({
+      status: "forbidden",
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("Drive revocation also closes already-issued document media", async () => {
+  const root = await mkdtemp(join(tmpdir(), "minisago-drive-media-policy-"));
+  try {
+    const store = new FeatureAvailabilityStore(join(root, "features.json"), {});
+    const data = fixture((url) =>
+      url.searchParams.get("alt") === "media"
+        ? new Response(new Uint8Array([1, 2, 3]))
+        : Response.json({ ...file, mimeType: "application/pdf" }),
+    );
+    const client = createGoogleDriveClient(
+      env,
+      context,
+      data.media,
+      data.request,
+      store,
+    )!;
+    const result = await client.call("read_drive_file", { fileId: file.id });
+    const asset = result.media as { mediaId: string };
+    expect(result.status).toBe("complete");
+    expect((await data.media.read(asset.mediaId)).bytes.length).toBe(3);
+    await store.configure({
+      feature: "drive",
+      scope: "guild",
+      targetId: DRIVE_GUILD_ID,
+      action: "disable",
+    });
+    await expect(data.media.read(asset.mediaId)).rejects.toThrow(
+      "registration is no longer available",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

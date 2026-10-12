@@ -1,6 +1,7 @@
 import { startCcxpAuthNotificationMonitor } from "./discord/jobs/ccxp-auth-notifications";
 import { handleVoiceDebugRequest } from "./discord/voice/voice-debug/http";
 import { handleCalendarPage } from "./chatbot/calendar/calendar-pages";
+import { handleMailRequest } from "./chatbot/mail/mail-auth";
 import type { Server } from "bun";
 
 import { getChatbotAccessConfig } from "./chatbot/access";
@@ -26,6 +27,7 @@ import { startToeflVocabScheduler } from "./discord/jobs/toefl-vocab";
 import { startXPostMonitor } from "./discord/jobs/x-post-monitor";
 import {
   configureChatbotReminderScheduler,
+  formatReminderMessage,
   type Reminder,
 } from "./discord/jobs/reminders";
 import { createDiscordRequest } from "./discord/api/request";
@@ -66,6 +68,8 @@ function handleRequest(request: Request, server: Server<MacAgentSocketData>) {
   const { pathname } = new URL(request.url);
   const calendarPage = handleCalendarPage(request);
   if (calendarPage) return calendarPage;
+  const mailResponse = handleMailRequest(request);
+  if (mailResponse) return mailResponse;
 
   if (
     pathname === "/voice-debug" ||
@@ -122,7 +126,7 @@ if (reminderBotToken) {
     await discordRequest(`/channels/${reminder.channelId}/messages`, {
       method: "POST",
       body: {
-        content: `<@${reminder.requesterUserId}> ⏰ ${reminder.content}`,
+        content: formatReminderMessage(reminder),
         allowed_mentions: {
           parse: [],
           users: [reminder.requesterUserId],

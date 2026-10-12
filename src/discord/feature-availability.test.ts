@@ -69,6 +69,8 @@ describe("feature availability", () => {
       "ccxp_meetings",
       "calendar",
       "developer_steering",
+      "mail",
+      "drive",
     ]);
   });
 
@@ -385,4 +387,44 @@ describe("role-filtered feature registrations", () => {
       availability.configure({ ...input, scope: "channel" }),
     ).rejects.toThrow("guild scope");
   });
+});
+
+test("mail upgrades legacy policies disabled, persists registrations, and rejects a global default", async () => {
+  const { directory, store: availability } = await store();
+  const guildId = "1394943277836402779",
+    channelId = "1517766866964316201",
+    role = "1394944058534920213";
+  expect(availability.isEnabled("mail", { guildId })).toBe(false);
+  const { mail, ...features } = availability.list().features;
+  const file = join(directory, "legacy-mail.json");
+  await writeFile(file, JSON.stringify({ version: 1, features }));
+  const migrated = new FeatureAvailabilityStore(file, {});
+  expect(migrated.list().features.mail).toEqual({
+    defaultEnabled: false,
+    rules: [],
+  });
+  await migrated.configure({
+    feature: "mail",
+    scope: "guild",
+    targetId: guildId,
+    action: "enable",
+    allowRoleIds: [role],
+  });
+  await migrated.configure({
+    feature: "mail",
+    scope: "channel",
+    targetId: channelId,
+    action: "disable",
+  });
+  const loaded = new FeatureAvailabilityStore(file, {});
+  expect(loaded.isEnabled("mail", { guildId, roleIds: [role] })).toBe(true);
+  expect(
+    loaded.isEnabled("mail", { guildId, channelId, roleIds: [role] }),
+  ).toBe(false);
+  const invalid = loaded.list();
+  invalid.features.mail.defaultEnabled = true;
+  await writeFile(file, JSON.stringify(invalid));
+  expect(() => new FeatureAvailabilityStore(file, {})).toThrow(
+    "explicit registrations",
+  );
 });

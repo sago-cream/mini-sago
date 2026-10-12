@@ -1,3 +1,8 @@
+import {
+  createFeatureAccess,
+  withFeatureAccess,
+} from "../discord/feature-access";
+import { featureCapability } from "../discord/features";
 import { createCcxpSyncClient } from "./ccxp/ccxp-sync";
 import { WebhookLoopTracker } from "./webhook-loop";
 import { createCcxpMeetingsClient } from "./ccxp/ccxp-meetings";
@@ -12,6 +17,7 @@ import { randomUUID } from "node:crypto";
 import { createGoogleDriveClient } from "./drive/google-drive";
 import { resolveDriveRequester } from "./drive/drive-discord-access";
 import { createGoogleCalendarClient } from "./calendar/google-calendar";
+import { createGoogleMailClient } from "./mail/google-mail";
 import type { ChatbotAccessConfig } from "./access";
 import {
   macAgentBridge,
@@ -25,10 +31,11 @@ import {
   type ChatbotGuildEmojiRenameInput,
   type ChatbotGuildExpressionInput,
   type ChatbotMcpSessionSnapshot,
+  type ChatbotMcpSessionHandlers,
 } from "./mcp";
 import {
   createTripPlannerClient,
-  tripPlannerAvailableForGuild,
+  type TripPlanEditInput,
 } from "./trip-planner";
 import { getGuildMemoryStore, type GuildMemoryStore } from "./guild-memory";
 import type {
@@ -94,7 +101,6 @@ import {
   isChannelWakeRequest,
 } from "../discord/channel-quiet";
 import {
-  getFeatureAvailabilityStore,
   type FeatureAvailabilityMutation,
   type FeatureAvailabilityStore,
 } from "../discord/feature-availability";
@@ -156,101 +162,60 @@ export function supplementalCapabilities({
   executionRoute: ChatbotExecutionRoute;
 }): ChatbotCapability[] {
   const capabilities: ChatbotCapability[] = [
-    {
-      id: "conversation",
-      category: "conversation",
-      availability: "available",
-      description:
-        "Answer, explain, write, reason, and use the supplied nearby Discord conversation while matching the requester's language.",
-    },
-    {
-      id: "nthu_campus",
-      category: "system",
-      availability: "available",
-      description:
-        "Look up current NTHU campus locations, departments, staff contacts, buses, courses, announcements, dining schedules, library spaces and lost items, newsletters, and electricity usage through the public NTHU Campus Assistant.",
-      tools: [
-        "search_campus",
-        "get_next_buses",
-        "get_bus_stops",
-        "search_courses",
-        "get_announcements",
-        "find_dining",
-        "get_library_info",
-        "get_newsletters",
-        "get_energy_usage",
-      ],
-    },
+    featureCapability("conversation", { availability: "available" }),
+    featureCapability("nthu_campus", { availability: "available" }),
   ];
 
   if (hasReactions) {
-    capabilities.push({
-      id: "message_reactions",
-      category: "discord",
-      availability: "available",
-      description:
-        "React to the current Discord message with one host-approved Unicode or custom emoji when a reaction is useful.",
-    });
+    capabilities.push(
+      featureCapability("message_reactions", { availability: "available" }),
+    );
   }
   capabilities.push(
-    {
-      id: "attachment_understanding",
-      category: "attachments",
+    featureCapability("attachment_understanding", {
       availability: hasAttachments ? "available" : "conditional",
-      description:
-        "Read supported extracted text and attachment metadata supplied with a request.",
       ...(!hasAttachments
         ? { condition: "The request must include or reply to an attachment." }
         : {}),
-    },
-    {
-      id: "media_processing",
-      category: "attachments",
+    }),
+    featureCapability("media_processing", {
       availability: "conditional",
-      description:
-        "Inspect or transform request-local images, audio, and video with bounded offline tools, including image conversion, video frames, transcoding, and Python-based analysis.",
       condition:
         "A supported attachment and a compatible chat worker are required; outputs are temporary and bounded.",
-    },
+    }),
   );
   if (isOwner && availableRepositories.length > 0) {
-    capabilities.push({
-      id: "repository_work",
-      category: "development",
-      availability: executionRoute === "oracle" ? "available" : "conditional",
-      description:
-        "Inspect repositories visible to the dedicated GitHub account and handle debugging, tests, builds, code changes, commits, feature-branch pushes, issue work, draft pull requests, releases, GitHub workflows, and ordinary pull-request merges when explicitly requested.",
-      condition:
-        executionRoute === "oracle"
-          ? "This owner request is running in Oracle."
-          : "The owner must make a request that identifies an accessible repository; merging requires an explicit current request.",
-    });
+    capabilities.push(
+      featureCapability("repository_work", {
+        availability: executionRoute === "oracle" ? "available" : "conditional",
+        condition:
+          executionRoute === "oracle"
+            ? "This owner request is running in Oracle."
+            : "The owner must make a request that identifies an accessible repository; merging requires an explicit current request.",
+      }),
+    );
   }
   if (isOwner && chatbotRepository) {
-    capabilities.push({
-      id: "self_development",
-      category: "development",
-      availability: executionRoute === "oracle" ? "available" : "conditional",
-      description:
-        "Inspect or change your own behavior and implementation through the configured chatbot repository, and deploy it from main when explicitly requested.",
-      condition:
-        executionRoute === "oracle"
-          ? "This owner request is running in Oracle."
-          : "The owner must explicitly request a change to your behavior or implementation, or deployment of the configured chatbot repository.",
-    });
+    capabilities.push(
+      featureCapability("self_development", {
+        availability: executionRoute === "oracle" ? "available" : "conditional",
+        condition:
+          executionRoute === "oracle"
+            ? "This owner request is running in Oracle."
+            : "The owner must explicitly request a change to your behavior or implementation, or deployment of the configured chatbot repository.",
+      }),
+    );
   }
   if (isOwner) {
-    capabilities.push({
-      id: "mac_file_delivery",
-      category: "attachments",
-      availability: executionRoute === "mac" ? "available" : "conditional",
-      description:
-        "Find and send one requested file from the owner's allowlisted Mac folders without reading its contents.",
-      condition:
-        executionRoute === "mac"
-          ? "This request has already been routed to the connected Mac."
-          : "The owner must explicitly request a file and a compatible Mac worker must be connected.",
-    });
+    capabilities.push(
+      featureCapability("mac_file_delivery", {
+        availability: executionRoute === "mac" ? "available" : "conditional",
+        condition:
+          executionRoute === "mac"
+            ? "This request has already been routed to the connected Mac."
+            : "The owner must explicitly request a file and a compatible Mac worker must be connected.",
+      }),
+    );
   }
 
   return capabilities;
@@ -437,11 +402,17 @@ export function isChatbotAuthorized(
   return (
     userId === accessConfig.ownerUserId ||
     (featureAvailability
-      ? featureAvailability.isEnabled("chatbot", {
-          guildId,
-          channelId,
-          roleIds,
-        })
+      ? createFeatureAccess(
+          "chatbot",
+          {
+            guildId,
+            channelId,
+            roleIds,
+            requesterId: userId,
+            ownerId: accessConfig.ownerUserId,
+          },
+          featureAvailability,
+        ).available()
       : (guildId !== undefined && accessConfig.guildIds.has(guildId)) ||
         (channelId !== undefined && accessConfig.channelIds.has(channelId)))
   );
@@ -1338,18 +1309,6 @@ export async function handleChatbotMention({
   let reactionCapabilities: DiscordReactionCapabilities | undefined;
   try {
     const execute = async () => {
-      const featureEnabled = (
-        feature: Parameters<FeatureAvailabilityStore["isEnabled"]>[0],
-      ) =>
-        featureAvailability
-          ? featureAvailability.isEnabled(feature, {
-              guildId: message.guild_id,
-              channelId: message.channel_id,
-              roleIds: message.member?.roles,
-            })
-          : feature === "trip_planner"
-            ? tripPlannerAvailableForGuild(message.guild_id)
-            : true;
       const historyDone = clock.start("host.nearby_history");
       const requestMessage = toChatbotMessage(message, botUserId);
       let messages = invocation?.recentContext
@@ -1507,15 +1466,13 @@ export async function handleChatbotMention({
           }
         : undefined;
       const reminderScheduler = getChatbotReminderScheduler();
-      const tripPlanner = featureEnabled("trip_planner")
-        ? createTripPlannerClient(process.env, `minisago-${message.id}`)
-        : undefined;
-
-      const calendarContext = {
+      const featureContext = {
         guildId: message.guild_id,
         channelId: message.channel_id,
         roleIds: message.member?.roles,
         messageId: message.id,
+        requesterId: requesterUserId,
+        ownerId: accessConfig.ownerUserId,
         resolveRoleIds: async () =>
           (
             await resolveDriveRequester(
@@ -1524,16 +1481,24 @@ export async function handleChatbotMention({
             )
           ).roleIds,
       };
+      const tripAccess = createFeatureAccess(
+        "trip_planner",
+        featureContext,
+        featureAvailability,
+      );
+      const tripPlanner = tripAccess.available()
+        ? createTripPlannerClient(process.env, `minisago-${message.id}`)
+        : undefined;
       const calendar = createGoogleCalendarClient(
         process.env,
-        calendarContext,
+        featureContext,
         fetch,
         featureAvailability,
       );
       const drive = createGoogleDriveClient(
         process.env,
         {
-          guildId: message.guild_id,
+          ...featureContext,
           resolveRequester: () =>
             resolveDriveRequester(
               {
@@ -1544,24 +1509,32 @@ export async function handleChatbotMention({
             ),
         },
         mediaRegistry,
+        fetch,
+        featureAvailability,
       );
       const ccxpMeetings = createCcxpMeetingsClient(
         process.env,
-        { guildId: message.guild_id, roleIds: message.member?.roles },
+        featureContext,
         featureAvailability,
       );
       const ccxpSync = createCcxpSyncClient(
         process.env,
         {
-          guildId: message.guild_id,
-          requesterId: requesterUserId,
-          ownerId: accessConfig.ownerUserId,
-          messageId: message.id,
-          roleIds: message.member?.roles,
+          ...featureContext,
         },
         featureAvailability,
       );
-      mcpSession = registerChatbotMcpSession({
+      const mail = createGoogleMailClient(
+        process.env,
+        {
+          ...featureContext,
+          requesterId: requesterUserId,
+          ownerId: accessConfig.ownerUserId,
+        },
+        fetch,
+        featureAvailability,
+      );
+      const requestMcpHandlers: ChatbotMcpSessionHandlers = {
         ...(message.guild_id
           ? {
               mentionMembers: createMemberMentionHandler({
@@ -1587,22 +1560,16 @@ export async function handleChatbotMention({
                   requesterId: requesterUserId,
                 },
                 discordRequest,
-                async () => {
-                  try {
-                    return (
-                      featureAvailability ?? getFeatureAvailabilityStore()
-                    ).isEnabled("calendar", {
-                      ...calendarContext,
-                      roleIds: await calendarContext.resolveRoleIds(),
-                    });
-                  } catch {
-                    return false;
-                  }
-                },
+                createFeatureAccess(
+                  "calendar",
+                  featureContext,
+                  featureAvailability,
+                ).allowed,
               ),
             }
           : {}),
         ...(drive ? { drive } : {}),
+        ...(mail ? { mail } : {}),
         getCodexUsage: () => workflow.getCodexUsage(),
         ...(quietTracker
           ? {
@@ -1612,8 +1579,18 @@ export async function handleChatbotMention({
           : {}),
         ...(tripPlanner
           ? {
-              readTripPlan: tripPlanner.read,
-              ...(tripPlanner.edit ? { editTripPlan: tripPlanner.edit } : {}),
+              readTripPlan: (input) =>
+                withFeatureAccess(tripAccess, () => tripPlanner.read(input)),
+              ...(tripPlanner.edit
+                ? {
+                    editTripPlan: (input: TripPlanEditInput) =>
+                      withFeatureAccess(
+                        tripAccess,
+                        () => tripPlanner.edit!(input),
+                        false,
+                      ),
+                  }
+                : {}),
             }
           : {}),
         resolveContext: async ({
@@ -1847,6 +1824,9 @@ export async function handleChatbotMention({
                     ...(reminder.timezone
                       ? { timezone: reminder.timezone }
                       : {}),
+                    ...(reminder.skipIfImagePosted
+                      ? { skipIfImagePosted: reminder.skipIfImagePosted }
+                      : {}),
                   }),
                 ),
               editReminder: async (input) => {
@@ -1861,6 +1841,9 @@ export async function handleChatbotMention({
                   nextRunAt: reminder.nextRunAt,
                   ...(reminder.cron ? { cron: reminder.cron } : {}),
                   ...(reminder.timezone ? { timezone: reminder.timezone } : {}),
+                  ...(reminder.skipIfImagePosted
+                    ? { skipIfImagePosted: reminder.skipIfImagePosted }
+                    : {}),
                 };
               },
               cancelReminder: (reminderId: string) =>
@@ -1874,7 +1857,12 @@ export async function handleChatbotMention({
               leaveVoiceChannel: () => leaveVoiceChannel(message.guild_id!),
             }
           : {}),
+      };
+      mcpSession = registerChatbotMcpSession(requestMcpHandlers, {
+        featureAccess: (feature) =>
+          createFeatureAccess(feature, featureContext, featureAvailability),
       });
+
       resources.attachSession(mcpSession);
 
       if (
@@ -2013,10 +2001,18 @@ export async function handleChatbotMention({
           loadPreviousTask: async () =>
             (await getPreviousTrace()).developerTask,
           allowParticipantSteering: (participant) =>
-            featureAvailability?.isEnabled("developer_steering", {
-              guildId: message.guild_id,
-              roleIds: participant.member?.roles,
-            }) ?? false,
+            featureAvailability
+              ? createFeatureAccess(
+                  "developer_steering",
+                  {
+                    guildId: message.guild_id,
+                    roleIds: participant.member?.roles,
+                    requesterId: participant.author?.id,
+                    ownerId: accessConfig.ownerUserId,
+                  },
+                  featureAvailability,
+                ).available()
+              : false,
           activateContext: (threadId) => {
             contextChannelId = threadId;
           },

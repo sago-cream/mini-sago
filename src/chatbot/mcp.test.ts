@@ -1,3 +1,4 @@
+import { createFeatureAccess } from "../discord/feature-access";
 import { calendarSettings } from "./calendar/calendar-settings";
 import { afterEach, describe, expect, test } from "bun:test";
 
@@ -9,7 +10,7 @@ import {
   handleChatbotMcpRequest,
   normalizeReminderEdit,
   normalizeReminderSchedule,
-  registerChatbotMcpSession,
+  registerChatbotMcpSession as registerBoundChatbotMcpSession,
 } from "./mcp";
 
 const servers: Array<ReturnType<typeof Bun.serve>> = [];
@@ -194,7 +195,9 @@ describe("MiniSago MCP server", () => {
           trip_planner: policy,
           ccxp_meetings: policy,
           developer_steering: policy,
+          mail: policy,
           calendar: policy,
+          drive: policy,
         },
       }),
       configureFeatureAvailability: async (input) => {
@@ -217,6 +220,23 @@ describe("MiniSago MCP server", () => {
     expect(tools.tools.map((tool) => tool.name)).toContain(
       "configure_feature_availability",
     );
+    const listed = await client.callTool({
+      name: "list_feature_availability",
+      arguments: {},
+    });
+    expect(listed.structuredContent).toMatchObject({
+      definitions: {
+        drive: { access: "registered", scopes: ["guild"] },
+        mail: {
+          access: "registered",
+          scopes: ["guild", "channel"],
+          dm: "owner",
+          voice: false,
+        },
+        feature_availability: { access: "owner" },
+        reminders: { access: "request" },
+      },
+    });
     const result = await client.callTool({
       name: "configure_feature_availability",
       arguments: {
@@ -1020,6 +1040,7 @@ describe("MiniSago MCP server", () => {
           id: "123e4567-e89b-12d3-a456-426614174000",
           content: "stand up",
           nextRunAt: "2026-07-26T01:00:00.000Z",
+          skipIfImagePosted: { threadId: "789", userId: "123" },
         },
       ],
       editReminder: async (input) => {
@@ -1103,7 +1124,12 @@ describe("MiniSago MCP server", () => {
     });
     expect(listResult.structuredContent).toMatchObject({
       status: "complete",
-      reminders: [{ content: "stand up" }],
+      reminders: [
+        {
+          content: "stand up",
+          skipIfImagePosted: { threadId: "789", userId: "123" },
+        },
+      ],
     });
 
     const editResult = await client.callTool({
@@ -1219,6 +1245,64 @@ test("exposes on-demand Threads search and validates extra keywords", async () =
   session.revoke();
 });
 
+test("Mail tools are conditional, read-only, and preserve strict schemas through MCP", async () => {
+  const absentSession = registerChatbotMcpSession(handlers());
+  const absent = await connect(absentSession.token);
+  expect(
+    (await absent.listTools()).tools.some(
+      (tool) => tool.name === "search_mail",
+    ),
+  ).toBe(false);
+  expect(absentSession.capabilities.some((item) => item.id === "mail")).toBe(
+    false,
+  );
+  const calls: unknown[] = [];
+  const session = registerChatbotMcpSession({
+    ...handlers(),
+    mail: {
+      call: async (name, input) => {
+        calls.push({ name, input });
+        return { status: "complete" };
+      },
+    },
+  });
+  expect(
+    session.capabilities.find((item) => item.id === "mail")?.tools,
+  ).toEqual(["list_mail_accounts", "search_mail", "read_mail"]);
+  const client = await connect(session.token);
+  const tools = (await client.listTools()).tools.filter(
+    (tool) => tool.name.endsWith("_mail") || tool.name === "list_mail_accounts",
+  );
+  expect(tools).toHaveLength(3);
+  for (const tool of tools)
+    expect(tool.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+    });
+  await client.callTool({
+    name: "search_mail",
+    arguments: { account: "all", query: "in:inbox" },
+  });
+  expect(calls).toHaveLength(1);
+  expect(
+    (
+      await client.callTool({
+        name: "read_mail",
+        arguments: {
+          account: "nthusc@gapp.nthu.edu.tw",
+          messageId: "abcdef123456",
+          requesterId: "other",
+        },
+      })
+    ).isError,
+  ).toBe(true);
+  expect(calls).toHaveLength(1);
+  await client.close();
+  await absent.close();
+  session.revoke();
+  absentSession.revoke();
+});
+
 test("Drive tools are conditional, read-only, and preserve strict schemas through MCP", async () => {
   const emptySession = registerChatbotMcpSession(handlers());
   const absent = await connect(emptySession.token);
@@ -1318,7 +1402,9 @@ test("CCXP maintenance tools expose explicit queued/status actions separately fr
     ccxpSync: {
       call: async (name) => {
         calls.push(name);
-        return { status: name === "request_ccxp_sync" ? "queued" : "complete" };
+        return {
+          status: name === "request_ccxp_sync" ? "queued" : "complete",
+        };
       },
     },
   });
@@ -1349,3 +1435,111 @@ test("CCXP maintenance tools expose explicit queued/status actions separately fr
   await client.close();
   session.revoke();
 });
+
+test("bound feature access hides owner tools even if a handler is accidentally supplied", async () => {
+  let calls = 0;
+  const session = registerChatbotMcpSession(
+    {
+      ...handlers(),
+      sendChannelMessage: async () => {
+        calls++;
+        return {
+          id: "never-sent",
+          channelId: "1517766866964316201",
+          guildId: "1394943277836402779",
+          jumpUrl:
+            "https://discord.com/channels/1394943277836402779/1517766866964316201/never-sent",
+        };
+      },
+    },
+    {
+      featureAccess: (feature) =>
+        createFeatureAccess(
+          feature,
+          { requesterId: "member", ownerId: "owner" },
+          { isEnabled: () => false },
+        ),
+    },
+  );
+  expect(session.capabilities.some((c) => c.id === "channel_messaging")).toBe(
+    false,
+  );
+  const client = await connect(session.token);
+  expect(
+    (await client.listTools()).tools.some(
+      (t) => t.name === "send_channel_message",
+    ),
+  ).toBe(false);
+  expect(
+    (
+      await client.callTool({
+        name: "send_channel_message",
+        arguments: { channelId: "1517766866964316201", content: "never send" },
+      })
+    ).isError,
+  ).toBe(true);
+  expect(calls).toBe(0);
+  await client.close();
+  session.revoke();
+});
+
+test("MCP common guard rechecks membership and suppresses a read revoked during execution", async () => {
+  let registered = true,
+    roles: readonly string[] = ["allowed"],
+    calls = 0;
+  const session = registerChatbotMcpSession(
+    {
+      ...handlers(),
+      readTripPlan: async () => {
+        calls++;
+        registered = false;
+        return { status: "complete", text: "private itinerary" };
+      },
+    },
+    {
+      featureAccess: (feature) =>
+        createFeatureAccess(
+          feature,
+          {
+            guildId: "1394943277836402779",
+            roleIds: ["allowed"],
+            resolveRoleIds: async () => roles,
+          },
+          {
+            isEnabled: (_feature, context) =>
+              registered && Boolean(context.roleIds?.includes("allowed")),
+          },
+        ),
+    },
+  );
+  const client = await connect(session.token);
+  roles = [];
+  expect(
+    (await client.callTool({ name: "read_trip_plan", arguments: {} }))
+      .structuredContent,
+  ).toEqual({ status: "forbidden" });
+  expect(calls).toBe(0);
+  roles = ["allowed"];
+  expect(
+    (await client.callTool({ name: "read_trip_plan", arguments: {} }))
+      .structuredContent,
+  ).toEqual({ status: "forbidden" });
+  expect(calls).toBe(1);
+  await client.close();
+  session.revoke();
+});
+
+// These handlers are local fixtures; no real integration or Discord action is available.
+function fixtureFeatureAccess() {
+  return { available: () => true, allowed: async () => true };
+}
+
+function registerChatbotMcpSession(
+  handlers: Parameters<typeof registerBoundChatbotMcpSession>[0],
+  options: Partial<Parameters<typeof registerBoundChatbotMcpSession>[1]> = {},
+) {
+  return registerBoundChatbotMcpSession(handlers, {
+    featureAccess: fixtureFeatureAccess,
+    ...options,
+  });
+}

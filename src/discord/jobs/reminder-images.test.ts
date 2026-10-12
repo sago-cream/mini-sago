@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { DiscordRequest } from "../api/request";
 import { shouldSkipImageReminder } from "./reminder-images";
-import { ReminderScheduler, type Reminder } from "./reminders";
+import {
+  formatReminderMessage,
+  ReminderScheduler,
+  type Reminder,
+} from "./reminders";
 
 const reminder: Reminder = {
   id: "test",
@@ -18,6 +22,20 @@ const reminder: Reminder = {
   skipIfImagePosted: { threadId: "789", userId: "123" },
 };
 const now = new Date("2026-09-11T15:00:00Z");
+
+test("drawing reminders use only the mention and requested copy", () => {
+  const content = "今天是不是還沒畫畫";
+  expect(formatReminderMessage({ ...reminder, content })).toBe(
+    "<@123> 今天是不是還沒畫畫",
+  );
+  expect(
+    formatReminderMessage({
+      ...reminder,
+      content,
+      skipIfImagePosted: undefined,
+    }),
+  ).toBe("<@123> ⏰ 今天是不是還沒畫畫");
+});
 const message = (timestamp = "2026-09-10T16:00:00Z", author = "123") => ({
   id: "1000",
   timestamp,
@@ -133,6 +151,46 @@ test("does not treat Discord failures or the wrong parent as permission to send"
   await expect(
     shouldSkipImageReminder(reminder, wrongParent, now),
   ).rejects.toThrow("belong");
+});
+
+test("checks artwork when delivery goes to the same or a sibling thread", async () => {
+  for (const channelId of ["789", "321"]) {
+    const paths: string[] = [];
+    const threadRequest = (async (path: string) => {
+      paths.push(path);
+      return path.includes("/messages?")
+        ? [message()]
+        : { type: 11, parent_id: "456" };
+    }) as DiscordRequest;
+    expect(
+      await shouldSkipImageReminder(
+        { ...reminder, channelId },
+        threadRequest,
+        now,
+      ),
+    ).toBe(true);
+    expect(paths.at(-1)).toBe("/channels/789/messages?limit=100");
+  }
+});
+
+test("rejects unrelated threads and non-thread destinations", async () => {
+  for (const destination of [
+    { type: 11, parent_id: "999" },
+    { type: 0, parent_id: "456" },
+    { type: 11 },
+  ]) {
+    const threadRequest = (async (path: string) =>
+      path === "/channels/789"
+        ? { parent_id: "456" }
+        : destination) as DiscordRequest;
+    await expect(
+      shouldSkipImageReminder(
+        { ...reminder, channelId: "321" },
+        threadRequest,
+        now,
+      ),
+    ).rejects.toThrow("belong");
+  }
 });
 
 test("persists a skipped day's advancement, preserves condition on edits, and sends the next day", async () => {

@@ -6,19 +6,27 @@ permissions.
 
 ## Capability boundary
 
-| Capability                                        | Community | Owner                    |
-| ------------------------------------------------- | --------- | ------------------------ |
-| Conversation and public web research              | Yes       | Yes                      |
-| Permission-filtered Discord context               | Yes       | Yes                      |
-| Host-bound reminders and voice actions            | Yes       | Yes                      |
-| Cross-channel messaging and expression management | No        | Yes                      |
-| Repository checkout and developer commands        | No        | Yes                      |
-| GitHub mutation                                   | No        | Owner-routed tasks only  |
-| Mac file search and upload                        | No        | Explicit Mac target only |
+| Capability                                 | Community                        | Owner                                      |
+| ------------------------------------------ | -------------------------------- | ------------------------------------------ |
+| Conversation and public web research       | Yes                              | Yes                                        |
+| Permission-filtered Discord context        | Yes                              | Yes                                        |
+| Host-bound reminders and voice actions     | Yes                              | Yes                                        |
+| Expression management in shared servers    | Yes                              | Yes                                        |
+| Cross-channel messaging                    | No                               | Yes                                        |
+| Repository checkout and developer commands | No                               | Yes                                        |
+| GitHub mutation                            | No                               | Owner-routed tasks only                    |
+| Mac file search and upload                 | No                               | Explicit Mac target only                   |
+| Approved Gmail mailbox search and read     | Registered guild/channel + roles | Registered guild/channel + roles; owner DM |
 
 The hosted service checks requester identity before dispatch. The worker checks
 the declared capabilities again before Codex runs. Authorization never depends
 on matching phrases in the request.
+
+The shared feature registry declares request, owner-only, and registered access.
+The host binds identity and checks access at tool execution; protected reads
+refresh guild membership and recheck policy before releasing results. Google
+resource permissions and mutation confirmations still apply. See
+[feature registration](feature-registration.md).
 
 CCXP meeting tools require an explicit owner-managed guild registration and a
 configured read-only index mount. DMs and unregistered guilds have no access,
@@ -32,6 +40,18 @@ remain manual, with deduplicated owner DMs when login requires attention. See
 [CCXP meeting retrieval](ccxp-meetings.md) for retention and recovery.
 
 ## Discord boundaries
+
+discord-mail keeps encrypted per-mailbox refresh tokens and the OAuth client
+secret on core. Invitations bind approval to an allowlisted address, verified
+Google identity and Gmail profile; browser-bound state and PKCE protect the
+callback. Mail tools require explicit guild/channel registration and current Discord
+membership with role filters, or the bot owner’s private text DM. Unregistered
+guilds, other DMs, and voice have no mail tools. Every call rechecks policy,
+configured accounts, and stored grants; in-flight revocation withholds results.
+Role filters restrict requesters; everyone who can view the requesting channel
+can see the reply. Email content is untrusted reference data, never instructions
+or server memory. See
+[mail setup and retention](mail.md).
 
 Chatbot access uses an owner ID, allowed guilds, and optional channel
 exceptions. Ambient reactions use the same community boundary. Guild searches

@@ -108,15 +108,18 @@ describe("MiniSago media MCP", () => {
         };
       }) as DiscordRequest,
     );
-    const session = registerChatbotMcpSession({
-      mediaRegistry: registry,
-      resolveContext: async () => ({
-        history: { status: "complete" as const, messages: [] },
-        search: { status: "not_requested" as const, results: [] },
-        members: { status: "not_requested" as const, results: [] },
-        previousTrace: { status: "not_requested" as const },
-      }),
-    });
+    const session = registerChatbotMcpSession(
+      {
+        mediaRegistry: registry,
+        resolveContext: async () => ({
+          history: { status: "complete" as const, messages: [] },
+          search: { status: "not_requested" as const, results: [] },
+          members: { status: "not_requested" as const, results: [] },
+          previousTrace: { status: "not_requested" as const },
+        }),
+      },
+      { featureAccess: fixtureFeatureAccess },
+    );
     const server = Bun.serve({
       hostname: "127.0.0.1",
       port: 0,
@@ -185,3 +188,8 @@ describe("MiniSago media MCP", () => {
     }
   });
 });
+
+// These handlers are local fixtures; no real integration or Discord action is available.
+function fixtureFeatureAccess() {
+  return { available: () => true, allowed: async () => true };
+}
