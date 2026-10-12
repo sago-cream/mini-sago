@@ -129,17 +129,18 @@ export function DiscordDemo({ channel, messages }: DemoProps): JSX.Element {
                 >
                     {messages.slice(0, shown).map((message, index) => (
                         <div
-                            className={`discord-message message-${message.author} ${message.replyTo === undefined ? '' : 'message-reply'} ${messages.at(index - 1)?.author === message.author && index > 0 && message.replyTo === undefined ? 'message-continuation' : ''}`}
+                            className={`discord-message message-${message.author} ${message.replyTo === undefined ? '' : 'message-reply'} ${messages.at(index - 1)?.author === message.author && messages.at(index - 1)?.userName === message.userName && index > 0 && message.replyTo === undefined ? 'message-continuation' : ''}`}
                             key={`${message.author}-${index}`}
                         >
                             {message.replyTo !== undefined && (
                                 <div className='discord-reply-context'>
-                                    <span
-                                        aria-hidden='true'
-                                        className='human-avatar reply-avatar'
-                                    >
-                                        你
-                                    </span>
+                                    <Image
+                                        alt=''
+                                        className='reply-avatar'
+                                        height={16}
+                                        src='/demos/discord-avatar.png'
+                                        width={16}
+                                    />
                                     <strong>@你</strong>
                                     <span>{message.replyTo}</span>
                                 </div>
@@ -157,19 +158,21 @@ export function DiscordDemo({ channel, messages }: DemoProps): JSX.Element {
                                             width={40}
                                         />
                                     ) : (
-                                        <span
-                                            aria-hidden='true'
-                                            className='discord-avatar human-avatar'
-                                        >
-                                            你
-                                        </span>
+                                        <Image
+                                            alt=''
+                                            className='discord-avatar'
+                                            height={40}
+                                            src='/demos/discord-avatar.png'
+                                            width={40}
+                                        />
                                     )}
                                     <div className='discord-message-body'>
                                         <div className='discord-author'>
                                             <strong>
                                                 {message.author === 'sago'
                                                     ? '迷你西米露'
-                                                    : '你'}
+                                                    : (message.userName ??
+                                                      '你')}
                                             </strong>
                                             {message.author === 'sago' && (
                                                 <span className='discord-app-tag'>
@@ -208,6 +211,18 @@ export function DiscordDemo({ channel, messages }: DemoProps): JSX.Element {
                                                     <li key={item}>{item}</li>
                                                 ))}
                                             </ul>
+                                        )}
+                                        {message.links && (
+                                            <div className='discord-message-links'>
+                                                {message.links.map((link) => (
+                                                    <a
+                                                        href={link.href}
+                                                        key={link.href}
+                                                    >
+                                                        {link.label}
+                                                    </a>
+                                                ))}
+                                            </div>
                                         )}
                                         {message.emoji && (
                                             <Image

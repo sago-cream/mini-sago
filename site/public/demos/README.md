@@ -10,9 +10,18 @@ These files came from MiniSago tests in Sago Lab's `mini-sago` channel on
 - `minisago-128.webp`: Discord's lossless WebP representation of the bot's
   transparent 128 × 128 PNG response.
 
-The landing page and document, image, and expression examples use these results.
+The landing carousel combines these captured assets with illustrative flows for
+image resizing and emoji migration, discussion summaries, and campus activities.
+The document, image, and expression feature examples use the captured results.
+The carousel's migration, campus lookup, and reminder dialogue is illustrative,
+not a transcript of additional bot tests. The campus source link points to NTHU's
+official shuttle information; the example does not specify current departures.
 Other conversations illustrate capabilities; the calendar confirmation embed and
 buttons follow `src/chatbot/calendar/calendar-message.ts`.
+
+`discord-avatar.png` is Discord's default blurple user avatar from
+`https://cdn.discordapp.com/embed/avatars/0.png`, used consistently for example
+users and their reply previews.
 
 `discord-icons/` contains static composer SVG artwork observed in Discord web.
 The demo uses Discord's native icon shapes with the neutral dark-theme color.

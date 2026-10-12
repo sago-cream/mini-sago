@@ -9,6 +9,7 @@ export interface DemoFile {
 }
 export interface DemoMessage {
     readonly author: 'user' | 'sago' | 'notice';
+    readonly userName?: string;
     readonly text: string;
     readonly file?: DemoFile;
     readonly replyTo?: string;
@@ -22,6 +23,10 @@ export interface DemoMessage {
         readonly color: string;
     };
     readonly buttons?: readonly string[];
+    readonly links?: ReadonlyArray<{
+        readonly label: string;
+        readonly href: string;
+    }>;
 }
 export interface Feature {
     readonly id: string;

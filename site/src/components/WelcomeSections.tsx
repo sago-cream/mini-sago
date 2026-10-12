@@ -2,8 +2,8 @@ import type { JSX } from 'react';
 import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 
-import { LANDING_CONVERSATION, SELF_HOST_URL } from '@/features';
-import { DiscordDemo } from './DiscordDemo';
+import { SELF_HOST_URL } from '@/features';
+import { ShowcaseCarousel } from './ShowcaseCarousel';
 
 import './WelcomeSections.css';
 
@@ -23,7 +23,7 @@ export function NaturalLanguage(): JSX.Element {
                     探索所有工具 <ArrowRight aria-hidden='true' size={20} />
                 </Link>
             </div>
-            <DiscordDemo channel='活動籌備' messages={LANDING_CONVERSATION} />
+            <ShowcaseCarousel />
         </section>
     );
 }
