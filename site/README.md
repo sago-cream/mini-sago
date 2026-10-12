@@ -16,11 +16,10 @@ Discord tools, and development. Office work includes file processing, Mac file
 retrieval, calendar actions, and feature settings. Conversation summaries include
 older channel discussions; web search has its own example.
 
-Both pages explain access through shared Discord servers and link to the
-repository's self-host guide for readers who want their own instance.
-
-`/features/review/` shows all feature descriptions, complete conversations, and
-notes together without playback, for reviewing and annotating the copy in Codex.
+The landing page explains access through shared Discord servers and links to the
+repository's self-host guide for readers who want their own instance. The feature
+guide fills the viewport, with independent scrolling for the sidebar and the
+conversation; a minimal footer contains the access-scope note.
 
 `/privacy/` explains the hosted bot's data processing and deletion requests;
 `/terms/` explains access, acceptable use, and service limitations. Both use the

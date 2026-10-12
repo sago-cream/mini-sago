@@ -24,11 +24,29 @@
     width: 100%;
 }
 .header-inner {
+    position: relative;
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 24px;
+}
+.header-navigation {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    font-size: 14px;
+    white-space: nowrap;
+}
+.header-navigation a:hover,
+.header-navigation a[aria-current='page'] {
+    color: var(--clr-accent);
+}
+.header-navigation a[aria-current='page'] {
+    font-weight: 600;
 }
 .brand {
     display: flex;
@@ -151,6 +169,12 @@ h2 {
     .brand img {
         width: 32px;
         height: 32px;
+    }
+    .brand > span {
+        display: none;
+    }
+    .header-navigation {
+        gap: 16px;
     }
     .github-link {
         padding: 8px 12px;

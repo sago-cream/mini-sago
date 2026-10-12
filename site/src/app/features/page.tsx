@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 
 import { FeatureAccessNote } from '@/components/FeatureAccessNote';
 import { FeatureExplorer } from '@/components/FeatureExplorer';
-import { SiteFooter, SiteHeader } from '@/components/SiteChrome';
-import { AccessSago } from '@/components/WelcomeSections';
+import { SiteHeader } from '@/components/SiteChrome';
+
+import './features.css';
 
 export const metadata: Metadata = {
     title: '功能導覽 — MiniSago',
@@ -13,17 +14,15 @@ export const metadata: Metadata = {
 };
 export default function FeatureGuidePage() {
     return (
-        <>
-            <SiteHeader />
-            <main id='main'>
-                <div className='guide-heading section-width'>
-                    <h1>功能導覽</h1>
-                    <FeatureAccessNote />
-                </div>
+        <div className='feature-guide-page'>
+            <SiteHeader activePage='features' />
+            <main className='feature-guide-main' id='main'>
+                <h1 className='visually-hidden'>功能導覽</h1>
                 <FeatureExplorer />
-                <AccessSago />
             </main>
-            <SiteFooter />
-        </>
+            <footer className='feature-guide-footer section-width'>
+                <FeatureAccessNote />
+            </footer>
+        </div>
     );
 }

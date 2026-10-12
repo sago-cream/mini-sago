@@ -91,16 +91,6 @@
 .feature-mobile-menu {
     display: none;
 }
-.guide-heading {
-    padding-block: 12px;
-    text-align: center;
-}
-.guide-heading h1 {
-    font-size: clamp(36px, 4vw, 48px);
-    line-height: 1.4;
-    letter-spacing: -1px;
-    margin: 0;
-}
 @media (max-width: 1000px) {
     .feature-workspace {
         padding-bottom: 64px;

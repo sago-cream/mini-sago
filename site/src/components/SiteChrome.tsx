@@ -21,7 +21,11 @@ function GitHubLink(): JSX.Element {
     );
 }
 
-export function SiteHeader(): JSX.Element {
+interface SiteHeaderProps {
+    readonly activePage?: 'intro' | 'features';
+}
+
+export function SiteHeader({ activePage }: SiteHeaderProps = {}): JSX.Element {
     return (
         <>
             <a className='skip-link' href='#main'>
@@ -38,6 +42,24 @@ export function SiteHeader(): JSX.Element {
                         />
                         <span>mini sago</span>
                     </Link>
+                    <nav aria-label='主要導覽' className='header-navigation'>
+                        <Link
+                            aria-current={
+                                activePage === 'intro' ? 'page' : undefined
+                            }
+                            href='/'
+                        >
+                            簡介
+                        </Link>
+                        <Link
+                            aria-current={
+                                activePage === 'features' ? 'page' : undefined
+                            }
+                            href='/features/'
+                        >
+                            功能導覽
+                        </Link>
+                    </nav>
                     <GitHubLink />
                 </div>
             </header>

@@ -183,16 +183,8 @@ export const FEATURES = [
                 text: '當時還沒決定：餐點預算、雨天備案。這段討論裡還沒有待辦完成的更新。',
                 links: [
                     {
-                        label: '小安的活動提議（示範訊息）',
-                        href: '/features/review/#summary-message-0',
-                    },
-                    {
-                        label: '小晴的待辦與問題（示範訊息）',
-                        href: '/features/review/#summary-message-1',
-                    },
-                    {
-                        label: '小安的場地分工（示範訊息）',
-                        href: '/features/review/#summary-message-2',
+                        label: '查看原始活動討論（示範訊息）',
+                        href: '/demos/activity-discussion.txt',
                     },
                 ],
             },

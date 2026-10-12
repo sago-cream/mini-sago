@@ -15,15 +15,15 @@ and spreadsheet processing as separate examples.
 The document, image, and expression feature examples use the captured results.
 The carousel's migration and discussion dialogue is illustrative, not a transcript
 of additional bot tests. Campus feature source links point to NTHU's official
-shuttle information; the examples do not specify current departures. The history
-search source link opens the original fictional message on the copy review page.
+shuttle information; the examples do not specify current departures. The discussion
+summary source link opens the fictional `activity-discussion.txt` transcript.
 The public web-search example uses Discord's official
 [Markdown Text 101](https://support.discord.com/hc/en-us/articles/210298617-Markdown-Text-101-Chat-Formatting-Bold-Italic-Underline)
 support article as its source.
 Other conversations illustrate capabilities; the calendar confirmation embed and
 buttons follow `src/chatbot/calendar/calendar-message.ts`.
 
-`meeting-sample.txt`, `threads-sample.txt`, and `welcome-plan.md` are fictional
+`activity-discussion.txt`, `meeting-sample.txt`, `threads-sample.txt`, and `welcome-plan.md` are fictional
 source documents for the example conversations. They contain no private meeting,
 Drive, or social-post data. PR numbers and people in the development flows are
 illustrative; the examples do not create external work or publish changes.

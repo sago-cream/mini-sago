@@ -7,7 +7,7 @@ import { AccessSago, NaturalLanguage } from './WelcomeSections';
 export function App(): JSX.Element {
     return (
         <>
-            <SiteHeader />
+            <SiteHeader activePage='intro' />
             <main id='main'>
                 <Hero />
                 <NaturalLanguage />
