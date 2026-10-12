@@ -19,6 +19,7 @@ Start with [Discord setup](docs/discord-setup.md) and
 - [Feature registration and access](docs/feature-registration.md)
 - [Read-only Gmail setup](docs/mail.md)
 - [Operations](docs/operations.md)
+- [Bot management](docs/bot-management.md)
 - [CCXP meeting retrieval and password rotation](docs/ccxp-meetings.md)
 - [Durable-state backup and restore](docs/operations.md#durable-state-backup-and-restore)
 

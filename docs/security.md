@@ -39,6 +39,11 @@ results contain bounded text and session-free category links. Password changes
 remain manual, with deduplicated owner DMs when login requires attention. See
 [CCXP meeting retrieval](ccxp-meetings.md) for retention and recovery.
 
+Bot status updates, channel messaging, and feature access configuration are
+owner-only, host-bound MCP tools. Status updates accept only text and presence;
+they cannot change identity, credentials, or deployment settings. See
+[bot management](bot-management.md).
+
 ## Discord boundaries
 
 discord-mail keeps encrypted per-mailbox refresh tokens and the OAuth client

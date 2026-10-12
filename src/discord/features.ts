@@ -342,6 +342,16 @@ export const FEATURE_DEFINITIONS = {
       tools: ["search_threads"],
     },
   },
+  bot_status: {
+    description:
+      "Update the bot's custom status text and online presence only when the owner explicitly asks. Updates are saved durably before sending to Discord and survive Gateway reconnects and process restarts. Report saved as pending delivery, and updated as sent to Discord. Empty text clears the custom status.",
+    access: "owner",
+    capability: {
+      id: "bot_status",
+      category: "system",
+      tools: ["update_custom_status"],
+    },
+  },
   channel_messaging: {
     description:
       "Send an explicitly requested message to an exact Discord channel for the owner.",
