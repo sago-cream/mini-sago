@@ -502,7 +502,7 @@ export const FEATURES = [
     {
         id: 'mac',
         section: 'files',
-        title: 'Mac 檔案',
+        title: '取得 Mac 檔案',
         description: '連接 Mac，尋找檔案並回傳。',
         channel: '私人工作',
         messages: [
