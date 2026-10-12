@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { ArrowUpRight, Heart, MessageCircle, Search } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 
 import { INVITE_URL } from '@/features';
 
@@ -7,71 +7,26 @@ import './WelcomeSections.css';
 
 const STRENGTHS = [
     {
-        icon: MessageCircle,
         title: '隨意交談，不用背指令',
         text: '迷你西米露能直接理解對話',
     },
     {
-        icon: Search,
         title: '讓 Discord 也能有生產力',
         text: '她也能搜尋並整理伺服器或網路資料',
     },
-    { icon: Heart, title: '融入你的聊天室', text: '記住伺服器的用語。' },
+    { title: '融入你的聊天室', text: '記住伺服器的用語。' },
 ] as const;
 
 export function Strengths(): JSX.Element {
     return (
-        <section
-            aria-labelledby='strengths-title'
-            className='strength-band'
-            id='about'
-        >
-            <svg
-                aria-hidden='true'
-                className='strength-wave'
-                preserveAspectRatio='none'
-                viewBox='0 0 1440 160'
-            >
-                <path
-                    className='strength-wave-desktop'
-                    d='M0 40C240 40 420 40 560 20C644 8 696 8 760 20C888 44 888 148 1120 148H1440V160H0Z'
-                />
-                <path
-                    className='strength-wave-mobile'
-                    d='M0 40C400 40 920 48 1160 20C1280 6 1360 8 1440 8V160H0Z'
-                />
-            </svg>
-            <div className='strength-band-body'>
-                <div className='strengths section-width'>
-                    <h2 id='strengths-title'>
-                        住在 Discord 裡，
-                        <br />
-                        把日常變輕一點。
-                    </h2>
-                    <ul className='strength-list'>
-                        {STRENGTHS.map(({ icon: Icon, title, text }) => (
-                            <li className='strength' key={title}>
-                                <span className='strength-icon'>
-                                    <Icon aria-hidden='true' size={22} />
-                                </span>
-                                <div>
-                                    <h3>{title}</h3>
-                                    <p>{text}</p>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            </div>
-            <svg
-                aria-hidden='true'
-                className='strength-wave'
-                preserveAspectRatio='none'
-                viewBox='0 0 1440 160'
-            >
-                <path d='M0 8C240 8 420 8 560 8C644 8 696 8 760 20C888 44 888 148 1120 148H1440V0H0Z' />
-            </svg>
-        </section>
+        <ul className='strength-list' id='about'>
+            {STRENGTHS.map(({ title, text }) => (
+                <li className='strength' key={title}>
+                    <h2>{title}</h2>
+                    <p>{text}</p>
+                </li>
+            ))}
+        </ul>
     );
 }
 

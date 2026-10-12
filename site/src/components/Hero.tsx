@@ -2,6 +2,8 @@ import type { JSX } from 'react';
 import { ArrowDown } from 'lucide-react';
 import Image from 'next/image';
 
+import { Strengths } from './WelcomeSections';
+
 import './Hero.css';
 
 export function Hero(): JSX.Element {
@@ -25,10 +27,9 @@ export function Hero(): JSX.Element {
                         <span>也幫得上忙。</span>
                     </h1>
                     <p className='hero-description'>
-                        聊天、查資料、改圖、寫程式。
-                        <br />
                         Discord 裡的小事，交給迷你西米露。
                     </p>
+                    <Strengths />
                     <div className='hero-actions'>
                         <a className='button' href='#features'>
                             看看她會什麼 <ArrowDown size={18} />
@@ -36,6 +37,14 @@ export function Hero(): JSX.Element {
                     </div>
                 </div>
             </div>
+            <svg
+                aria-hidden='true'
+                className='hero-wave'
+                preserveAspectRatio='none'
+                viewBox='0 0 1440 160'
+            >
+                <path d='M0 88C240 72 440 72 600 88C800 112 920 152 1120 152H1440V160H0Z' />
+            </svg>
         </section>
     );
 }

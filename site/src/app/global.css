@@ -15,16 +15,6 @@ body {
     font: var(--font-body-md);
     -webkit-font-smoothing: antialiased;
 }
-#main {
-    --strength-wave-height: 160px;
-    --strength-overlap: 64px;
-}
-@media (max-width: 600px) {
-    #main {
-        --strength-wave-height: 80px;
-        --strength-overlap: 40px;
-    }
-}
 button,
 input,
 select {
