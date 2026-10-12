@@ -58,7 +58,7 @@ export const FEATURE_SECTIONS = [
     { id: 'lookup', title: '查詢資料' },
     { id: 'office', title: '文書處理' },
     { id: 'discord', title: 'Discord 工具' },
-    { id: 'management', title: 'Bot management' },
+    { id: 'management', title: 'Bot 管理' },
     { id: 'developer', title: '開發協作' },
 ] as const;
 export const LANDING_CONVERSATION = [
@@ -834,15 +834,15 @@ export const FEATURES = [
             },
             {
                 author: 'sago',
-                text: '已送出狀態更新：mini.sagocream.com；在線狀態為在線。',
+                text: '已儲存並送出狀態更新：mini.sagocream.com；在線狀態為在線。',
             },
             { author: 'user', text: '改成閒置，狀態文字不變。' },
             {
                 author: 'sago',
-                text: '已送出狀態更新：mini.sagocream.com；在線狀態為閒置。',
+                text: '已儲存並送出狀態更新：mini.sagocream.com；在線狀態為閒置。',
             },
         ],
-        note: '僅限擁有者。狀態會保留到程式重啟；重啟後使用設定中的預設值。',
+        note: '僅限擁有者。狀態會持續保存，重新連線或程式重啟後自動套用。',
     },
     {
         id: 'channel-message',

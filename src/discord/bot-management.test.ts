@@ -4,6 +4,7 @@ import {
   registerBotManagement,
   updateCustomStatus,
 } from "./bot-management";
+import type { BotStatus } from "./bot-status";
 
 const managers: BotManagement[] = [];
 afterEach(() => {
@@ -11,9 +12,16 @@ afterEach(() => {
   registerBotManagement(null);
 });
 function fixture() {
-  const sent: unknown[] = [];
+  const sent: unknown[] = [],
+    saved: BotStatus[] = [];
   let connected = true,
     time = 0;
+  const store = {
+    load: () => ({ text: "mini.sagocream.com", presence: "online" as const }),
+    save: async (status: BotStatus) => {
+      saved.push({ ...status });
+    },
+  };
   const socket = {
     send: (data: string) => {
       sent.push(JSON.parse(data));
@@ -21,16 +29,21 @@ function fixture() {
   };
   const manager = new BotManagement(
     () => (connected ? socket : null),
-    "mini.sagocream.com",
+    store,
     () => time,
   );
   managers.push(manager);
   return {
     manager,
     socket,
+    store,
     sent,
+    saved,
     disconnect: () => {
       connected = false;
+    },
+    connect: () => {
+      connected = true;
     },
     advance: (ms: number) => {
       time += ms;
@@ -38,11 +51,29 @@ function fixture() {
   };
 }
 
-test("status updates send opcode 3 immediately and survive a resumed connection", () => {
-  const { manager, sent } = fixture();
-  expect(
-    manager.updateCustomStatus({ text: "  Working  ", presence: "idle" }),
-  ).toEqual({ status: "updated", text: "Working", presence: "idle" });
+test("status is persisted before opcode 3 is sent and reused after reconnect", async () => {
+  const { manager, store, sent, saved } = fixture();
+  let release: (() => void) | undefined;
+  const save = store.save;
+  store.save = async (status) => {
+    await new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await save(status);
+  };
+  const update = manager.updateCustomStatus({
+    text: "  Working  ",
+    presence: "idle",
+  });
+  while (!release) await Promise.resolve();
+  expect(sent).toEqual([]);
+  release();
+  expect(await update).toEqual({
+    status: "updated",
+    text: "Working",
+    presence: "idle",
+  });
+  expect(saved).toEqual([{ text: "Working", presence: "idle" }]);
   expect(sent).toEqual([
     {
       op: 3,
@@ -56,15 +87,12 @@ test("status updates send opcode 3 immediately and survive a resumed connection"
   ]);
   manager.reapplyPresence();
   expect(sent[1]).toEqual(sent[0]);
-  expect(manager.getPresence()).toEqual(
-    (sent[0] as { d: ReturnType<BotManagement["getPresence"]> }).d,
-  );
 });
 
-test("clearing custom status preserves online presence when omitted", () => {
-  const { manager, sent } = fixture();
-  manager.updateCustomStatus({ text: "busy", presence: "dnd" });
-  expect(manager.updateCustomStatus({ text: "  " })).toEqual({
+test("clearing custom status preserves online presence when omitted", async () => {
+  const { manager, sent, saved } = fixture();
+  await manager.updateCustomStatus({ text: "busy", presence: "dnd" });
+  expect(await manager.updateCustomStatus({ text: "  " })).toEqual({
     status: "updated",
     text: "",
     presence: "dnd",
@@ -73,67 +101,123 @@ test("clearing custom status preserves online presence when omitted", () => {
     op: 3,
     d: { activities: [], status: "dnd" },
   });
+  expect(saved[1]).toEqual({ text: "", presence: "dnd" });
 });
 
-test("unavailable Gateway never changes current status or claims success", () => {
-  const { manager, sent, disconnect } = fixture();
+test("unavailable Gateway reports saved pending delivery and applies it when ready", async () => {
+  const { manager, sent, saved, disconnect, connect } = fixture();
   disconnect();
-  expect(manager.updateCustomStatus({ text: "new" })).toEqual({
-    status: "gateway_unavailable",
+  expect(await manager.updateCustomStatus({ text: "new" })).toEqual({
+    status: "saved",
+    text: "new",
+    presence: "online",
   });
-  expect(manager.getPresence().activities[0]?.state).toBe("mini.sagocream.com");
+  expect(saved).toHaveLength(1);
   expect(sent).toEqual([]);
-  expect(updateCustomStatus({ text: "new" })).toEqual({
+  connect();
+  manager.reapplyPresence();
+  expect(sent[0]).toMatchObject({
+    op: 3,
+    d: { activities: [{ state: "new" }] },
+  });
+  expect(await updateCustomStatus({ text: "new" })).toEqual({
     status: "gateway_unavailable",
   });
 });
 
-test("failed sends retain previous presence and do not consume rate budget", () => {
-  const { manager, socket, sent } = fixture();
-  const send = socket.send;
+test("write failure keeps prior state, sends nothing, and does not poison later requests", async () => {
+  const { manager, store, sent, saved } = fixture();
+  const save = store.save;
+  store.save = async () => {
+    throw new Error("disk unavailable");
+  };
+  await expect(
+    manager.updateCustomStatus({ text: "failed", presence: "invisible" }),
+  ).rejects.toThrow("disk unavailable");
+  expect(manager.getPresence().activities[0]?.state).toBe("mini.sagocream.com");
+  expect(manager.getPresence().status).toBe("online");
+  expect(sent).toEqual([]);
+  expect(saved).toEqual([]);
+  store.save = save;
+  expect((await manager.updateCustomStatus({ text: "recovered" })).status).toBe(
+    "updated",
+  );
+});
+
+test("failed sends preserve durable intent and return saved instead of updated", async () => {
+  const { manager, socket, saved } = fixture();
   socket.send = () => {
     throw new Error("closed");
   };
-  expect(() =>
-    manager.updateCustomStatus({ text: "failed", presence: "invisible" }),
-  ).toThrow("closed");
-  expect(manager.getPresence().status).toBe("online");
-  expect(manager.getPresence().activities[0]?.state).toBe("mini.sagocream.com");
-  socket.send = send;
-  for (let i = 0; i < 5; i++)
-    expect(manager.updateCustomStatus({ text: String(i) }).status).toBe(
-      "updated",
-    );
-  expect(sent).toHaveLength(5);
+  expect(
+    await manager.updateCustomStatus({ text: "pending", presence: "idle" }),
+  ).toEqual({ status: "saved", text: "pending", presence: "idle" });
+  expect(saved).toEqual([{ text: "pending", presence: "idle" }]);
+  expect(manager.getPresence().status).toBe("idle");
 });
 
-test("presence sends share Discord's rolling budget including resume replay", () => {
-  const { manager, sent, advance } = fixture();
+test("concurrent requests are serialized and omitted presence uses the latest saved value", async () => {
+  const { manager, saved } = fixture();
+  const results = await Promise.all([
+    manager.updateCustomStatus({ text: "first", presence: "dnd" }),
+    manager.updateCustomStatus({ text: "second" }),
+  ]);
+  expect(results.map((result) => result.status)).toEqual([
+    "updated",
+    "updated",
+  ]);
+  expect(saved).toEqual([
+    { text: "first", presence: "dnd" },
+    { text: "second", presence: "dnd" },
+  ]);
+});
+
+test("presence sends share a rolling budget including reconnect replay", async () => {
+  const { manager, sent, saved, advance } = fixture();
   manager.reapplyPresence();
-  for (let i = 0; i < 4; i++) manager.updateCustomStatus({ text: String(i) });
-  expect(manager.updateCustomStatus({ text: "blocked" })).toEqual({
+  for (let i = 0; i < 4; i++)
+    await manager.updateCustomStatus({ text: String(i) });
+  expect(await manager.updateCustomStatus({ text: "blocked" })).toEqual({
     status: "rate_limited",
     retryAfterMs: 20_000,
   });
   manager.reapplyPresence();
   expect(sent).toHaveLength(5);
-  manager.dispose();
+  expect(saved).toHaveLength(4);
   advance(20_000);
-  expect(manager.updateCustomStatus({ text: "allowed" }).status).toBe(
+  expect((await manager.updateCustomStatus({ text: "allowed" })).status).toBe(
     "updated",
   );
   expect(sent).toHaveLength(6);
 });
 
-test("validates status inputs and respects a configured empty initial status", () => {
-  const { manager } = fixture();
-  expect(() => manager.updateCustomStatus({ text: "x".repeat(129) })).toThrow(
-    "128",
+test("shutdown suppresses late delivery after a pending write", async () => {
+  const { manager, store, sent } = fixture();
+  let release: (() => void) | undefined;
+  store.save = async () => {
+    await new Promise<void>((resolve) => {
+      release = resolve;
+    });
+  };
+  const update = manager.updateCustomStatus({ text: "saved for restart" });
+  while (!release) await Promise.resolve();
+  manager.dispose();
+  release();
+  expect((await update).status).toBe("saved");
+  expect(sent).toEqual([]);
+  expect((await manager.updateCustomStatus({ text: "too late" })).status).toBe(
+    "gateway_unavailable",
   );
-  expect(() =>
+});
+
+test("status validation fails before any disk or Gateway changes", async () => {
+  const { manager, saved, sent } = fixture();
+  await expect(
+    manager.updateCustomStatus({ text: "x".repeat(129) }),
+  ).rejects.toThrow("128");
+  await expect(
     manager.updateCustomStatus({ text: "ok", presence: "invalid" as never }),
-  ).toThrow("Invalid presence");
-  expect(new BotManagement(() => null, "").getPresence().activities).toEqual(
-    [],
-  );
+  ).rejects.toThrow("Invalid presence");
+  expect(saved).toEqual([]);
+  expect(sent).toEqual([]);
 });

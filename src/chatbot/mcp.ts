@@ -426,7 +426,9 @@ export type ChatbotMcpSessionHandlers = {
     durationMinutes: number;
   };
   getCodexUsage?: () => Promise<CodexUsageSnapshot | null>;
-  updateCustomStatus?: (input: BotStatusInput) => BotStatusResult;
+  updateCustomStatus?: (
+    input: BotStatusInput,
+  ) => BotStatusResult | Promise<BotStatusResult>;
   sendChannelMessage?: (input: {
     content: string;
     channelId?: string;
@@ -1243,7 +1245,7 @@ function createServer(session: ChatbotMcpSession) {
       "update_custom_status",
       {
         description:
-          "Update the bot's custom status immediately for an explicit owner request. Empty text clears it. Optionally change online presence. The current status survives Gateway reconnects; process restarts restore DISCORD_CUSTOM_STATUS.",
+          "Update the bot's custom status immediately for an explicit owner request. Empty text clears it. Optionally change online presence. Save the requested status durably before sending it to Discord. It survives reconnects and process restarts. A saved result means persistence succeeded but delivery is pending; only updated means a presence update was sent.",
         inputSchema: {
           text: z.string().max(128),
           presence: z.enum(BOT_PRESENCE_STATUSES).optional(),
@@ -1257,7 +1259,7 @@ function createServer(session: ChatbotMcpSession) {
       },
       async (input) => {
         try {
-          return toolResult(session.handlers.updateCustomStatus!(input));
+          return toolResult(await session.handlers.updateCustomStatus!(input));
         } catch (error) {
           return unavailable(error);
         }

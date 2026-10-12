@@ -98,7 +98,7 @@ secrets live under `/srv/sago-cloud/secrets`. Only the core container joins
 `sago_cloud_edge` under the `bot-core` alias. The following remain in external
 persistent volumes:
 
-- bot monitor, reminder, and webhook state;
+- bot monitor, reminder, custom-status, and webhook state;
 - worker Codex and GitHub CLI state;
 - worker traces; and
 - disposable repository/worktree storage.
@@ -206,7 +206,7 @@ read the runbook on its `chore/git-vault-recovery` branch. A Git clone alone doe
 not restore the crontab, `.git/config`, private keys, host trust, or account logins.
 
 The allowlist includes guild-memory Markdown and its Git history, reminders,
-feature availability, GitHub PR-thread mappings, and selected monitor cursors.
+custom bot status (`bot-status.json`), feature availability, GitHub PR-thread mappings, and selected monitor cursors.
 The reader validates JSON and requires two matching reads around the history
 capture, retrying if files change. It does not stop the bot. This is a stable
 file snapshot, not a cross-service transaction. When adding a new durable state

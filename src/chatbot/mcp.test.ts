@@ -1549,7 +1549,7 @@ test("owner status MCP tool updates immediately and validates bounded inputs", a
   const session = registerChatbotMcpSession(
     {
       ...handlers(),
-      updateCustomStatus: (input) => {
+      updateCustomStatus: async (input) => {
         calls.push(input);
         return {
           status: "updated",

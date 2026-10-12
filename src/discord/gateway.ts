@@ -423,6 +423,7 @@ class InstagramGatewayClient implements VoiceGateway {
       this.botUserId = ready.user?.id ?? null;
       this.reconnectAttempts = 0;
       this.gatewayReady = true;
+      this.botManagement.reapplyPresence();
       console.log("Discord gateway ready.");
       for (const guild of ready.guilds ?? []) {
         void this.ensureGuildMemory(guild.id);
