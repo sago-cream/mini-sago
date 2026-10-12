@@ -11,16 +11,10 @@ buttons affect only the local demonstration. Slash-command replies use Discord's
 private-response layout. Time skips show reminders arriving and subscriptions
 posting again; explanatory captions and sample sources identify illustrative data.
 
-The guide groups features by task: conversation, information lookup, file
-processing, office work, Discord tools, and development. Settings are a separate
-sidebar item. Conversation summaries include older channel discussions; web
-search has its own example.
-
-The temporary sidebar sorter lets reviewers drag categories and features, move
-features between categories, reset the preview, and copy the proposed order.
-Alt+Up/Down reorders the focused item; Alt+Left/Right moves a feature between
-categories. Drafts stay in browser local storage and do not change `src/features.ts`
-or the copy review page. Apply a submitted order to the catalogue only when requested.
+The guide groups features by task: conversation, information lookup, office work,
+Discord tools, and development. Office work includes file processing, Mac file
+retrieval, calendar actions, and feature settings. Conversation summaries include
+older channel discussions; web search has its own example.
 
 Both pages explain access through shared Discord servers and link to the
 repository's self-host guide for readers who want their own instance.

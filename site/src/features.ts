@@ -56,11 +56,9 @@ export const SELF_HOST_URL = `${REPOSITORY_URL}#self-host-minisago`;
 export const FEATURE_SECTIONS = [
     { id: 'chat', title: '聊天與互動' },
     { id: 'lookup', title: '查詢資料' },
-    { id: 'files', title: '檔案處理' },
     { id: 'office', title: '文書處理' },
     { id: 'discord', title: 'Discord 工具' },
     { id: 'developer', title: '開發協作' },
-    { id: 'settings', title: '設定', standalone: true },
 ] as const;
 export const LANDING_CONVERSATION = [
     {
@@ -140,66 +138,6 @@ export const FEATURES = [
         note: '',
     },
     {
-        id: 'ask',
-        section: 'chat',
-        title: '私下提問',
-        description: '/ask 以偷偷問她問題。',
-        channel: '日常聊天',
-        messages: [
-            {
-                author: 'sago',
-                text: 'users 是空陣列時，users[0] 就是 undefined，接著讀取 .name 才會報錯。先處理沒有第一筆資料的情況：',
-                command: {
-                    name: 'ask',
-                    prompt: 'users[0].name 出現 undefined，users 有時是空陣列，要怎麼改？',
-                },
-                ephemeral: true,
-                code: "const user = users[0];\nconst name = user?.name ?? '尚無使用者';\n\n// 或先判斷沒有資料時要顯示的內容\nif (!user) return '目前沒有使用者';",
-            },
-        ],
-        note: '',
-    },
-    {
-        id: 'voice',
-        section: 'chat',
-        title: '語音聊天',
-        description: '請她加入你的語音頻道，用說的繼續聊。',
-        channel: '日常聊天',
-        messages: [
-            {
-                author: 'user',
-                text: '@迷你西米露 加入我的語音頻道。',
-            },
-            {
-                author: 'sago',
-                text: '已加入你的語音頻道，可以開始說話。',
-            },
-            {
-                author: 'notice',
-                text: '語音頻道・以下以逐字稿示範',
-            },
-            {
-                author: 'user',
-                text: '明天考試，但我只有一小時能複習，怎麼分配？',
-                spoken: true,
-            },
-            {
-                author: 'sago',
-                text: '単語を二十分、読解を二十分、復習を二十分に分けましょう。苦手なところから始めるといいですよ。',
-                spoken: true,
-            },
-            {
-                author: 'user',
-                text: '@迷你西米露 先離開語音。',
-            },
-            {
-                author: 'sago',
-                text: '已離開語音頻道。',
-            },
-        ],
-        note: '語音部分以逐字稿示範；目前回覆語音為日文，辨識與輪流說話仍在開發中。',
-    },
-    {
         id: 'summary',
         section: 'chat',
         title: '整理對話懶人包',
@@ -270,39 +208,21 @@ export const FEATURES = [
         note: '',
     },
     {
-        id: 'memory',
+        id: 'ask',
         section: 'chat',
-        title: '伺服器記憶',
-        description: '教她慣用語或奇怪事實。',
+        title: '私下提問',
+        description: '/ask 以偷偷問她問題。',
         channel: '日常聊天',
         messages: [
             {
-                author: 'user',
-                text: '@迷你西米露 我們這裡說的「會辦」就是學生會辦公室，記住一下。',
-            },
-            {
                 author: 'sago',
-                text: '記住了，在這個伺服器裡，「會辦」是學生會辦公室。',
-            },
-            {
-                author: 'notice',
-                text: '隔天・新的對話',
-            },
-            {
-                author: 'user',
-                text: '@迷你西米露 我要去會辦開會，幫我列一下要帶的東西。',
-            },
-            {
-                author: 'sago',
-                text: '去學生會辦公室開會，可以帶筆電、充電器、議程和要討論的文件。需要展示資料的話，再確認轉接頭。',
-            },
-            {
-                author: 'user',
-                text: '我們現在不叫會辦了，請忘記這個說法。',
-            },
-            {
-                author: 'sago',
-                text: '已移除這個記憶項目，之後不再把「會辦」當成固定用語。',
+                text: 'users 是空陣列時，users[0] 就是 undefined，接著讀取 .name 才會報錯。先處理沒有第一筆資料的情況：',
+                command: {
+                    name: 'ask',
+                    prompt: 'users[0].name 出現 undefined，users 有時是空陣列，要怎麼改？',
+                },
+                ephemeral: true,
+                code: "const user = users[0];\nconst name = user?.name ?? '尚無使用者';\n\n// 或先判斷沒有資料時要顯示的內容\nif (!user) return '目前沒有使用者';",
             },
         ],
         note: '',
@@ -344,6 +264,84 @@ export const FEATURES = [
         note: '',
     },
     {
+        id: 'memory',
+        section: 'chat',
+        title: '伺服器記憶',
+        description: '教她慣用語或奇怪事實。',
+        channel: '日常聊天',
+        messages: [
+            {
+                author: 'user',
+                text: '@迷你西米露 我們這裡說的「會辦」就是學生會辦公室，記住一下。',
+            },
+            {
+                author: 'sago',
+                text: '記住了，在這個伺服器裡，「會辦」是學生會辦公室。',
+            },
+            {
+                author: 'notice',
+                text: '隔天・新的對話',
+            },
+            {
+                author: 'user',
+                text: '@迷你西米露 我要去會辦開會，幫我列一下要帶的東西。',
+            },
+            {
+                author: 'sago',
+                text: '去學生會辦公室開會，可以帶筆電、充電器、議程和要討論的文件。需要展示資料的話，再確認轉接頭。',
+            },
+            {
+                author: 'user',
+                text: '我們現在不叫會辦了，請忘記這個說法。',
+            },
+            {
+                author: 'sago',
+                text: '已移除這個記憶項目，之後不再把「會辦」當成固定用語。',
+            },
+        ],
+        note: '',
+    },
+    {
+        id: 'voice',
+        section: 'chat',
+        title: '語音聊天',
+        description: '請她加入你的語音頻道，用說的繼續聊。',
+        channel: '日常聊天',
+        messages: [
+            {
+                author: 'user',
+                text: '@迷你西米露 加入我的語音頻道。',
+            },
+            {
+                author: 'sago',
+                text: '已加入你的語音頻道，可以開始說話。',
+            },
+            {
+                author: 'notice',
+                text: '語音頻道・以下以逐字稿示範',
+            },
+            {
+                author: 'user',
+                text: '明天考試，但我只有一小時能複習，怎麼分配？',
+                spoken: true,
+            },
+            {
+                author: 'sago',
+                text: '単語を二十分、読解を二十分、復習を二十分に分けましょう。苦手なところから始めるといいですよ。',
+                spoken: true,
+            },
+            {
+                author: 'user',
+                text: '@迷你西米露 先離開語音。',
+            },
+            {
+                author: 'sago',
+                text: '已離開語音頻道。',
+            },
+        ],
+        note: '語音部分以逐字稿示範；目前回覆語音為日文，辨識與輪流說話仍在開發中。',
+    },
+    {
         id: 'search',
         section: 'lookup',
         title: '網路資料搜尋',
@@ -369,33 +367,44 @@ export const FEATURES = [
         note: '',
     },
     {
-        id: 'threads',
+        id: 'drive',
         section: 'lookup',
-        title: '脆海巡',
-        description: '在 Threads 上海巡清大、學生會與指定主題的討論。',
-        channel: '清大生活',
+        title: '查詢雲端文件',
+        description: '在核准的學生會文件裡找企劃、紀錄與相關資料。',
+        channel: '學生會辦公室',
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 海巡脆，找清大宿舍入住前要準備什麼。',
+                text: '@迷你西米露 找迎新企劃，整理活動流程和誰負責什麼。',
             },
             {
                 author: 'sago',
-                text: '這兩則是示範貼文：一則提醒先確認床墊尺寸，另一則整理網路線、延長線與清潔用品。',
+                text: '迎新流程',
+                list: [
+                    '13:00 報到與分組',
+                    '13:30 開場與暖身',
+                    '14:00 分組活動',
+                    '16:00 收尾',
+                ],
                 links: [
                     {
-                        label: '示範貼文摘錄與來源標記',
-                        href: '/demos/threads-sample.txt',
+                        label: '迎新企劃（示範文件）',
+                        href: '/demos/welcome-plan.md',
                     },
                 ],
             },
             {
+                author: 'sago',
+                text: '分工：小安負責場地，小晴負責報到，你負責器材。',
+            },
+            {
                 author: 'user',
-                text: '整理成打包清單，哪些要先問宿舍？',
+                text: '我只想確認器材要提前多久準備。',
             },
             {
                 author: 'sago',
-                text: '打包：寢具、網路線、清潔用品、換洗衣物。\n先確認：床墊尺寸、插座與用電規定、入住時間。網友的經驗可以參考，規定要以你住的宿舍公告為準。',
+                text: '企劃的器材欄寫 12:30 到場測試，比報到時間提早半小時。建議先確認投影與音響都能使用。',
+                quote: '器材負責人：12:30 完成投影與音響測試。',
             },
         ],
         note: '',
@@ -466,8 +475,56 @@ export const FEATURES = [
         note: '',
     },
     {
+        id: 'threads',
+        section: 'lookup',
+        title: '脆海巡',
+        description: '在 Threads 上海巡清大、學生會與指定主題的討論。',
+        channel: '清大生活',
+        messages: [
+            {
+                author: 'user',
+                text: '@迷你西米露 海巡脆，找清大宿舍入住前要準備什麼。',
+            },
+            {
+                author: 'sago',
+                text: '這兩則是示範貼文：一則提醒先確認床墊尺寸，另一則整理網路線、延長線與清潔用品。',
+                links: [
+                    {
+                        label: '示範貼文摘錄與來源標記',
+                        href: '/demos/threads-sample.txt',
+                    },
+                ],
+            },
+            {
+                author: 'user',
+                text: '整理成打包清單，哪些要先問宿舍？',
+            },
+            {
+                author: 'sago',
+                text: '打包：寢具、網路線、清潔用品、換洗衣物。\n先確認：床墊尺寸、插座與用電規定、入住時間。網友的經驗可以參考，規定要以你住的宿舍公告為準。',
+            },
+        ],
+        note: '',
+    },
+    {
+        id: 'documents',
+        section: 'office',
+        title: '文件處理',
+        description: '算數據、做圖表，處理 PDF 與文件附件。',
+        channel: '檔案處理',
+        messages: [
+            ...LANDING_CONVERSATION,
+            { author: 'user', text: '哪些組超過平均人數？' },
+            {
+                author: 'sago',
+                text: '平均每組 16 人。A 組 18 人，超過平均；C 組剛好 16 人，B 組 14 人低於平均。',
+            },
+        ],
+        note: '',
+    },
+    {
         id: 'media',
-        section: 'files',
+        section: 'office',
         title: '影音處理',
         description: '調整圖片、擷取畫面，或把影片轉成 GIF、MP4、MP3。',
         channel: 'mini-sago',
@@ -501,7 +558,7 @@ export const FEATURES = [
     },
     {
         id: 'mac',
-        section: 'files',
+        section: 'office',
         title: '取得 Mac 檔案',
         description: '連接 Mac，尋找檔案並回傳。',
         channel: '私人工作',
@@ -530,65 +587,6 @@ export const FEATURES = [
             },
         ],
         note: '檔案為示範資料。',
-    },
-    {
-        id: 'documents',
-        section: 'office',
-        title: '文件處理',
-        description: '算數據、做圖表，處理 PDF 與文件附件。',
-        channel: '檔案處理',
-        messages: [
-            ...LANDING_CONVERSATION,
-            { author: 'user', text: '哪些組超過平均人數？' },
-            {
-                author: 'sago',
-                text: '平均每組 16 人。A 組 18 人，超過平均；C 組剛好 16 人，B 組 14 人低於平均。',
-            },
-        ],
-        note: '',
-    },
-    {
-        id: 'drive',
-        section: 'office',
-        title: '查詢雲端文件',
-        description: '在核准的學生會文件裡找企劃、紀錄與相關資料。',
-        channel: '學生會辦公室',
-        messages: [
-            {
-                author: 'user',
-                text: '@迷你西米露 找迎新企劃，整理活動流程和誰負責什麼。',
-            },
-            {
-                author: 'sago',
-                text: '迎新流程',
-                list: [
-                    '13:00 報到與分組',
-                    '13:30 開場與暖身',
-                    '14:00 分組活動',
-                    '16:00 收尾',
-                ],
-                links: [
-                    {
-                        label: '迎新企劃（示範文件）',
-                        href: '/demos/welcome-plan.md',
-                    },
-                ],
-            },
-            {
-                author: 'sago',
-                text: '分工：小安負責場地，小晴負責報到，你負責器材。',
-            },
-            {
-                author: 'user',
-                text: '我只想確認器材要提前多久準備。',
-            },
-            {
-                author: 'sago',
-                text: '企劃的器材欄寫 12:30 到場測試，比報到時間提早半小時。建議先確認投影與音響都能使用。',
-                quote: '器材負責人：12:30 完成投影與音響測試。',
-            },
-        ],
-        note: '',
     },
     {
         id: 'calendar',
@@ -633,6 +631,40 @@ export const FEATURES = [
                     footer: '',
                     color: '#81c79b',
                 },
+            },
+        ],
+        note: '',
+    },
+    {
+        id: 'controls',
+        section: 'office',
+        title: '功能與權限設定',
+        description: '調整各服務權限與啟用位置。',
+        channel: '私人工作',
+        messages: [
+            {
+                author: 'user',
+                text: '@迷你西米露 查這個伺服器目前開放的功能。',
+            },
+            {
+                author: 'sago',
+                text: '目前開放：聊天、提醒、表情管理。Calendar 尚未開放；每日單字已訂閱到 #每日單字。',
+            },
+            {
+                author: 'user',
+                text: '開啟 Calendar，只讓「工作人員」身分組使用。',
+            },
+            {
+                author: 'sago',
+                text: '已保存：Calendar 開放給「工作人員」，其他成員仍不能使用。',
+            },
+            {
+                author: 'user',
+                text: '再幫我確認一次設定。',
+            },
+            {
+                author: 'sago',
+                text: 'Calendar：已開啟\n使用對象：工作人員\n每日單字：#每日單字（未變更）',
             },
         ],
         note: '',
@@ -902,40 +934,6 @@ export const FEATURES = [
             {
                 author: 'notice',
                 text: '討論串已封存',
-            },
-        ],
-        note: '',
-    },
-    {
-        id: 'controls',
-        section: 'settings',
-        title: '功能與權限設定',
-        description: '調整各服務權限與啟用位置。',
-        channel: '私人工作',
-        messages: [
-            {
-                author: 'user',
-                text: '@迷你西米露 查這個伺服器目前開放的功能。',
-            },
-            {
-                author: 'sago',
-                text: '目前開放：聊天、提醒、表情管理。Calendar 尚未開放；每日單字已訂閱到 #每日單字。',
-            },
-            {
-                author: 'user',
-                text: '開啟 Calendar，只讓「工作人員」身分組使用。',
-            },
-            {
-                author: 'sago',
-                text: '已保存：Calendar 開放給「工作人員」，其他成員仍不能使用。',
-            },
-            {
-                author: 'user',
-                text: '再幫我確認一次設定。',
-            },
-            {
-                author: 'sago',
-                text: 'Calendar：已開啟\n使用對象：工作人員\n每日單字：#每日單字（未變更）',
             },
         ],
         note: '',

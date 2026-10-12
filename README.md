@@ -50,8 +50,6 @@ individual capabilities through sample Discord conversations. Both pages explain
 access through shared servers and link to the self-host instructions.
 For copy review, `/features/review/` shows every feature and its full conversation
 on one page without animation.
-The temporary sidebar sorter on `/features/` saves category drafts in the browser;
-copy the proposed order and explicitly request applying it to the catalogue.
 Privacy and terms pages at `/privacy/` and `/terms/` explain the hosted service's
 data handling, support contact, and usage scope.
 The website runs at `http://localhost:3101`; root `bun dev` starts the Discord bot
