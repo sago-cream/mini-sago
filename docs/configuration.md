@@ -20,6 +20,7 @@ live in [Discord setup](discord-setup.md) and [Workers](workers.md).
 | Name                                   | Required  | Purpose                                                 |
 | -------------------------------------- | --------- | ------------------------------------------------------- |
 | `DISCORD_APPLICATION_ID`               | Yes       | Discord application ID                                  |
+| `DISCORD_CUSTOM_STATUS`                | No        | Initial custom status text                              |
 | `DISCORD_BOT_TOKEN`                    | Yes       | Discord REST and Gateway authentication                 |
 | `DISCORD_GUILD_ID`                     | No        | Guild for configured-guild features; defaults to WM31   |
 | `DISCORD_GATEWAY_DISABLED`             | No        | Use `true` for HTTP-only instances                      |
@@ -48,6 +49,9 @@ live in [Discord setup](discord-setup.md) and [Workers](workers.md).
 | `GAMER_FORUM_*`                        | No        | Forum source, destination, schedule, reader, and state  |
 | `THREADS_SEARCH_READER_BASE_URL`       | No        | Reader URL for on-demand Threads MCP searches           |
 | `X_POST_*`                             | No        | X feed source, destination, polling interval, and state |
+
+Custom status defaults to `mini.sagocream.com`. Set an empty value to clear it.
+Live MCP updates last until process restart; see [Bot management](bot-management.md).
 
 See `.env.production.example` for production state paths and the complete
 scheduled-monitor variable names.

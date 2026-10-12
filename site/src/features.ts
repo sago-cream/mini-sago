@@ -58,6 +58,7 @@ export const FEATURE_SECTIONS = [
     { id: 'lookup', title: '查詢資料' },
     { id: 'office', title: '文書處理' },
     { id: 'discord', title: 'Discord 工具' },
+    { id: 'management', title: 'Bot management' },
     { id: 'developer', title: '開發協作' },
 ] as const;
 export const LANDING_CONVERSATION = [
@@ -628,40 +629,6 @@ export const FEATURES = [
         note: '',
     },
     {
-        id: 'controls',
-        section: 'office',
-        title: '功能與權限設定',
-        description: '調整各服務權限與啟用位置。',
-        channel: '私人工作',
-        messages: [
-            {
-                author: 'user',
-                text: '@迷你西米露 查這個伺服器目前開放的功能。',
-            },
-            {
-                author: 'sago',
-                text: '目前開放：聊天、提醒、表情管理。Calendar 尚未開放；每日單字已訂閱到 #每日單字。',
-            },
-            {
-                author: 'user',
-                text: '開啟 Calendar，只讓「工作人員」身分組使用。',
-            },
-            {
-                author: 'sago',
-                text: '已保存：Calendar 開放給「工作人員」，其他成員仍不能使用。',
-            },
-            {
-                author: 'user',
-                text: '再幫我確認一次設定。',
-            },
-            {
-                author: 'sago',
-                text: 'Calendar：已開啟\n使用對象：工作人員\n每日單字：#每日單字（未變更）',
-            },
-        ],
-        note: '',
-    },
-    {
         id: 'reminders',
         section: 'discord',
         title: '設置提醒',
@@ -850,6 +817,81 @@ export const FEATURES = [
                         href: 'https://creativecommons.org/licenses/by-sa/4.0/',
                     },
                 ],
+            },
+        ],
+        note: '',
+    },
+    {
+        id: 'status',
+        section: 'management',
+        title: '更新自訂狀態',
+        description: '由擁有者更新她的狀態文字與在線狀態。',
+        channel: '私人工作',
+        messages: [
+            {
+                author: 'user',
+                text: '@迷你西米露 把自訂狀態改成「mini.sagocream.com」，保持在線。',
+            },
+            {
+                author: 'sago',
+                text: '已送出狀態更新：mini.sagocream.com；在線狀態為在線。',
+            },
+            { author: 'user', text: '改成閒置，狀態文字不變。' },
+            {
+                author: 'sago',
+                text: '已送出狀態更新：mini.sagocream.com；在線狀態為閒置。',
+            },
+        ],
+        note: '僅限擁有者。狀態會保留到程式重啟；重啟後使用設定中的預設值。',
+    },
+    {
+        id: 'channel-message',
+        section: 'management',
+        title: '傳送頻道訊息',
+        description: '由擁有者指定伺服器與頻道，請她代為傳送訊息。',
+        channel: '私人工作',
+        messages: [
+            {
+                author: 'user',
+                text: '@迷你西米露 在 Sago Lab 的 #公告 傳送「明天晚上七點開會，請帶上活動企劃。」',
+            },
+            {
+                author: 'sago',
+                text: '已傳送到 Sago Lab 的 #公告：明天晚上七點開會，請帶上活動企劃。',
+            },
+        ],
+        note: '僅限擁有者。頻道名稱須能明確對應，也可以直接提供頻道 ID。',
+    },
+    {
+        id: 'controls',
+        section: 'management',
+        title: '功能與權限設定',
+        description: '由擁有者調整功能的啟用位置與使用身分組。',
+        channel: '私人工作',
+        messages: [
+            {
+                author: 'user',
+                text: '@迷你西米露 查這個伺服器目前開放的功能。',
+            },
+            {
+                author: 'sago',
+                text: '目前開放：聊天、提醒、表情管理。Calendar 尚未開放；每日單字已訂閱到 #每日單字。',
+            },
+            {
+                author: 'user',
+                text: '開啟 Calendar，只讓「工作人員」身分組使用。',
+            },
+            {
+                author: 'sago',
+                text: '已保存：Calendar 開放給「工作人員」，其他成員仍不能使用。',
+            },
+            {
+                author: 'user',
+                text: '再幫我確認一次設定。',
+            },
+            {
+                author: 'sago',
+                text: 'Calendar：已開啟\n使用對象：工作人員\n每日單字：#每日單字（未變更）',
             },
         ],
         note: '',
