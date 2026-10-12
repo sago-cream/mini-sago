@@ -56,15 +56,11 @@ export const SELF_HOST_URL = `${REPOSITORY_URL}#self-host-minisago`;
 export const FEATURE_SECTIONS = [
     {
         id: 'chat',
-        title: '聊天與日常',
+        title: '日常聊天',
     },
     {
         id: 'files',
         title: '圖片與檔案',
-    },
-    {
-        id: 'server',
-        title: '伺服器生活',
     },
     {
         id: 'nthu',
@@ -76,11 +72,11 @@ export const FEATURE_SECTIONS = [
     },
     {
         id: 'developer',
-        title: '開發協作',
+        title: '開發',
     },
     {
-        id: 'owner',
-        title: '擁有者專用',
+        id: 'misc',
+        title: '其他',
     },
 ] as const;
 export const LANDING_CONVERSATION = [
@@ -163,7 +159,7 @@ export const FEATURES = [
     {
         id: 'summary',
         section: 'chat',
-        title: '整理對話',
+        title: '整理當前對話',
         description: '從群組裡的討論整理出懶人包。',
         channel: '活動籌備',
         messages: [
@@ -209,7 +205,7 @@ export const FEATURES = [
     {
         id: 'search',
         section: 'chat',
-        title: '資料與歷史搜尋',
+        title: '網路資料與群組歷史搜尋',
         description: '根據網路資料或之前的訊息，整理成有確切來源的答案。',
         channel: '活動籌備',
         messages: [
@@ -405,7 +401,7 @@ export const FEATURES = [
     {
         id: 'media',
         section: 'files',
-        title: '圖片與影片',
+        title: '圖片處理',
         description: '調整圖片、擷取畫面，或把影片轉成 GIF、MP4、MP3。',
         channel: 'mini-sago',
         messages: [
@@ -439,7 +435,7 @@ export const FEATURES = [
     {
         id: 'documents',
         section: 'files',
-        title: '表格與文件',
+        title: '文書處理',
         description: '算數據、做圖表，處理 PDF 與文件附件。',
         channel: '檔案處理',
         messages: [
@@ -455,8 +451,9 @@ export const FEATURES = [
     {
         id: 'expressions',
         section: 'files',
-        title: '表情與貼圖',
-        description: '用附件新增 emoji 或貼圖，也能複製、改名 emoji。',
+        title: '表符管理',
+        description:
+            '用附件新增表符或貼圖，或對其進行複製、改名，甚至搬去別的伺服器。',
         channel: 'mini-sago',
         messages: [
             {
@@ -502,10 +499,10 @@ export const FEATURES = [
     },
     {
         id: 'social',
-        section: 'server',
-        title: '社群連結預覽',
+        section: 'chat',
+        title: '補全轉發內容',
         description:
-            '貼上 Instagram、X 或 Threads 連結，更方便在聊天室看內容。',
+            '調整 Instagram、X 和 Threads 的連結，讓內容能直接在 Discord 閱讀。',
         channel: '分享連結',
         messages: [
             {
@@ -540,13 +537,14 @@ export const FEATURES = [
                 },
             },
         ],
-        note: '貼上連結就會自動處理；預覽內容取決於來源網站。',
+        note: '',
     },
     {
         id: 'feeds',
-        section: 'server',
-        title: '頻道訂閱',
-        description: '在頻道接收 TOEFL 單字、動畫瘋優惠碼或 X 動態。',
+        section: 'misc',
+        title: '訂閱資訊推播',
+        description:
+            '從托福單字、雀魂禮品碼到 codex reset 推文，讓你滑 DC 也能接收各種資訊。',
         channel: '每日單字',
         messages: [
             {
@@ -596,7 +594,7 @@ export const FEATURES = [
     },
     {
         id: 'voice',
-        section: 'server',
+        section: 'chat',
         title: '語音聊天',
         description: '請她加入你的語音頻道，用說的繼續聊。',
         channel: '日常聊天',
@@ -664,7 +662,7 @@ export const FEATURES = [
                 text: '要確認當期公告的假日班表與停駛日期，不能直接沿用平日班次。剛剛的校方頁面會列出適用期間與最新公告。',
             },
         ],
-        note: '示範不代表即時公車班次。',
+        note: '',
     },
     {
         id: 'ccxp',
@@ -697,13 +695,13 @@ export const FEATURES = [
                 text: '對。這段紀錄只能支持「正在規劃、待後續討論」，不能當作已核定的開課公告。',
             },
         ],
-        note: '文件為示範資料。',
+        note: '',
     },
     {
         id: 'threads',
-        section: 'nthu',
-        title: '校園脆文',
-        description: '明確請她海巡脆，找清大、學生會或指定主題的討論。',
+        section: 'chat',
+        title: '脆海巡',
+        description: '在 Threads 上尋找指定主題的討論。',
         channel: '清大生活',
         messages: [
             {
@@ -729,12 +727,12 @@ export const FEATURES = [
                 text: '打包：寢具、網路線、清潔用品、換洗衣物。\n先確認：床墊尺寸、插座與用電規定、入住時間。網友的經驗可以參考，規定要以你住的宿舍公告為準。',
             },
         ],
-        note: '貼文為示範資料；實際搜尋會附上可取得的原文來源。',
+        note: '',
     },
     {
         id: 'drive',
         section: 'nthusa',
-        title: '雲端文件',
+        title: '查詢雲端文件',
         description: '在核准的學生會文件裡找企劃、紀錄與相關資料。',
         channel: '學生會辦公室',
         messages: [
@@ -772,13 +770,13 @@ export const FEATURES = [
                 quote: '器材負責人：12:30 完成投影與音響測試。',
             },
         ],
-        note: '企劃為示範資料。',
+        note: '',
     },
     {
         id: 'calendar',
         section: 'nthusa',
-        title: '日曆與邀請',
-        description: '查會辦空檔，安排活動；寄出邀請前會先讓你確認。',
+        title: '日曆操作',
+        description: '透過 Google Calendar 幫你安排活動。',
         channel: '學生會辦公室',
         messages: [
             {
@@ -819,13 +817,14 @@ export const FEATURES = [
                 },
             },
         ],
-        note: '試著按「確認建立」或「取消」。時間與人物為示範資料，按鈕不會操作真實日曆。',
+        note: '',
     },
     {
         id: 'reviews',
         section: 'developer',
         title: 'PR review',
-        description: '在專屬討論串看 PR、補充修改方向，追蹤後續結果。',
+        description:
+            '自動建立 PR 對應討論串、傳送請求 review 通知，並在 merge 後關閉。',
         channel: 'PR review',
         messages: [
             {
@@ -863,13 +862,13 @@ export const FEATURES = [
                 text: '討論串已封存',
             },
         ],
-        note: 'PR 與人物為示範資料。',
+        note: '',
     },
     {
         id: 'coding',
-        section: 'owner',
+        section: 'developer',
         title: '程式開發',
-        description: '交代修改方向，在討論串追蹤進度、補充需求或暫停。',
+        description: '隨時銜接群組討論進行開發，也能請她修好自己。',
         channel: '程式開發',
         messages: [
             {
@@ -894,13 +893,13 @@ export const FEATURES = [
                 text: '驗證完成：空陣列、有資料的列表都通過。已依你的要求開 draft PR（#42，示範），等待 review；還沒有合併或部署。',
             },
         ],
-        note: 'PR 編號為示範，合併與部署仍需明確授權。',
+        note: '',
     },
     {
         id: 'mac',
-        section: 'owner',
-        title: 'Mac 檔案',
-        description: '按檔名找允許目錄裡的檔案，傳回聊天室。',
+        section: 'files',
+        title: '使用 Mac',
+        description: '連接 Mac，尋找檔案並回傳。',
         channel: '私人工作',
         messages: [
             {
@@ -930,9 +929,9 @@ export const FEATURES = [
     },
     {
         id: 'controls',
-        section: 'owner',
+        section: 'misc',
         title: '功能與權限設定',
-        description: '開啟服務，調整使用對象、身分組與訂閱頻道。',
+        description: '調整各服務權限與啟用位置。',
         channel: '私人工作',
         messages: [
             {
