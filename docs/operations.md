@@ -182,48 +182,51 @@ for their contents and exclusions.
 
 Production state is backed up to the private
 [sago-cream/minisago-state](https://github.com/sago-cream/minisago-state)
-repository, separately from application code. Keep its local checkout alongside
-this one:
+repository, separately from application code. An Oracle systemd timer runs
+`minisago-state/scripts/sync.py` at five minutes past every hour. The dedicated
+checkout is `/var/lib/minisago-state`; it reads the local bot-core state volume,
+scans staged changes with Gitleaks, commits them, and pushes to the private
+repository's `main` branch. It runs independently of the bot containers and the
+Mac. Missed runs catch up after Oracle starts.
 
-```text
-Bot & Infra/
-  mini-sago/
-  minisago-state/
-```
-
-An ordinary Mac cron job runs `minisago-state/scripts/sync.py` at five minutes
-past every hour. It reads Oracle through SSH alias `sago-cloud`, commits changes,
-and pushes to the backup repository's `main` branch. No Codex automation is
-involved. The Mac must be awake, connected to Tailscale, and configured with the
-repository-scoped SSH deploy key; the job does not use login-Keychain credentials.
-Logs are at `~/Library/Logs/ObiInfra/minisago-state-sync.log`.
-
-For a replacement Mac, follow the [Mac recovery setup runbook](https://github.com/sago-cream/obi-infra/blob/master/docs/mac-recovery-setup.md).
-It covers dependencies, cloning, Git author identity, Oracle SSH/Tailscale access,
-deploy-key regeneration, cron installation, and scheduled-run verification. While
-[Obi infrastructure PR #4](https://github.com/sago-cream/obi-infra/pull/4) is pending,
-read the runbook on its `chore/git-vault-recovery` branch. A Git clone alone does
-not restore the crontab, `.git/config`, private keys, host trust, or account logins.
+A repository-scoped write deploy key lives at
+`/etc/minisago-state/id_ed25519`, outside both the checkout and bot containers.
+Git uses strict host-key verification with
+`/etc/minisago-state/known_hosts`. The service runs as root to read the Docker
+volume, with a read-only filesystem except for its checkout and private temporary
+directory. No state credentials are committed to the backup repo.
 
 The allowlist includes guild-memory Markdown and its Git history, reminders,
-custom bot status (`bot-status.json`), feature availability, GitHub PR-thread mappings, and selected monitor cursors.
-The reader validates JSON and requires two matching reads around the history
-capture, retrying if files change. It does not stop the bot. This is a stable
-file snapshot, not a cross-service transaction. When adding a new durable state
-file, update the backup reader's allowlist in `minisago-state` as well.
+custom bot status (`bot-status.json`), feature availability, GitHub PR-thread
+mappings, and selected monitor cursors. The reader validates JSON and requires
+two matching reads around history capture, retrying if files change. It does not
+stop or modify the bot. This is a stable file snapshot, not a cross-service
+transaction. Add new durable state files to the reader's allowlist in
+`minisago-state` as well.
 
-Credentials are stored in Bitwarden folder **Obi and MiniSago Recovery**.
-Media, recordings, traces, sessions, caches, dependencies, and worker checkouts
-are excluded. Preserve unfinished worker code in its application remote before
-discarding a workspace; uploaded media and share links are expendable under the
-current recovery policy. The live guild-memory repository keeps no remote.
+Each run fast-forwards the dedicated checkout before capturing state. An
+exclusive lock prevents overlapping jobs. The job never force-pushes; resolve
+branch divergence manually if another writer advances the snapshot history.
 
-After moving or cloning the backup checkout, install its cron entry again:
+Service credentials are stored in Bitwarden folder **Obi and MiniSago Recovery**.
+The backup deploy key can be recreated and registered on GitHub after host
+recovery. Media, recordings, traces, sessions, caches, dependencies, and worker
+checkouts are excluded. Preserve unfinished worker code in its application
+remote before discarding a workspace. The live guild-memory repository keeps
+no remote.
+
+Install or recover the timer using the private backup repository's README:
 
 ```bash
-sh ../minisago-state/scripts/install-cron.sh
-python3 ../minisago-state/scripts/sync.py
+sudo sh /var/lib/minisago-state/scripts/install-oracle.sh
+sudo systemctl start minisago-state-backup.service
+systemctl list-timers minisago-state-backup.timer
+journalctl -u minisago-state-backup.service --since today
 ```
+
+The former Mac backup cron entry is removed by
+`sh minisago-state/scripts/install-cron.sh`. Other Mac cron jobs are preserved;
+the Mac can still clone the private repo for manual recovery.
 
 To recover after losing the server:
 
@@ -237,8 +240,9 @@ To recover after losing the server:
    origin, and copy its `.git` directory into the restored `guild-memory`
    directory. Keep `state/guild-memory/*.md` as the latest working files. Never
    attach the backup remote to the bot's live memory repository.
-5. Restart bot-core and verify memory, reminders, and feature settings. Consult
-   the private backup repository's README for current recovery details.
+5. Restart bot-core and verify memory, reminders, feature settings, and saved
+   status. Recreate the Oracle backup key and timer using the private backup
+   repository's README.
 
 The former Oracle bot/CouchDB snapshot and restore-test timers are retired;
 Git history is the durable-state recovery source.
