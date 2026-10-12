@@ -11,6 +11,9 @@ import './FeatureExplorer.css';
 
 export function FeatureExplorer(): JSX.Element {
     const [selectedId, setSelectedId] = useState<string>(FEATURES[0].id);
+    const [expandedSections, setExpandedSections] = useState<readonly string[]>(
+        [FEATURES[0].section]
+    );
     const [menuOpen, setMenuOpen] = useState(false);
     const selected =
         FEATURES.find((feature) => feature.id === selectedId) ?? FEATURES[0];
@@ -37,8 +40,22 @@ export function FeatureExplorer(): JSX.Element {
                     <details
                         className='sidebar-section'
                         key={section.id}
-                        name='feature-sections'
-                        open={section.id === selected.section}
+                        onToggle={(event) => {
+                            const expanded = event.currentTarget.open;
+                            setExpandedSections((previous) => {
+                                if (
+                                    previous.includes(section.id) === expanded
+                                ) {
+                                    return previous;
+                                }
+                                return expanded
+                                    ? [...previous, section.id]
+                                    : previous.filter(
+                                          (id) => id !== section.id
+                                      );
+                            });
+                        }}
+                        open={expandedSections.includes(section.id)}
                     >
                         <summary>
                             <h2>{section.title}</h2>

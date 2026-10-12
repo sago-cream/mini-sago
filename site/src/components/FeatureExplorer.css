@@ -49,6 +49,7 @@
     border: 0;
     border-radius: 8px;
     padding: 8px 12px;
+    padding-inline-start: 28px;
     min-height: 44px;
     background: transparent;
     color: var(--clr-text);
