@@ -47,6 +47,8 @@ The production origin is `https://mini.sagocream.com`. Canonical URLs and social
 sharing metadata use this origin. `/sitemap.xml` lists the four public pages and
 `/robots.txt` allows crawling and points to the sitemap. Submit the sitemap and
 request indexing of the homepage in Google Search Console after deployment.
+The public ownership-verification tag lives in `src/app/layout.tsx`; keep it in
+place to retain Search Console verification, or replace it for your own instance.
 
 Update `src/features.ts` when capabilities or access requirements change, including
 the example conversations and any setup notes. `SELF_HOST_URL` links to the

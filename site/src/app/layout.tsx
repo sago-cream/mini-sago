@@ -20,6 +20,7 @@ export const metadata: Metadata = {
     metadataBase: new URL(SITE_ORIGIN),
     applicationName: SITE_NAME,
     robots: { index: true, follow: true },
+    verification: { google: '4cLzlp9HE5AWuWWZn9DS0_W2pScD0YpEC9Xdm9nLQy0' },
     icons: { icon: '/images/minisago3.png' },
 };
 
