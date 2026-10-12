@@ -2,6 +2,8 @@ import type { JSX, ReactNode } from 'react';
 import type { Metadata } from 'next';
 import { Nunito } from 'next/font/google';
 
+import { pageMetadata, SITE_NAME, SITE_ORIGIN } from '@/metadata';
+
 import './global.css';
 
 const rounded = Nunito({
@@ -10,11 +12,14 @@ const rounded = Nunito({
     display: 'swap',
 });
 export const metadata: Metadata = {
-    title: 'MiniSago — 聊天室裡的小幫手',
-    description:
+    ...pageMetadata(
+        SITE_NAME,
         '不用背指令，自然地說出需求。認識 Discord 裡的迷你西米露，透過示範對話探索聊天、檔案、校園與開發功能。',
-    metadataBase: new URL('https://minisago.sagocream.com'),
-    alternates: { canonical: '/' },
+        '/'
+    ),
+    metadataBase: new URL(SITE_ORIGIN),
+    applicationName: SITE_NAME,
+    robots: { index: true, follow: true },
     icons: { icon: '/images/minisago3.png' },
 };
 

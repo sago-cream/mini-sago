@@ -3,12 +3,13 @@ import Link from 'next/link';
 
 import { PolicyPage } from '@/components/PolicyPage';
 import { SELF_HOST_URL } from '@/features';
+import { pageMetadata } from '@/metadata';
 
-export const metadata: Metadata = {
-    title: '使用條款 — MiniSago',
-    description: '迷你西米露的使用範圍、服務限制與聯絡方式。',
-    alternates: { canonical: '/terms/' },
-};
+export const metadata: Metadata = pageMetadata(
+    '使用條款 — mini sago',
+    '迷你西米露的使用範圍、服務限制、語音來源與聯絡方式。',
+    '/terms/'
+);
 
 export default function TermsPage() {
     return (
@@ -60,6 +61,25 @@ export default function TermsPage() {
                 <p>
                     功能、開放範圍與本條款可能隨服務調整而更新。
                     更新時會在本頁標示日期；如有疑問，可以透過下方信箱聯絡管理者。
+                </p>
+            </section>
+            <section aria-labelledby='voice-credits-title' id='voice-credits'>
+                <h2 id='voice-credits-title'>語音來源與致謝</h2>
+                <p>
+                    迷你西米露的語音合成使用 <strong>VOICEVOX:猫使ビィ</strong>
+                    。 感謝 VOICEVOX
+                    與猫使ビィ的創作者提供語音引擎與音聲資料庫。
+                </p>
+                <p>
+                    詳細使用規範請見{' '}
+                    <a href='https://voicevox.hiroshiba.jp/term/'>
+                        VOICEVOX 利用規約
+                    </a>
+                    與{' '}
+                    <a href='https://nekotukarb.wixsite.com/nekonohako/利用規約'>
+                        猫使音聲資料庫利用規約
+                    </a>
+                    。
                 </p>
             </section>
             <section>

@@ -22,7 +22,8 @@ guide fills the viewport, with independent scrolling for the sidebar and the
 conversation; a minimal footer contains the access-scope note.
 
 `/privacy/` explains the hosted bot's data processing and deletion requests;
-`/terms/` explains access, acceptable use, and service limitations. Both use the
+`/terms/` explains access, acceptable use, service limitations, and the
+`VOICEVOX:猫使ビィ` voice credit at `/terms/#voice-credits`. Both use the
 shared header and footer. The support address and policy update date live in
 `src/policies.ts`. Review these pages when data handling or service scope changes;
 self-hosted operators need policies that match their own setup.
@@ -41,6 +42,11 @@ the Discord bot; it requires bot credentials and an owner ID.
 `check` runs TypeScript, ESLint, Prettier, and a production build. The build
 exports a static site to `site/out/`; serve that directory with any static host.
 No bot credentials or backend connection are needed.
+
+The production origin is `https://mini.sagocream.com`. Canonical URLs and social
+sharing metadata use this origin. `/sitemap.xml` lists the four public pages and
+`/robots.txt` allows crawling and points to the sitemap. Submit the sitemap and
+request indexing of the homepage in Google Search Console after deployment.
 
 Update `src/features.ts` when capabilities or access requirements change, including
 the example conversations and any setup notes. `SELF_HOST_URL` links to the

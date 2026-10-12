@@ -2,13 +2,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { PolicyPage } from '@/components/PolicyPage';
+import { pageMetadata } from '@/metadata';
 
-export const metadata: Metadata = {
-    title: '隱私權政策 — MiniSago',
-    description:
-        '迷你西米露如何處理 Discord 訊息、附件、伺服器記憶，以及如何提出資料刪除請求。',
-    alternates: { canonical: '/privacy/' },
-};
+export const metadata: Metadata = pageMetadata(
+    '隱私權政策 — mini sago',
+    '迷你西米露如何處理 Discord 訊息、附件、伺服器記憶，以及如何提出資料刪除請求。',
+    '/privacy/'
+);
 
 export default function PrivacyPage() {
     return (
