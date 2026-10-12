@@ -1,3 +1,4 @@
+import { BotManagement, registerBotManagement } from "./bot-management";
 import { createFeatureAccess } from "./feature-access";
 import { getGuildMemoryStore } from "../chatbot/guild-memory";
 import { routeWithJev } from "../chatbot/jev-routing";
@@ -238,6 +239,14 @@ function getGatewayCloseReason(code: number) {
 }
 
 class InstagramGatewayClient implements VoiceGateway {
+  private gatewayReady = false;
+  private botManagement = new BotManagement(() =>
+    !this.stopped &&
+    this.gatewayReady &&
+    this.socket?.readyState === WebSocket.OPEN
+      ? this.socket
+      : null,
+  );
   private ambientReactions: AmbientReactionController;
   private channelTasks = new ChannelTaskQueue();
   private conversations = new ChatbotConversationTracker();
@@ -300,17 +309,20 @@ class InstagramGatewayClient implements VoiceGateway {
     this.stopCalendarDraftExpiry = startCalendarDraftExpiry(
       this.discordRequest,
     );
+    registerBotManagement(this.botManagement);
     void this.openSocket(false);
   }
 
   stop() {
     this.stopCalendarDraftExpiry?.();
     this.stopped = true;
+    this.botManagement.dispose();
     this.clearHeartbeat();
     this.ambientReactions.stop();
     this.voiceChat.destroy();
     this.socket?.close(1000, "MiniSago shutdown");
     registerVoiceGateway(null);
+    registerBotManagement(null);
   }
 
   joinMemberVoiceChannel(
@@ -353,6 +365,7 @@ class InstagramGatewayClient implements VoiceGateway {
       void this.handleGatewayPayload(event);
     });
     this.socket.addEventListener("close", (event) => {
+      this.gatewayReady = false;
       this.latestMessages.clear();
       this.clearHeartbeat();
 
@@ -409,6 +422,7 @@ class InstagramGatewayClient implements VoiceGateway {
       this.resumeGatewayUrl = ready.resume_gateway_url ?? null;
       this.botUserId = ready.user?.id ?? null;
       this.reconnectAttempts = 0;
+      this.gatewayReady = true;
       console.log("Discord gateway ready.");
       for (const guild of ready.guilds ?? []) {
         void this.ensureGuildMemory(guild.id);
@@ -418,6 +432,8 @@ class InstagramGatewayClient implements VoiceGateway {
 
     if (payload.t === "RESUMED") {
       this.reconnectAttempts = 0;
+      this.gatewayReady = true;
+      this.botManagement.reapplyPresence();
       console.log("Discord gateway resumed.");
       return;
     }
@@ -609,18 +625,7 @@ class InstagramGatewayClient implements VoiceGateway {
           browser: "minisago",
           device: "minisago",
         },
-        presence: {
-          since: null,
-          activities: [
-            {
-              name: "Custom Status",
-              type: 4,
-              state: "標我才會讀訊息",
-            },
-          ],
-          status: "online",
-          afk: false,
-        },
+        presence: this.botManagement.getPresence(),
       },
     });
   }

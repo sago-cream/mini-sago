@@ -1,3 +1,8 @@
+import {
+  BOT_PRESENCE_STATUSES,
+  type BotStatusInput,
+  type BotStatusResult,
+} from "../discord/bot-management";
 import type { FeatureAccess } from "../discord/feature-access";
 import {
   featureForTool,
@@ -421,6 +426,7 @@ export type ChatbotMcpSessionHandlers = {
     durationMinutes: number;
   };
   getCodexUsage?: () => Promise<CodexUsageSnapshot | null>;
+  updateCustomStatus?: (input: BotStatusInput) => BotStatusResult;
   sendChannelMessage?: (input: {
     content: string;
     channelId?: string;
@@ -598,6 +604,11 @@ function availableCapabilities(
           ...(handlers.editTripPlan ? ["edit_trip_plan"] : []),
         ],
       }),
+    );
+  }
+  if (handlers.updateCustomStatus) {
+    capabilities.push(
+      featureCapability("bot_status", { availability: "available" }),
     );
   }
   if (handlers.sendChannelMessage) {
@@ -1227,6 +1238,32 @@ function createServer(session: ChatbotMcpSession) {
     );
   }
 
+  if (session.handlers.updateCustomStatus) {
+    registerFeatureTool(
+      "update_custom_status",
+      {
+        description:
+          "Update the bot's custom status immediately for an explicit owner request. Empty text clears it. Optionally change online presence. The current status survives Gateway reconnects; process restarts restore DISCORD_CUSTOM_STATUS.",
+        inputSchema: {
+          text: z.string().max(128),
+          presence: z.enum(BOT_PRESENCE_STATUSES).optional(),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: true,
+        },
+      },
+      async (input) => {
+        try {
+          return toolResult(session.handlers.updateCustomStatus!(input));
+        } catch (error) {
+          return unavailable(error);
+        }
+      },
+    );
+  }
   if (session.handlers.sendChannelMessage) {
     registerFeatureTool(
       "send_channel_message",

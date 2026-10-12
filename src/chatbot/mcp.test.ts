@@ -1543,3 +1543,128 @@ function registerChatbotMcpSession(
     ...options,
   });
 }
+
+test("owner status MCP tool updates immediately and validates bounded inputs", async () => {
+  const calls: unknown[] = [];
+  const session = registerChatbotMcpSession(
+    {
+      ...handlers(),
+      updateCustomStatus: (input) => {
+        calls.push(input);
+        return {
+          status: "updated",
+          text: input.text,
+          presence: input.presence ?? "online",
+        };
+      },
+    },
+    {
+      featureAccess: (feature) =>
+        createFeatureAccess(feature, {
+          requesterId: "owner",
+          ownerId: "owner",
+        }),
+    },
+  );
+  const client = await connect(session.token);
+  expect(session.capabilities.some((c) => c.id === "bot_status")).toBe(true);
+  expect(
+    (await client.listTools()).tools.find(
+      (t) => t.name === "update_custom_status",
+    )?.annotations?.readOnlyHint,
+  ).toBe(false);
+  expect(
+    JSON.stringify(
+      await client.callTool({
+        name: "update_custom_status",
+        arguments: { text: "mini.sagocream.com", presence: "idle" },
+      }),
+    ),
+  ).toContain('"status":"updated"');
+  for (const input of [
+    { text: "x".repeat(129) },
+    { text: "ok", presence: "offline" },
+  ]) {
+    expect(
+      (
+        await client.callTool({
+          name: "update_custom_status",
+          arguments: input,
+        })
+      ).isError,
+    ).toBe(true);
+  }
+  expect(calls).toEqual([{ text: "mini.sagocream.com", presence: "idle" }]);
+  await client.close();
+  session.revoke();
+});
+
+test("status tools reject non-owners and recheck bound identity on execution", async () => {
+  let requesterId = "owner",
+    calls = 0;
+  const session = registerChatbotMcpSession(
+    {
+      ...handlers(),
+      updateCustomStatus: () => {
+        calls++;
+        return { status: "updated", text: "test", presence: "online" };
+      },
+    },
+    {
+      featureAccess: (feature) => ({
+        available: () => true,
+        allowed: () =>
+          createFeatureAccess(feature, {
+            requesterId,
+            ownerId: "owner",
+          }).allowed(),
+      }),
+    },
+  );
+  const client = await connect(session.token);
+  requesterId = "member";
+  const result = await client.callTool({
+    name: "update_custom_status",
+    arguments: { text: "test", ownerId: "member" },
+  });
+  expect(JSON.stringify(result)).toContain("forbidden");
+  expect(calls).toBe(0);
+  await client.close();
+  session.revoke();
+  const memberSession = registerChatbotMcpSession(
+    {
+      ...handlers(),
+      updateCustomStatus: () => {
+        calls++;
+        return { status: "gateway_unavailable" };
+      },
+    },
+    {
+      featureAccess: (feature) =>
+        createFeatureAccess(feature, {
+          requesterId: "member",
+          ownerId: "owner",
+        }),
+    },
+  );
+  const memberClient = await connect(memberSession.token);
+  expect(memberSession.capabilities.some((c) => c.id === "bot_status")).toBe(
+    false,
+  );
+  expect(
+    (await memberClient.listTools()).tools.some(
+      (t) => t.name === "update_custom_status",
+    ),
+  ).toBe(false);
+  expect(
+    (
+      await memberClient.callTool({
+        name: "update_custom_status",
+        arguments: { text: "test" },
+      })
+    ).isError,
+  ).toBe(true);
+  expect(calls).toBe(0);
+  await memberClient.close();
+  memberSession.revoke();
+});

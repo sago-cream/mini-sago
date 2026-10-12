@@ -1,3 +1,4 @@
+import { updateCustomStatus } from "../discord/bot-management";
 import {
   createFeatureAccess,
   withFeatureAccess,
@@ -1763,6 +1764,7 @@ export async function handleChatbotMention({
           : {}),
         ...(requesterUserId === accessConfig.ownerUserId
           ? {
+              updateCustomStatus,
               sendChannelMessage: (input: {
                 content: string;
                 channelId?: string;

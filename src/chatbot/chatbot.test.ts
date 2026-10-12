@@ -277,6 +277,10 @@ describe("Discord chatbot", () => {
             tools: ["send_channel_message"],
           }),
           expect.objectContaining({
+            id: "bot_status",
+            tools: ["update_custom_status"],
+          }),
+          expect.objectContaining({
             id: "feature_availability",
             tools: [
               "list_feature_availability",
@@ -1661,6 +1665,7 @@ describe("Discord chatbot", () => {
       expect(tools).toContain("add_guild_expression");
       expect(tools).toContain("rename_guild_emoji");
       expect(tools).not.toContain("configure_feature_availability");
+      expect(tools).not.toContain("update_custom_status");
       const renamed = await client.callTool({
         name: "rename_guild_emoji",
         arguments: { emoji: "wave", name: "hello" },
