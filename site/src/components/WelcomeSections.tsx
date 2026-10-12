@@ -26,22 +26,11 @@ export function NaturalLanguage(): JSX.Element {
                 <p>她能接著追問、找資料，再動手完成。你只要專心在事情本身。</p>
             </div>
             <DiscordDemo channel='活動籌備' messages={LANDING_CONVERSATION} />
-        </section>
-    );
-}
-export function GuideLink(): JSX.Element {
-    return (
-        <section
-            aria-labelledby='guide-link-title'
-            className='guide-link section-width'
-        >
-            <div>
-                <h2 id='guide-link-title'>她還能幫上什麼忙？</h2>
-                <p>從聊天、檔案到校園查詢，看看每個功能怎麼用。</p>
+            <div className='natural-guide-cta'>
+                <Link className='text-link' href='/features/'>
+                    探索功能導覽 <ArrowRight aria-hidden='true' size={20} />
+                </Link>
             </div>
-            <Link className='text-link' href='/features/'>
-                探索功能導覽 <ArrowRight aria-hidden='true' size={20} />
-            </Link>
         </section>
     );
 }

@@ -21,9 +21,9 @@ export function Hero(): JSX.Element {
                 </div>
                 <div className='hero-copy'>
                     <h1 id='hero-title'>
-                        不用背指令，
+                        能和你聊天的
                         <br />
-                        <span>有事直接說。</span>
+                        <span>Discord 機器人</span>
                     </h1>
                     <p className='hero-description'>
                         迷你西米露，住在 Discord 裡的 AI 小幫手。
@@ -32,7 +32,7 @@ export function Hero(): JSX.Element {
                     </p>
                     <div className='hero-actions'>
                         <a className='button' href='#about'>
-                            看她怎麼幫忙 <ArrowDown size={18} />
+                            看看她能做什麼 <ArrowDown size={18} />
                         </a>
                         <Link className='hero-guide-link' href='/features/'>
                             功能導覽 <ArrowRight size={18} />
@@ -46,7 +46,7 @@ export function Hero(): JSX.Element {
                 preserveAspectRatio='none'
                 viewBox='0 0 1440 160'
             >
-                <path d='M0 88C240 72 440 72 600 88C800 112 920 152 1120 152H1440V160H0Z' />
+                <path d='M0 96C240 96 480 32 720 32C960 32 1200 96 1440 96V160H0Z' />
             </svg>
         </section>
     );

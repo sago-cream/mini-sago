@@ -2,9 +2,7 @@
     position: relative;
     padding-top: 32px;
     overflow: hidden;
-    background:
-        radial-gradient(ellipse at 80% 0%, var(--clr-bg), transparent 72%),
-        linear-gradient(180deg, var(--clr-blue), var(--clr-teal));
+    background: var(--clr-teal);
 }
 .hero-inner {
     display: grid;
@@ -24,11 +22,11 @@
     max-width: 100%;
 }
 .hero h1 > span {
-    color: #9282c7;
+    color: var(--clr-accent);
 }
 .hero-description {
     font-size: 17px;
-    color: var(--clr-text-muted);
+    color: var(--clr-teal-ink);
     line-height: 2;
 }
 .hero-actions {
@@ -109,6 +107,6 @@
     gap: 8px;
     min-height: 44px;
     font-size: 14px;
-    color: var(--clr-accent);
+    color: var(--clr-teal-ink);
     font-weight: 600;
 }
