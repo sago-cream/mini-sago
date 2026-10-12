@@ -1,48 +1,67 @@
 import type { JSX } from 'react';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowRight, ArrowUpRight } from 'lucide-react';
+import Link from 'next/link';
 
-import { INVITE_URL } from '@/features';
+import { CONTACT_URL, LANDING_CONVERSATION } from '@/features';
+import { DiscordDemo } from './DiscordDemo';
 
 import './WelcomeSections.css';
 
-const STRENGTHS = [
-    {
-        title: '隨意交談，不用背指令',
-        text: '迷你西米露能直接理解對話',
-    },
-    {
-        title: '讓 Discord 也能有生產力',
-        text: '她也能搜尋並整理伺服器或網路資料',
-    },
-    { title: '融入你的聊天室', text: '記住伺服器的用語。' },
-] as const;
-
-export function Strengths(): JSX.Element {
-    return (
-        <ul className='strength-list' id='about'>
-            {STRENGTHS.map(({ title, text }) => (
-                <li className='strength' key={title}>
-                    <h2>{title}</h2>
-                    <p>{text}</p>
-                </li>
-            ))}
-        </ul>
-    );
-}
-
-export function InviteSago(): JSX.Element {
+export function NaturalLanguage(): JSX.Element {
     return (
         <section
-            aria-labelledby='invite-title'
-            className='invite-sago section-width'
-            id='invite'
+            aria-labelledby='natural-title'
+            className='natural-section section-width'
+            id='about'
+        >
+            <div className='natural-copy'>
+                <h2 id='natural-title'>
+                    一個請求，
+                    <br />
+                    可以不只一件事。
+                </h2>
+                <p>
+                    像跟朋友說話一樣，告訴她你想做什麼。條件、附件、好幾件事，都可以放在同一個請求裡。
+                </p>
+                <p>她能接著追問、找資料，再動手完成。你只要專心在事情本身。</p>
+            </div>
+            <DiscordDemo channel='活動籌備' messages={LANDING_CONVERSATION} />
+        </section>
+    );
+}
+export function GuideLink(): JSX.Element {
+    return (
+        <section
+            aria-labelledby='guide-link-title'
+            className='guide-link section-width'
         >
             <div>
-                <h2 id='invite-title'>把迷你西米露帶進你的伺服器。</h2>
-                <p>邀請後，功能依伺服器、頻道與身分組設定開放。</p>
+                <h2 id='guide-link-title'>她還能幫上什麼忙？</h2>
+                <p>從聊天、檔案到校園查詢，看看每個功能怎麼用。</p>
             </div>
-            <a className='button' href={INVITE_URL}>
-                邀請迷你西米露 <ArrowUpRight aria-hidden='true' size={18} />
+            <Link className='text-link' href='/features/'>
+                探索功能導覽 <ArrowRight aria-hidden='true' size={20} />
+            </Link>
+        </section>
+    );
+}
+export function AccessSago(): JSX.Element {
+    return (
+        <section
+            aria-labelledby='access-title'
+            className='access-sago section-width'
+            id='access'
+        >
+            <div>
+                <h2 id='access-title'>想讓迷你西米露幫上忙？</h2>
+                <p>
+                    目前僅供個人使用，尚未開放自由加入伺服器。
+                    <br />
+                    想試試看，可以先私訊我，聊聊你的需求與使用權限。
+                </p>
+            </div>
+            <a className='button' href={CONTACT_URL}>
+                私訊我，申請使用 <ArrowUpRight aria-hidden='true' size={18} />
             </a>
         </section>
     );

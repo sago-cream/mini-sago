@@ -1,67 +1,86 @@
+'use client';
+
+import { useState } from 'react';
 import type { JSX } from 'react';
 import { ChevronDown } from 'lucide-react';
 
-import { AUDIENCE_GROUPS, FEATURES } from '@/features';
-import { FeatureExample } from './FeatureDetails';
+import { FEATURE_SECTIONS, FEATURES } from '@/features';
+import { DiscordDemo } from './DiscordDemo';
 
 import './FeatureExplorer.css';
 
 export function FeatureExplorer(): JSX.Element {
+    const [selectedId, setSelectedId] = useState<string>(FEATURES[0].id);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const selected =
+        FEATURES.find((feature) => feature.id === selectedId) ?? FEATURES[0];
     return (
-        <section
-            aria-labelledby='features-title'
-            className='feature-section section-width'
-            id='features'
-        >
-            <div className='feature-heading' id='start'>
-                <h2 id='features-title'>想做什麼，直接說。</h2>
-                <p>
-                    標記迷你西米露，或用 <code>/ask</code> 私下聊。
-                </p>
-            </div>
-            <div className='feature-groups'>
-                {AUDIENCE_GROUPS.map((group, index) => (
-                    <section
-                        aria-labelledby={`feature-group-${index}`}
-                        className='feature-group'
-                        key={group.audience}
+        <div className='feature-workspace section-width'>
+            <button
+                aria-controls='feature-navigation'
+                aria-expanded={menuOpen}
+                className='feature-mobile-menu'
+                onClick={() => {
+                    setMenuOpen((value) => !value);
+                }}
+                type='button'
+            >
+                選擇功能：{selected.title}
+                <ChevronDown aria-hidden='true' size={18} />
+            </button>
+            <nav
+                aria-label='功能分類'
+                className={`feature-sidebar ${menuOpen ? 'sidebar-open' : ''}`}
+                id='feature-navigation'
+            >
+                {FEATURE_SECTIONS.map((section) => (
+                    <details
+                        className='sidebar-section'
+                        key={section.id}
+                        name='feature-sections'
+                        open={section.id === selected.section}
                     >
-                        <h3 id={`feature-group-${index}`}>{group.title}</h3>
-                        {group.description !== '' && (
-                            <p className='feature-group-description'>
-                                {group.description}
-                            </p>
-                        )}
-                        <div className='feature-list'>
-                            {FEATURES.filter(
-                                (feature) => feature.audience === group.audience
-                            ).map((feature) => (
-                                <article
-                                    className='feature-row'
-                                    key={feature.id}
-                                >
-                                    <details name='feature-examples'>
-                                        <summary>
-                                            <div className='feature-row-copy'>
-                                                <h4>{feature.title}</h4>
-                                                <p>{feature.description}</p>
-                                            </div>
-                                            <ChevronDown
-                                                aria-hidden='true'
-                                                className='row-chevron'
-                                                size={16}
-                                            />
-                                        </summary>
-                                        <div className='feature-row-body'>
-                                            <FeatureExample feature={feature} />
-                                        </div>
-                                    </details>
-                                </article>
-                            ))}
-                        </div>
-                    </section>
+                        <summary>
+                            <h2>{section.title}</h2>
+                            <ChevronDown aria-hidden='true' size={14} />
+                        </summary>
+                        {FEATURES.filter(
+                            (feature) => feature.section === section.id
+                        ).map((feature) => (
+                            <button
+                                aria-controls='feature-preview'
+                                aria-pressed={feature.id === selectedId}
+                                key={feature.id}
+                                onClick={() => {
+                                    setSelectedId(feature.id);
+                                    setMenuOpen(false);
+                                }}
+                                type='button'
+                            >
+                                {feature.title}
+                            </button>
+                        ))}
+                    </details>
                 ))}
-            </div>
-        </section>
+            </nav>
+            <section
+                aria-labelledby='selected-feature-title'
+                className='feature-preview'
+                id='feature-preview'
+            >
+                <div className='feature-preview-heading'>
+                    <h2 id='selected-feature-title'>{selected.title}</h2>
+                    <p>{selected.description}</p>
+                </div>
+                <DiscordDemo
+                    channel={selected.channel}
+                    key={selected.id}
+                    messages={selected.messages}
+                />
+                {selected.note !== '' && (
+                    <p className='feature-note'>{selected.note}</p>
+                )}
+            </section>
+        </div>
     );
 }

@@ -1,19 +1,24 @@
 import type { JSX } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 import { REPOSITORY_URL } from '@/features';
 
 import './SiteChrome.css';
 
-export function SiteHeader(): JSX.Element {
+export function SiteHeader({
+    active = 'home',
+}: {
+    readonly active?: 'home' | 'features';
+}): JSX.Element {
     return (
         <>
             <a className='skip-link' href='#main'>
                 跳到主要內容
             </a>
             <header className='site-header'>
-                <a aria-label='MiniSago 首頁' className='brand' href='#main'>
+                <Link aria-label='MiniSago 首頁' className='brand' href='/'>
                     <Image
                         alt=''
                         height={40}
@@ -21,9 +26,22 @@ export function SiteHeader(): JSX.Element {
                         width={40}
                     />
                     <span>mini sago</span>
-                </a>
+                </Link>
                 <nav aria-label='主要導覽'>
-                    <a href='#features'>功能一覽</a>
+                    <Link
+                        aria-current={active === 'home' ? 'page' : undefined}
+                        href='/'
+                    >
+                        認識迷你西米露
+                    </Link>
+                    <Link
+                        aria-current={
+                            active === 'features' ? 'page' : undefined
+                        }
+                        href='/features/'
+                    >
+                        功能導覽
+                    </Link>
                 </nav>
                 <a
                     aria-label='MiniSago GitHub 原始碼'

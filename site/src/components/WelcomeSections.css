@@ -1,36 +1,92 @@
-.invite-sago {
+.natural-section {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 64px;
+    align-items: center;
+    padding-block: 96px;
+}
+.natural-copy h2 {
+    font-size: clamp(28px, 3vw, 40px);
+    line-height: 1.5;
+    letter-spacing: -1px;
+}
+.natural-copy p {
+    font-size: 16px;
+    color: var(--clr-text-muted);
+    margin-top: 24px;
+    max-width: 400px;
+}
+.guide-link {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 32px;
+    padding-block: 40px 80px;
+}
+.guide-link h2 {
+    font-size: 28px;
+}
+.guide-link p {
+    color: var(--clr-text-muted);
+    font-size: 15px;
+    margin-top: 8px;
+}
+.guide-link .text-link {
+    color: var(--clr-accent);
+    font-size: 16px;
+    flex-shrink: 0;
+}
+.access-sago {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 40px;
     padding: 48px;
-    border-radius: 32px;
+    border-radius: 28px;
     background: linear-gradient(
         105deg,
         var(--clr-blue),
-        var(--clr-lilac) 60%,
+        var(--clr-lilac) 70%,
         var(--clr-pink)
     );
 }
-.invite-sago h2 {
-    font-size: clamp(28px, 2.5vw, 36px);
+.access-sago h2 {
+    font-size: clamp(26px, 2.5vw, 32px);
+    letter-spacing: -1px;
 }
-.invite-sago p {
-    margin-top: 8px;
+.access-sago p {
+    margin-top: 12px;
     font-size: 14px;
     color: var(--clr-text-muted);
 }
-.invite-sago .button {
+.access-sago .button {
     flex-shrink: 0;
 }
-@media (max-width: 600px) {
-    .invite-sago {
+@media (max-width: 1000px) {
+    .natural-section {
+        grid-template-columns: 1fr;
+        gap: 32px;
+        padding-block: 64px;
+    }
+    .natural-copy p {
+        max-width: 640px;
+        margin-top: 16px;
+    }
+}
+@media (max-width: 700px) {
+    .guide-link,
+    .access-sago {
         align-items: start;
         flex-direction: column;
-        padding: 28px;
         gap: 24px;
     }
-    .invite-sago .button {
-        width: 100%;
+    .guide-link {
+        padding-block: 8px 56px;
+    }
+    .access-sago {
+        padding: 28px;
+    }
+    .natural-section {
+        padding-block: 48px;
     }
 }

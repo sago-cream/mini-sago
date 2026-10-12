@@ -12,7 +12,7 @@ const rounded = Nunito({
 export const metadata: Metadata = {
     title: 'MiniSago — 聊天室裡的小幫手',
     description:
-        '聊天、查資料、改圖，還能陪你寫程式。認識 MiniSago，看看 Discord 裡的迷你西米露能幫上什麼忙。',
+        '不用背指令，自然地說出需求。認識 Discord 裡的迷你西米露，透過示範對話探索聊天、檔案、校園與開發功能。',
     metadataBase: new URL('https://minisago.sagocream.com'),
     alternates: { canonical: '/' },
     icons: { icon: '/images/minisago3.png' },

@@ -9,7 +9,7 @@
 .hero-inner {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    min-height: 640px;
+    min-height: 560px;
     gap: 64px;
     align-items: center;
 }
@@ -34,7 +34,9 @@
 .hero-actions {
     display: flex;
     align-items: center;
-    margin-top: 24px;
+    margin-top: 28px;
+    gap: 24px;
+    flex-wrap: wrap;
 }
 .hero-art {
     width: calc(100% + 48px);
@@ -47,23 +49,6 @@
     display: block;
     width: 100%;
     height: auto;
-}
-.strength-list {
-    display: grid;
-    gap: 16px;
-    list-style: none;
-    padding: 0;
-    margin: 24px 0 0;
-}
-.strength h2 {
-    font-size: 16px;
-    letter-spacing: 0;
-    line-height: 1.5;
-    margin-bottom: 4px;
-}
-.strength p {
-    font-size: 14px;
-    color: var(--clr-teal-ink);
 }
 .hero-wave {
     position: absolute;
@@ -116,4 +101,14 @@
     .hero-actions .button {
         padding-inline: 16px;
     }
+}
+
+.hero-guide-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    font-size: 14px;
+    color: var(--clr-accent);
+    font-weight: 600;
 }

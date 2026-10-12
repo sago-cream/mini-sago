@@ -1,9 +1,8 @@
 import type { JSX } from 'react';
 
-import { FeatureExplorer } from './FeatureExplorer';
 import { Hero } from './Hero';
 import { SiteFooter, SiteHeader } from './SiteChrome';
-import { InviteSago } from './WelcomeSections';
+import { AccessSago, GuideLink, NaturalLanguage } from './WelcomeSections';
 
 export function App(): JSX.Element {
     return (
@@ -11,8 +10,9 @@ export function App(): JSX.Element {
             <SiteHeader />
             <main id='main'>
                 <Hero />
-                <FeatureExplorer />
-                <InviteSago />
+                <NaturalLanguage />
+                <GuideLink />
+                <AccessSago />
             </main>
             <SiteFooter />
         </>

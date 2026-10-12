@@ -1,8 +1,7 @@
 import type { JSX } from 'react';
-import { ArrowDown } from 'lucide-react';
+import { ArrowDown, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
-
-import { Strengths } from './WelcomeSections';
+import Link from 'next/link';
 
 import './Hero.css';
 
@@ -15,25 +14,29 @@ export function Hero(): JSX.Element {
                         alt='MiniSago 3：藍髮、紫眼的迷你西米露'
                         className='hero-character'
                         height={1540}
-                        priority
+                        loading='eager'
                         src='/images/minisago3.png'
                         width={1540}
                     />
                 </div>
                 <div className='hero-copy'>
                     <h1 id='hero-title'>
-                        聊得來，
+                        不用背指令，
                         <br />
-                        <span>也幫得上忙。</span>
+                        <span>有事直接說。</span>
                     </h1>
                     <p className='hero-description'>
-                        Discord 裡的小事，交給迷你西米露。
+                        迷你西米露，住在 Discord 裡的 AI 小幫手。
+                        <br />
+                        聊天、查資料，還能一起把事情做完。
                     </p>
-                    <Strengths />
                     <div className='hero-actions'>
-                        <a className='button' href='#features'>
-                            看看她會什麼 <ArrowDown size={18} />
+                        <a className='button' href='#about'>
+                            看她怎麼幫忙 <ArrowDown size={18} />
                         </a>
+                        <Link className='hero-guide-link' href='/features/'>
+                            功能導覽 <ArrowRight size={18} />
+                        </Link>
                     </div>
                 </div>
             </div>

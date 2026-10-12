@@ -11,5 +11,7 @@
     --clr-blue: #e7f4fc;
     --clr-pink: #fff0f5;
     --shadow-surface: 0 12px 32px #79709d0d;
+    --discord-bg: #313338;
+    --discord-text: #e1e2e7;
     accent-color: var(--clr-accent);
 }
