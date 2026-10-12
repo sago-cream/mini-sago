@@ -44,7 +44,9 @@ Start with [Discord setup](docs/discord-setup.md) and
 Dockerfiles and Compose configurations live in [`deploy/`](deploy/).
 
 The [feature website](site/README.md) lives in `site/`. Preview it with
-`npm --prefix site ci` and `npm --prefix site run dev`.
+`npm --prefix site ci` and `bun run dev:site` from the repository root.
+The website runs at `http://localhost:3101`; root `bun dev` starts the Discord bot
+and requires the configuration described in [Discord setup](docs/discord-setup.md).
 
 ## Voice credits
 

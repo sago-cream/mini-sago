@@ -10,9 +10,12 @@ From the repository root:
 
 ```sh
 npm --prefix site ci
-npm --prefix site run dev
+bun run dev:site
 npm --prefix site run check
 ```
+
+The website dev server runs at `http://localhost:3101`. Root `bun dev` starts
+the Discord bot; it requires bot credentials and an owner ID.
 
 `check` runs TypeScript, ESLint, Prettier, and a production build. The build
 exports a static site to `site/out/`; serve that directory with any static host.
