@@ -3,7 +3,7 @@
 }
 .showcase-navigation {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 16px;
     margin-bottom: 16px;
 }

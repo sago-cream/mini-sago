@@ -37,13 +37,11 @@ export function AccessSago(): JSX.Element {
             <div>
                 <h2 id='access-title'>想和迷你西米露聊聊？</h2>
                 <p>
-                    如果你認識我，很可能已經能在我們的 Discord 伺服器裡使用她。
-                    <br />
-                    想在自己的伺服器使用？你也可以依照開源指南，架設自己的迷你西米露。
+                    因計算資源有限，目前迷你西米露只在我待的部分伺服器中活躍。如果你認識我並也想和她聊聊，不妨直接私訊我詢問。若非如此，你也可以依照開源自架指南，架設自己的迷你西米露。
                 </p>
             </div>
             <a className='button' href={SELF_HOST_URL}>
-                自行架設指南 <ArrowUpRight aria-hidden='true' size={18} />
+                開源自架指南 <ArrowUpRight aria-hidden='true' size={18} />
             </a>
         </section>
     );
