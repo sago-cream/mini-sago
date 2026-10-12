@@ -37,7 +37,7 @@ export function AccessSago(): JSX.Element {
             <div>
                 <h2 id='access-title'>想和迷你西米露聊聊？</h2>
                 <p>
-                    因計算資源有限，目前迷你西米露只在我待的部分伺服器中活躍。如果你認識我並也想和她聊聊，不妨直接私訊我詢問。若非如此，你也可以依照開源自架指南，架設自己的迷你西米露。
+                    目前迷你西米露只在部分伺服器中活躍。你可以私訊建議我在其他伺服器啟用，或依照開源自架指南，架設自己的迷你西米露。
                 </p>
             </div>
             <a className='button' href={SELF_HOST_URL}>
