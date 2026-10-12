@@ -2,7 +2,7 @@
     position: relative;
     padding-top: 32px;
     overflow: hidden;
-    background: var(--clr-teal);
+    background: var(--clr-hero);
 }
 .hero-inner {
     display: grid;
