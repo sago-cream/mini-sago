@@ -38,7 +38,7 @@
     );
 }
 .natural-section + .access-sago {
-    margin-block: 160px;
+    margin-block: 120px;
 }
 .access-sago h2 {
     font-size: clamp(26px, 2.5vw, 32px);
