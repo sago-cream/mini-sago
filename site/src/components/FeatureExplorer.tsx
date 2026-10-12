@@ -5,6 +5,7 @@ import type { JSX } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 import { FEATURE_SECTIONS, FEATURES } from '@/features';
+import type { Feature } from '@/features';
 import { DiscordDemo } from './DiscordDemo';
 
 import './FeatureExplorer.css';
@@ -17,6 +18,23 @@ export function FeatureExplorer(): JSX.Element {
     const [menuOpen, setMenuOpen] = useState(false);
     const selected =
         FEATURES.find((feature) => feature.id === selectedId) ?? FEATURES[0];
+
+    function featureButton(feature: Feature): JSX.Element {
+        return (
+            <button
+                aria-controls='feature-preview'
+                aria-pressed={feature.id === selectedId}
+                key={feature.id}
+                onClick={() => {
+                    setSelectedId(feature.id);
+                    setMenuOpen(false);
+                }}
+                type='button'
+            >
+                {feature.title}
+            </button>
+        );
+    }
     return (
         <div className='feature-workspace section-width'>
             <button
@@ -36,49 +54,48 @@ export function FeatureExplorer(): JSX.Element {
                 className={`feature-sidebar ${menuOpen ? 'sidebar-open' : ''}`}
                 id='feature-navigation'
             >
-                {FEATURE_SECTIONS.map((section) => (
-                    <details
-                        className='sidebar-section'
-                        key={section.id}
-                        onToggle={(event) => {
-                            const expanded = event.currentTarget.open;
-                            setExpandedSections((previous) => {
-                                if (
-                                    previous.includes(section.id) === expanded
-                                ) {
-                                    return previous;
-                                }
-                                return expanded
-                                    ? [...previous, section.id]
-                                    : previous.filter(
-                                          (id) => id !== section.id
-                                      );
-                            });
-                        }}
-                        open={expandedSections.includes(section.id)}
-                    >
-                        <summary>
-                            <h2>{section.title}</h2>
-                            <ChevronDown aria-hidden='true' size={14} />
-                        </summary>
-                        {FEATURES.filter(
-                            (feature) => feature.section === section.id
-                        ).map((feature) => (
-                            <button
-                                aria-controls='feature-preview'
-                                aria-pressed={feature.id === selectedId}
-                                key={feature.id}
-                                onClick={() => {
-                                    setSelectedId(feature.id);
-                                    setMenuOpen(false);
-                                }}
-                                type='button'
-                            >
-                                {feature.title}
-                            </button>
-                        ))}
-                    </details>
-                ))}
+                {FEATURE_SECTIONS.map((section) =>
+                    'standalone' in section ? (
+                        <div
+                            className='sidebar-section sidebar-standalone'
+                            key={section.id}
+                        >
+                            {FEATURES.filter(
+                                (feature) => feature.section === section.id
+                            ).map(featureButton)}
+                        </div>
+                    ) : (
+                        <details
+                            className='sidebar-section'
+                            key={section.id}
+                            onToggle={(event) => {
+                                const expanded = event.currentTarget.open;
+                                setExpandedSections((previous) => {
+                                    if (
+                                        previous.includes(section.id) ===
+                                        expanded
+                                    ) {
+                                        return previous;
+                                    }
+                                    return expanded
+                                        ? [...previous, section.id]
+                                        : previous.filter(
+                                              (id) => id !== section.id
+                                          );
+                                });
+                            }}
+                            open={expandedSections.includes(section.id)}
+                        >
+                            <summary>
+                                <h2>{section.title}</h2>
+                                <ChevronDown aria-hidden='true' size={14} />
+                            </summary>
+                            {FEATURES.filter(
+                                (feature) => feature.section === section.id
+                            ).map(featureButton)}
+                        </details>
+                    )
+                )}
             </nav>
             <section
                 aria-labelledby='selected-feature-title'

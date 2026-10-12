@@ -11,6 +11,11 @@ buttons affect only the local demonstration. Slash-command replies use Discord's
 private-response layout. Time skips show reminders arriving and subscriptions
 posting again; explanatory captions and sample sources identify illustrative data.
 
+The guide groups features by task: conversation, information lookup, file
+processing, office work, Discord tools, and development. Settings are a separate
+sidebar item. Conversation summaries include older channel discussions; web
+search has its own example.
+
 Both pages explain access through shared Discord servers and link to the
 repository's self-host guide for readers who want their own instance.
 

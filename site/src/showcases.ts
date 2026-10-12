@@ -51,7 +51,7 @@ export const SHOWCASES = [
     },
     {
         id: 'discussion',
-        title: '整理聊天討論',
+        title: '整理對話懶人包',
         channel: '活動討論',
         messages: [
             {
