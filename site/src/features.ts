@@ -52,7 +52,7 @@ export interface Feature {
     readonly note: string;
 }
 export const REPOSITORY_URL = 'https://github.com/sago-cream/mini-sago';
-export const SELF_HOST_URL = `${REPOSITORY_URL}#self-host-minisago`;
+export const SELF_HOST_URL = `${REPOSITORY_URL}#self-host-mini-sago`;
 export const FEATURE_SECTIONS = [
     { id: 'chat', title: '聊天與互動' },
     { id: 'lookup', title: '查詢資料' },
