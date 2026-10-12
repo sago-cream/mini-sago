@@ -54,11 +54,11 @@ export const FEATURE_SECTIONS = [
     },
     {
         id: 'nthu',
-        title: 'NTHU · 清大',
+        title: '清大相關',
     },
     {
         id: 'nthusa',
-        title: 'NTHUSA · 清大學生會',
+        title: '行政事務',
     },
     {
         id: 'developer',

@@ -17,7 +17,6 @@ export default function FeatureGuidePage() {
             <main id='main'>
                 <div className='guide-heading section-width'>
                     <h1>功能導覽</h1>
-                    <p>挑一件想做的事，看看和她對話的過程。</p>
                 </div>
                 <FeatureExplorer />
                 <AccessSago />
