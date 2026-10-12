@@ -7,6 +7,20 @@ import { REPOSITORY_URL } from '@/features';
 
 import './SiteChrome.css';
 
+function GitHubLink(): JSX.Element {
+    return (
+        <a
+            aria-label='MiniSago GitHub 原始碼'
+            className='github-link'
+            href={REPOSITORY_URL}
+        >
+            <Image alt='' height={20} src='/logos/github.svg' width={20} />
+            <span>GitHub</span>
+            <ArrowUpRight aria-hidden='true' size={16} />
+        </a>
+    );
+}
+
 export function SiteHeader(): JSX.Element {
     return (
         <>
@@ -24,20 +38,7 @@ export function SiteHeader(): JSX.Element {
                         />
                         <span>mini sago</span>
                     </Link>
-                    <a
-                        aria-label='MiniSago GitHub 原始碼'
-                        className='header-github'
-                        href={REPOSITORY_URL}
-                    >
-                        <Image
-                            alt=''
-                            height={20}
-                            src='/logos/github.svg'
-                            width={20}
-                        />
-                        <span>GitHub</span>
-                        <ArrowUpRight size={16} />
-                    </a>
+                    <GitHubLink />
                 </div>
             </header>
         </>
@@ -54,10 +55,7 @@ export function SiteFooter(): JSX.Element {
             >
                 mini sago
             </a>
-            <a href={REPOSITORY_URL}>
-                <Image alt='' height={20} src='/logos/github.svg' width={20} />
-                GitHub <ArrowUpRight size={14} />
-            </a>
+            <GitHubLink />
         </footer>
     );
 }

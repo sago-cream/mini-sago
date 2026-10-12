@@ -24,6 +24,7 @@
     flex-shrink: 0;
 }
 .access-sago {
+    margin-block: 120px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -36,9 +37,6 @@
         var(--clr-lilac) 70%,
         var(--clr-pink)
     );
-}
-.natural-section + .access-sago {
-    margin-block: 120px;
 }
 .access-sago h2 {
     font-size: clamp(26px, 2.5vw, 32px);
@@ -59,7 +57,7 @@
         gap: 32px;
         padding-block: 64px;
     }
-    .natural-section + .access-sago {
+    .access-sago {
         margin-block: 96px;
     }
     .natural-copy p {
@@ -71,14 +69,10 @@
         align-items: start;
         flex-direction: column;
         gap: 24px;
-    }
-    .access-sago {
         padding: 28px;
+        margin-block: 64px;
     }
     .natural-section {
         padding-block: 48px;
-    }
-    .natural-section + .access-sago {
-        margin-block: 64px;
     }
 }

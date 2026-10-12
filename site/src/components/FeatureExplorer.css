@@ -104,6 +104,11 @@
     margin-top: 12px;
     font-size: 16px;
 }
+@media (max-width: 1000px) {
+    .feature-workspace {
+        padding-bottom: 64px;
+    }
+}
 @media (max-width: 900px) {
     .feature-workspace {
         grid-template-columns: 200px minmax(0, 1fr);
@@ -117,7 +122,7 @@
     .feature-workspace {
         grid-template-columns: 1fr;
         gap: 24px;
-        padding-bottom: 56px;
+        padding-bottom: 48px;
     }
     .feature-mobile-menu {
         display: flex;

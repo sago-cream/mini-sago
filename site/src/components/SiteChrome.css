@@ -55,7 +55,10 @@
 .text-link:hover {
     color: var(--clr-accent);
 }
-.header-github {
+.github-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
     gap: 8px;
     font-size: 14px;
     border: 1px solid var(--clr-border);
@@ -114,7 +117,6 @@ h2 {
 .site-footer a {
     display: flex;
     align-items: center;
-    gap: 4px;
     min-height: 44px;
 }
 @media (max-width: 900px) {
@@ -137,10 +139,10 @@ h2 {
         width: 32px;
         height: 32px;
     }
-    .header-github {
+    .github-link {
         padding: 8px 12px;
     }
-    .header-github span {
+    .github-link span {
         display: none;
     }
     .site-footer {
