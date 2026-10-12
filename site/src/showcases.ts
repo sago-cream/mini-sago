@@ -16,7 +16,7 @@ export const SHOWCASES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 把這張圖縮成 128 × 128，保留透明背景，新增成這裡的 emoji，叫做 sago_site_demo。再把它複製到我們都加入的 Sago Lab。',
+                text: '@迷你西米露 把這張圖片新增成這裡的 emoji，叫做 sago_site_demo，傳一次給我看。',
                 file: {
                     name: 'minisago3.png',
                     detail: '圖片附件',
@@ -28,18 +28,6 @@ export const SHOWCASES = [
             },
             {
                 author: 'sago',
-                text: '先縮成 128 × 128，透明背景保留了。',
-                file: {
-                    name: 'minisago-128.png',
-                    detail: '128 × 128',
-                    kind: 'image',
-                    src: '/demos/minisago-128.webp',
-                    width: 128,
-                    height: 128,
-                },
-            },
-            {
-                author: 'sago',
                 text: '新增好了，這顆就是 sago_site_demo。',
                 emoji: {
                     name: 'sago_site_demo',
@@ -47,9 +35,12 @@ export const SHOWCASES = [
                 },
             },
             {
+                author: 'user',
+                text: '再把這顆 emoji 複製到我們都加入的 Sago Lab。',
+            },
+            {
                 author: 'sago',
-                replyTo:
-                    '@迷你西米露 把這張圖縮成 128 × 128，保留透明背景，新增成這裡的 emoji，叫做 sago_site_demo。再把它複製到我們都加入的 Sago Lab。',
+                replyTo: '再把這顆 emoji 複製到我們都加入的 Sago Lab。',
                 text: '也複製到 Sago Lab 了，兩邊都能使用。',
                 emoji: {
                     name: 'sago_site_demo',
@@ -99,29 +90,9 @@ export const SHOWCASES = [
         ],
     },
     {
-        id: 'campus',
-        title: '安排校園活動',
+        id: 'documents',
+        title: '統計報名資料',
         channel: '活動籌備',
-        messages: [
-            {
-                ...LANDING_CONVERSATION[0],
-                text: '@迷你西米露 幫我統計這份報名表、做長條圖，把整理後的 CSV 一起傳給我。活動在南大，順便查從清大校本部過去的交通資訊，明天台北時間晚上八點提醒我把結果和交通資訊傳給大家。',
-            },
-            ...LANDING_CONVERSATION.slice(1),
-            {
-                author: 'sago',
-                text: '校本部和南大之間有校區區間車。這裡是校方的路線與時刻表，出發前可以確認當天班次。',
-                links: [
-                    {
-                        label: '清大兩校區區間車時刻表',
-                        href: 'https://affairs.site.nthu.edu.tw/p/412-1165-20979.php?Lang=zh-tw',
-                    },
-                ],
-            },
-            {
-                author: 'sago',
-                text: '提醒也設好了。明天 20:00（台北時間），我會在這裡標記你，提醒你把統計結果和交通資訊傳給大家。',
-            },
-        ],
+        messages: LANDING_CONVERSATION,
     },
 ] as const satisfies readonly Showcase[];

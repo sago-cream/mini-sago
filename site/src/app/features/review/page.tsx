@@ -62,7 +62,10 @@ export default function FeatureCopyReviewPage() {
                                     >
                                         {feature.messages.map(
                                             (message: DemoMessage, index) => (
-                                                <div key={index}>
+                                                <div
+                                                    id={`${feature.id}-message-${index}`}
+                                                    key={index}
+                                                >
                                                     {message.command && (
                                                         <p className='feature-review-command'>
                                                             /

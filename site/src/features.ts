@@ -120,7 +120,7 @@ export const FEATURES = [
         id: 'chat',
         section: 'chat',
         title: '聊天與提問',
-        description: '標記她就能開始聊天，追問時也不用重新交代背景。',
+        description: '標記她就能開始聊天。',
         channel: '日常聊天',
         messages: [
             {
@@ -164,7 +164,7 @@ export const FEATURES = [
         id: 'summary',
         section: 'chat',
         title: '整理對話',
-        description: '從聊天室裡的討論，整理決議、待辦與還沒確認的事。',
+        description: '從群組裡的討論整理出懶人包。',
         channel: '活動籌備',
         messages: [
             {
@@ -211,7 +211,7 @@ export const FEATURES = [
         section: 'chat',
         title: '資料與歷史搜尋',
         description: '找網路資料或之前的訊息，整理成有來源的答案。',
-        channel: '日常聊天',
+        channel: '活動籌備',
         messages: [
             {
                 author: 'user',
@@ -231,10 +231,20 @@ export const FEATURES = [
                 text: '最後選的是活動中心。小晴在 #活動籌備 提到，主要考量是離宿舍近。',
                 replyTo: '活動中心離宿舍近，這次就選那裡吧。',
                 replyUserName: '小晴',
+                links: [
+                    {
+                        label: '查看原始討論（示範訊息）',
+                        href: '/features/review/#search-message-0',
+                    },
+                ],
+            },
+            {
+                author: 'notice',
+                text: '另一個例子・搜尋網頁資料',
             },
             {
                 author: 'user',
-                text: '那從清大本部去南大的交通資訊也幫我找一下。',
+                text: '@迷你西米露 幫我找清大兩校區區間車的官方時刻表。',
             },
             {
                 author: 'sago',
@@ -383,11 +393,11 @@ export const FEATURES = [
             },
             {
                 author: 'user',
-                text: '@迷你西米露 可以回覆了，幫我整理剛剛的分工。',
+                text: '@迷你西米露 可以回覆了。',
             },
             {
                 author: 'sago',
-                text: '小安：場地確認完成，13:00 可進場。\n小晴：12:30 拿器材。',
+                text: '我回來了！',
             },
         ],
         note: '她會直接安靜，不另發確認回覆；再次請她回覆即可恢復。',
@@ -559,14 +569,6 @@ export const FEATURES = [
                         href: 'https://creativecommons.org/licenses/by-sa/4.0/',
                     },
                 ],
-            },
-            {
-                author: 'user',
-                text: '@迷你西米露 用這個字造一個跟上課有關的句子。',
-            },
-            {
-                author: 'sago',
-                text: 'The classroom can accommodate thirty students.\n這間教室可以容納三十位學生。這裡的 accommodate 是「容納」。',
             },
             {
                 author: 'notice',

@@ -10,12 +10,13 @@ Captured image and spreadsheet results came from MiniSago tests in Sago Lab's `m
 - `minisago-128.webp`: Discord's lossless WebP representation of the bot's
   transparent 128 × 128 PNG response.
 
-The landing carousel combines these captured assets with illustrative flows for
-image resizing and emoji migration, discussion summaries, and campus activities.
+The landing carousel shows emoji creation and migration, discussion summaries,
+and spreadsheet processing as separate examples.
 The document, image, and expression feature examples use the captured results.
-The carousel's migration, campus lookup, and reminder dialogue is illustrative,
-not a transcript of additional bot tests. The campus source link points to NTHU's
-official shuttle information; the example does not specify current departures.
+The carousel's migration and discussion dialogue is illustrative, not a transcript
+of additional bot tests. Campus feature source links point to NTHU's official
+shuttle information; the examples do not specify current departures. The history
+search source link opens the original fictional message on the copy review page.
 Other conversations illustrate capabilities; the calendar confirmation embed and
 buttons follow `src/chatbot/calendar/calendar-message.ts`.
 
