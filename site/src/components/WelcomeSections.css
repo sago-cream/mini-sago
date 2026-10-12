@@ -1,0 +1,78 @@
+.natural-section {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 24px 64px;
+    align-items: center;
+    padding-block: 96px;
+}
+.natural-copy h2 {
+    margin-bottom: -16px;
+    font-size: clamp(28px, 3vw, 40px);
+    line-height: 1.5;
+    letter-spacing: -1px;
+}
+.natural-copy p {
+    font-size: 16px;
+    color: var(--clr-text-muted);
+    margin-top: 24px;
+    max-width: 400px;
+}
+.natural-copy .text-link {
+    margin-top: 24px;
+    color: var(--clr-accent);
+    font-size: 16px;
+    flex-shrink: 0;
+}
+.access-sago {
+    margin-block: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 40px;
+    padding: 48px;
+    border-radius: 28px;
+    background: linear-gradient(
+        105deg,
+        var(--clr-blue),
+        var(--clr-lilac) 70%,
+        var(--clr-pink)
+    );
+}
+.access-sago h2 {
+    font-size: clamp(26px, 2.5vw, 32px);
+    letter-spacing: -1px;
+}
+.access-sago p {
+    max-width: 620px;
+    margin-top: 12px;
+    font-size: 14px;
+    color: var(--clr-text-muted);
+}
+.access-sago .button {
+    flex-shrink: 0;
+}
+@media (max-width: 1000px) {
+    .natural-section {
+        grid-template-columns: 1fr;
+        gap: 32px;
+        padding-block: 64px;
+    }
+    .access-sago {
+        margin-block: 96px;
+    }
+    .natural-copy p {
+        max-width: 640px;
+    }
+}
+@media (max-width: 700px) {
+    .access-sago {
+        align-items: start;
+        flex-direction: column;
+        gap: 24px;
+        padding: 28px;
+        margin-block: 64px;
+    }
+    .natural-section {
+        padding-block: 48px;
+    }
+}

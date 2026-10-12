@@ -374,8 +374,8 @@ export const FEATURE_DEFINITIONS = {
   },
   custom_expressions: {
     description:
-      "List shared servers and custom emojis, then add, copy, or rename an expression when the owner asks.",
-    access: "owner",
+      "List servers shared with the requester and custom emojis, then add, copy, or rename an expression when a member explicitly asks. The bot needs expression permissions in the destination server.",
+    access: "request",
     capability: {
       id: "custom_expressions",
       category: "discord",

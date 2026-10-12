@@ -1338,7 +1338,7 @@ function createServer(session: ChatbotMcpSession) {
       "list_shared_guilds",
       {
         description:
-          "List every Discord guild you are currently in. Use this to resolve exact source and destination guilds when managing an expression outside the current server. current marks the guild where the request was sent; permission fields report whether you can create or manage expressions there.",
+          "List Discord guilds available to this requester for expression management. Use this to resolve exact source and destination guilds outside the current server. current marks the guild where the request was sent; permission fields report whether the bot can create or manage expressions there.",
         inputSchema: {},
         annotations: readAnnotations,
       },

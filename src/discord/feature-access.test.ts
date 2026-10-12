@@ -104,7 +104,6 @@ test("owner-only and owner-DM exceptions never bypass a registered guild or mail
     "feature_availability",
     "managed_services",
     "channel_messaging",
-    "custom_expressions",
     "repository_work",
     "self_development",
     "mac_file_delivery",
@@ -154,6 +153,18 @@ test("owner-only and owner-DM exceptions never bypass a registered guild or mail
       store,
     ).available(),
   ).toBe(false);
+});
+
+test("expression tools are available to members through the request access mode", async () => {
+  const { store } = await fixture();
+  const access = createFeatureAccess(
+    "custom_expressions",
+    { requesterId: "member", ownerId: "owner", guildId },
+    store,
+  );
+  expect(access.available()).toBe(true);
+  expect(await access.allowed()).toBe(true);
+  expect(featureForTool("rename_guild_emoji")).toBe("custom_expressions");
 });
 
 test("guard refreshes membership, applies channel precedence, and fails closed on lookup failure", async () => {

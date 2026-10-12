@@ -9,6 +9,7 @@ node_modules
 .data
 **/node_modules
 workspace
+site
 npm-debug.log*
 *.tsbuildinfo
 

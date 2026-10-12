@@ -1,54 +1,32 @@
-# MiniSago
+# mini sago
 
-<img src="assets/minisago.png" alt="MiniSago icon" width="160">
+<img src="site/public/images/minisago3.png" alt="mini sago icon" width="160">
 
-A Discord bot for... everything?
-Codex-powered chat with server context, emote creation and cross-server migration, manage issue or publish PR based on discussion context, maintain PR review thread life cycle, set reminders, process images, access files from my Mac, you name it.
+An AI-powered Discord bot for... everything? From chatting, channel summary, moving emotes between server, to development. She can totally change how you use Discord.
 
-## Features
+Check out the full feature list on our [site](https://mini.sagocream.com/).
 
-- Reacts to community messages with emotes in configured server.
-- Answers member and configured role mentions using conversation context, attachments, public web search, and accessible Discord history.
-- Joins Discord voice channels for spoken conversations. **WIP and far from usable:** recognition, response latency, and turn-taking still need work.
-- Performs expression management on demand, including adding emojis or stickers from attachments and moving emojis to other servers.
-- Publishes daily TOEFL vocabulary, AniGamer forum voucher code updates, and Codex news on X to configured channels.
-- Improves Instagram, Twitter/X, and Threads embeds with `kkinstagram.com`, `fxtwitter.com`, and `fixthreads.seria.moe` links.
-- Creates reminders when asked to and pings you when the reminder expires.
-- Drawing reminders can post in a dedicated thread and skip days with an image in the artwork thread; see [Configuration](docs/configuration.md).
-- Listen to GitHub activities and maintains PR review threads for certain repo in configured server.
-- Find files in my Mac and send it in chat when asked by me.
-- Searches and reads approved Gmail mailboxes in owner-registered Discord guilds/channels with optional role filters, or the owner’s private DM, after each mailbox owner approves read-only access through discord-mail. See [mail setup](docs/mail.md).
-- Manages guild/channel feature registrations and role filters through one shared access layer, including Mail, Calendar, Drive, and meeting records. See [feature registration](docs/feature-registration.md).
-- Searches Threads on request for 清大, NTHU, 學生會 plus optional extra keywords.
-- Retrieves relevant CCXP meeting records during discussions in owner-registered servers; runs independently on Oracle and DMs the owner when login needs attention.
-- Runs coding tasks in dedicated Discord threads with progress reports,
-  steering, stop, and continuation, then publishes a draft PR when authorized.
+## Self-host mini sago
 
-> [!TIP]
-> Mention MiniSago under **Members/Apps**, or use a configured MiniSago role.
-> When quoting her messages, disable reply ping to prevent triggering another reply.
-> She searches only channels the requester can access, so feel free to continue to talk behind someone's back.
-
-## Self-host MiniSago
-
-MiniSago requires [Bun](https://bun.sh/), a Discord application, and a Codex
-worker.
+You will need a Discord application, a VPS or some machine to throw her on , an agent worker (I used Codex here), and [Bun](https://bun.sh/).
 
 Start with [Discord setup](docs/discord-setup.md) and
-[worker setup](docs/workers.md). See also:
+[worker setup](docs/workers.md). And according to your need, see also:
 
 - [Architecture](docs/architecture.md)
 - [Configuration](docs/configuration.md)
 - [Security](docs/security.md)
+- [Feature registration and access](docs/feature-registration.md)
+- [Read-only Gmail setup](docs/mail.md)
 - [Operations](docs/operations.md)
 - [CCXP meeting retrieval and password rotation](docs/ccxp-meetings.md)
 - [Durable-state backup and restore](docs/operations.md#durable-state-backup-and-restore)
 
-Dockerfiles and Compose configurations live in [`deploy/`](deploy/).
+(Slops, better let agents read it :skull:)
 
 ## Voice credits
 
-MiniSago's voice chat uses **VOICEVOX:猫使ビィ**.
+Her voice chat uses **VOICEVOX:猫使ビィ**.
 See the [VOICEVOX terms](https://voicevox.hiroshiba.jp/term/) and
 [猫使 voice library terms](https://nekotukarb.wixsite.com/nekonohako/利用規約).
 

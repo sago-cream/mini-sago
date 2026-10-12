@@ -27,6 +27,31 @@ type DiscordGuild = {
   permissions: string;
 };
 
+export function expressionRequestForMember(
+  discordRequest: DiscordRequest,
+  requesterUserId: string,
+): DiscordRequest {
+  return async <T>(path: string, options?: Parameters<DiscordRequest>[1]) => {
+    if (path !== "/users/@me/guilds") {
+      return discordRequest<T>(path, options);
+    }
+    const guilds = await discordRequest<DiscordGuild[]>(path);
+    const shared = await Promise.all(
+      guilds.map(async (guild) => {
+        try {
+          const member = await discordRequest<{ user?: { id: string } }>(
+            `/guilds/${guild.id}/members/${requesterUserId}`,
+          );
+          return member.user?.id === requesterUserId ? [guild] : [];
+        } catch {
+          return [];
+        }
+      }),
+    );
+    return shared.flat() as T;
+  };
+}
+
 export type SharedGuildEmoji = {
   id: string;
   name: string;

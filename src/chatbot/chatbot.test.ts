@@ -1567,6 +1567,128 @@ describe("Discord chatbot", () => {
     expect(isChatbotAuthorized("917446775873343600", ACCESS_CONFIG)).toBe(true);
   });
 
+  test("gives community chat the expression suite with host-bound guild access", async () => {
+    const oldSecret = process.env.MINISAGO_WORKER_BRIDGE_SECRET;
+    const secret = "community-expressions-test-secret-at-least-32-bytes";
+    process.env.MINISAGO_WORKER_BRIDGE_SECRET = secret;
+    const sent: string[] = [];
+    const socket = {
+      data: { authenticated: false },
+      send: (value: string) => sent.push(value),
+      close: () => undefined,
+    } as unknown as ServerWebSocket<MacAgentSocketData>;
+    const server = Bun.serve({ port: 0, fetch: handleChatbotMcpRequest });
+    let client: Client | undefined;
+    try {
+      macAgentBridge.open(socket);
+      macAgentBridge.message(
+        socket,
+        JSON.stringify({
+          type: "authenticate",
+          protocolVersion: CHATBOT_PROTOCOL_VERSION,
+          secret,
+          workerId: "oracle",
+          repositories: [],
+        }),
+      );
+      macAgentBridge.message(
+        socket,
+        JSON.stringify({ type: "availability", available: true, capacity: 1 }),
+      );
+      const handled = handleChatbotMention({
+        message: {
+          id: "expression-request",
+          channel_id: "channel-1",
+          guild_id: "917436845187563610",
+          content: `<@${BOT_ID}> 把 wave 改名 hello`,
+          timestamp: new Date().toISOString(),
+          author: { id: "member-1" },
+          mentions: [{ id: BOT_ID }],
+        },
+        botUserId: BOT_ID,
+        accessConfig: ACCESS_CONFIG,
+        executionOptions: {
+          lazyPreviousTrace: true,
+          routeRequest: async () => JSON.stringify({ route: "chat" }),
+        },
+        guildMemoryStore: {
+          ensure: async () => ({ revision: 0, entries: [] }) as never,
+          mutate: async () => ({}) as never,
+        },
+        discordRequest: async (path, options) => {
+          if (path === "/users/@me/guilds")
+            return [
+              {
+                id: "917436845187563610",
+                name: "Current",
+                permissions: (1n << 30n).toString(),
+              },
+            ] as never;
+          if (path.endsWith("/members/member-1"))
+            return { user: { id: "member-1" }, roles: [] } as never;
+          if (options?.method === "PATCH")
+            return { id: "123456789012345678", name: "hello" } as never;
+          if (path.endsWith("/emojis"))
+            return [{ id: "123456789012345678", name: "wave" }] as never;
+          if (options?.method === "POST") return { id: "answer" } as never;
+          return [] as never;
+        },
+      });
+      const job = await waitFor(() =>
+        sent
+          .map((value) => JSON.parse(value))
+          .find(
+            (value) => value.type === "job" && value.job.purpose === "answer",
+          ),
+      );
+      expect(job.job.capabilities).toContainEqual(
+        expect.objectContaining({ id: "custom_expressions" }),
+      );
+      client = new Client({ name: "community-expressions-test", version: "1" });
+      await client.connect(
+        new StreamableHTTPClientTransport(
+          new URL(`http://localhost:${server.port}/api/chatbot/mcp`),
+          {
+            requestInit: {
+              headers: { Authorization: `Bearer ${job.job.mcpAccessToken}` },
+            },
+          },
+        ),
+      );
+      const tools = (await client.listTools()).tools.map((tool) => tool.name);
+      expect(tools).toContain("list_shared_guilds");
+      expect(tools).toContain("list_guild_emojis");
+      expect(tools).toContain("add_guild_expression");
+      expect(tools).toContain("rename_guild_emoji");
+      expect(tools).not.toContain("configure_feature_availability");
+      const renamed = await client.callTool({
+        name: "rename_guild_emoji",
+        arguments: { emoji: "wave", name: "hello" },
+      });
+      expect(renamed.structuredContent).toMatchObject({
+        status: "complete",
+        emoji: { name: "hello", guild: { id: "917436845187563610" } },
+      });
+      macAgentBridge.message(
+        socket,
+        JSON.stringify({
+          type: "result",
+          jobId: job.job.id,
+          ok: true,
+          content: JSON.stringify({ reply: "改好了", reaction: null }),
+        }),
+      );
+      expect(await handled).toBe(true);
+    } finally {
+      await client?.close();
+      server.stop(true);
+      macAgentBridge.close(socket);
+      if (oldSecret === undefined)
+        delete process.env.MINISAGO_WORKER_BRIDGE_SECRET;
+      else process.env.MINISAGO_WORKER_BRIDGE_SECRET = oldSecret;
+    }
+  });
+
   test("allows community code questions into the read-only chat path", async () => {
     const requests: Array<{ path: string; body: unknown }> = [];
     const handled = await handleChatbotMention({
