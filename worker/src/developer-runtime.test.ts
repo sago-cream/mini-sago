@@ -21,6 +21,7 @@ async function fixture() {
     options: {
       workspace: {
         directory: root,
+        repositoriesDirectory: root,
         temporaryDirectory,
         attachmentsDirectory: root,
         environment: {},

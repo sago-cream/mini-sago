@@ -217,9 +217,12 @@ export async function prepareDeveloperImages(
   content: string,
   workspaceRoot: string,
   outputRoot: string,
+  additionalRoots: string[] = [],
 ): Promise<{ content: string; files: ChatbotOutgoingFile[] }> {
   const roots = await Promise.all(
-    [workspaceRoot, outputRoot].map((root) => realpath(root)),
+    [workspaceRoot, outputRoot, ...additionalRoots].map((root) =>
+      realpath(root),
+    ),
   );
   const codeRanges = markdownCodeRanges(content);
   const files: ChatbotOutgoingFile[] = [];
@@ -251,7 +254,7 @@ export async function prepareDeveloperImages(
       const path = await realpath(resolve(workspaceRoot, requestedPath));
       if (!roots.some((root) => inside(root, path))) {
         failure =
-          "the image is outside this task's repository and output folder";
+          "the image is outside this task's repositories and output folder";
         throw new Error(failure);
       }
       if (seen.has(path)) continue;

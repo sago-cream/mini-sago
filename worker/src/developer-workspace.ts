@@ -16,6 +16,7 @@ type DeveloperWorkspaceOptions = {
 
 export type DeveloperWorkspace = {
   directory: string;
+  repositoriesDirectory: string;
   temporaryDirectory: string;
   attachmentsDirectory: string;
   environment: Record<string, string>;
@@ -232,11 +233,15 @@ export async function prepareDeveloperWorkspace(
   }
   await mkdir(jobRoot, { recursive: true, mode: 0o700 });
   const temporaryDirectory = join(jobRoot, "tmp");
+  const repositoriesDirectory = join(jobRoot, "repositories");
   const attachmentsDirectory = join(jobRoot, "attachments");
   await Promise.all(
-    [temporaryDirectory, attachmentsDirectory, binDirectory].map((path) =>
-      mkdir(path, { recursive: true, mode: 0o700 }),
-    ),
+    [
+      temporaryDirectory,
+      repositoriesDirectory,
+      attachmentsDirectory,
+      binDirectory,
+    ].map((path) => mkdir(path, { recursive: true, mode: 0o700 })),
   );
   if (!resume) {
     await runCommand(
@@ -295,6 +300,7 @@ export async function prepareDeveloperWorkspace(
   const environment = {
     ...preparationEnvironment,
     MINISAGO_GIT_BRANCH: branch,
+    MINISAGO_REPOSITORIES_DIR: repositoriesDirectory,
     MINISAGO_REAL_GH: Bun.which("gh") || "/usr/bin/gh",
     MINISAGO_REAL_GIT: Bun.which("git") || "/usr/bin/git",
     MINISAGO_GH_IMAGE: imagePath || "",
@@ -303,6 +309,7 @@ export async function prepareDeveloperWorkspace(
 
   return {
     directory,
+    repositoriesDirectory,
     temporaryDirectory,
     attachmentsDirectory,
     environment,
@@ -312,7 +319,11 @@ export async function prepareDeveloperWorkspace(
       attachmentsDirectory,
       ...(imagePath ? [imagePath] : []),
     ],
-    sandboxWritePaths: [resolve(directory, ".git"), temporaryDirectory],
+    sandboxWritePaths: [
+      resolve(directory, ".git"),
+      temporaryDirectory,
+      repositoriesDirectory,
+    ],
     // Persistent tasks are explicitly retained; an idle timer must never erase dirty work.
     cleanup: job.developerTask
       ? () => Promise.resolve()

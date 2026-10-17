@@ -63,6 +63,26 @@ describe("developer image evidence", () => {
     });
   });
 
+  test("admits additional checkouts while rejecting sibling tasks and escaping symlinks", async () => {
+    const { parent, repo, output } = await fixture();
+    const additional = join(parent, "repositories");
+    const other = join(additional, "owner", "other");
+    await mkdir(other, { recursive: true });
+    await writeFile(join(other, "after.png"), png);
+    const sibling = join(parent, "another-task.png");
+    await writeFile(sibling, png);
+    await symlink(sibling, join(other, "escape.png"));
+    const result = await prepareDeveloperImages(
+      `![After](<${join(other, "after.png")}>)\n![Sibling](<${sibling}>)\n![Escape](<${join(other, "escape.png")}>)`,
+      repo,
+      output,
+      [additional],
+    );
+    expect(result.files.map((file) => file.filename)).toEqual(["after.png"]);
+    expect(result.content).toContain("Image attachment unavailable (Sibling)");
+    expect(result.content).toContain("Image attachment unavailable (Escape)");
+  });
+
   test("keeps the answer and explains missing, invalid and escaped images", async () => {
     const { parent, repo, output } = await fixture();
     await writeFile(join(parent, "private.png"), png);
@@ -77,7 +97,7 @@ describe("developer image evidence", () => {
     expect(result.content).toContain("Work complete.");
     expect(result.content).toContain("the local image could not be read");
     expect(result.content).toContain("only PNG, JPEG, GIF, and WebP");
-    expect(result.content).toContain("outside this task's repository");
+    expect(result.content).toContain("outside this task's repositories");
     expect(result.content).not.toContain("private text");
     expect(result.content).not.toContain(parent);
   });

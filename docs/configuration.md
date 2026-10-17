@@ -120,7 +120,11 @@ back by deploying the corresponding commit.
 
 Workers discover repositories from their dedicated GitHub CLI login at startup.
 Set `MINISAGO_CHATBOT_REPOSITORY` when that login can access multiple repositories
-so requests to change MiniSago itself do not rely on name inference.
+so requests to change MiniSago itself do not rely on name inference. This selects
+the starting checkout, not the set of repositories a development thread can use.
+Each development turn supplies `MINISAGO_REPOSITORIES_DIR` for persistent additional
+checkouts and `MINISAGO_GIT_BRANCH` for their feature branch. These values are
+generated per task; operators do not configure them.
 
 ## Persistent state
 

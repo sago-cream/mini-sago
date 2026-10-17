@@ -10,6 +10,10 @@ Mention MiniSago or reply to her message to continue a conversation. Automatic
 90-second follow-ups are off in every guild by default; the owner can opt a guild
 in through [`automatic_followups` registration](docs/feature-registration.md).
 
+Owner development threads can work across accessible GitHub repositories in one
+conversation, keeping each task’s checkouts and progress for follow-ups. See
+[development workers](docs/workers.md).
+
 ## Self-host mini sago
 
 You will need a Discord application, a VPS or some machine to throw her on , an agent worker (I used Codex here), and [Bun](https://bun.sh/).

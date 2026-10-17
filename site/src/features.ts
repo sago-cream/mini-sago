@@ -825,7 +825,8 @@ export const FEATURES = [
         id: 'coding',
         section: 'developer',
         title: '程式開發',
-        description: '隨時銜接群組討論進行開發，也能請她修好自己。',
+        description:
+            '隨時銜接群組討論進行開發，同一個討論串能跨專案工作，也能請她修好自己。',
         channel: '程式開發',
         messages: [
             {

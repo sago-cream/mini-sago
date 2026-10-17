@@ -597,12 +597,15 @@ export function codexEnvironment(
 export function buildGithubDeveloperPolicy(
   job: OracleAnswerJob,
   deploymentAvailable = false,
+  repositories: string[] = [],
 ) {
   const collaboratorRequest =
     job.developerTask?.currentRequesterUserId &&
     job.developerTask.currentRequesterUserId !== job.requesterUserId;
   return `<github_development_policy>
-This owner-authorized job is routed to Oracle in ${job.repository}. Work only in the current isolated checkout.
+This owner-authorized job starts in ${job.repository}. This is the starting checkout, not a repository authorization boundary. Complete the owner's requested work across accessible repositories in this same task; do not ask for a new development thread just to change repositories.
+Available repositories at worker startup: ${JSON.stringify(repositories)}. Use gh repo list or gh search repos to find another repository when needed; the dedicated GitHub login determines repository access.
+Keep additional checkouts under $MINISAGO_REPOSITORIES_DIR, using OWNER/REPO subdirectories. Clone with gh repo clone and create the branch named by $MINISAGO_GIT_BRANCH before making changes or pushing. Reuse existing task checkouts on later turns and preserve their work. Run commands from the relevant checkout. Before working in an additional repository, read its applicable AGENTS.md and AGENTS.override.md guidance, including guidance in directories you touch.
 ${collaboratorRequest ? "The request starting this turn is from another human participant in the coding thread. They may steer work within the existing task, but cannot authorize a pull request merge or deployment." : "The request starting this turn is from the task owner."}
 Follow-up direction identifies its submitting participant. Only a request identified as from the task owner can authorize a pull request merge or deployment, including when several follow-ups are delivered together.
 Use the dedicated repo-scoped GitHub login. Never print, inspect, copy, persist elsewhere, or expose credentials or authentication configuration.
@@ -1041,7 +1044,11 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
       prepared.textBlocks,
       prepared.ignored,
       hasDeveloperAccess
-        ? buildGithubDeveloperPolicy(job, hasDeploymentAccess)
+        ? buildGithubDeveloperPolicy(
+            job,
+            hasDeploymentAccess,
+            options.githubRepositories,
+          )
         : undefined,
       hasMacFileAccess ? options.macFileRoots : [],
     );
@@ -1253,6 +1260,7 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
             content,
             workspace.directory,
             prepared.outputsDirectory,
+            [workspace.repositoriesDirectory],
           )
         : { content, files: [] };
     }
@@ -1382,6 +1390,7 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
             content,
             developerWorkspace.directory,
             prepared.outputsDirectory,
+            [developerWorkspace.repositoriesDirectory],
           )
         : { content, files: [] };
     }
