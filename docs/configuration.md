@@ -21,7 +21,7 @@ live in [Discord setup](discord-setup.md) and [Workers](workers.md).
 | -------------------------------------- | --------- | ------------------------------------------------------- |
 | `DISCORD_APPLICATION_ID`               | Yes       | Discord application ID                                  |
 | `DISCORD_CUSTOM_STATUS`                | No        | Initial text when no saved status exists                |
-| `MINISAGO_BOT_STATUS_FILE`             | No        | Persistent bot status; `/app/state/bot-status.json`      |
+| `MINISAGO_BOT_STATUS_FILE`             | No        | Persistent bot status; `/app/state/bot-status.json`     |
 | `DISCORD_BOT_TOKEN`                    | Yes       | Discord REST and Gateway authentication                 |
 | `DISCORD_GUILD_ID`                     | No        | Guild for configured-guild features; defaults to WM31   |
 | `DISCORD_GATEWAY_DISABLED`             | No        | Use `true` for HTTP-only instances                      |
@@ -204,12 +204,19 @@ send empty arrays to remove filtering. Disable denies the whole scope; inherit
 removes that scope's rule. Filters are accepted only with enable.
 
 Channel rules take precedence over guild rules, including a filtered channel
-rule that denies a member. Calendar, CCXP, Drive, and developer steering require guild
-registrations and a disabled global default. Other features support both scopes.
+rule that denies a member. Automatic follow-ups, Calendar, CCXP, Drive, and
+developer steering require guild registrations and a disabled global default. Other features support both scopes.
 Mail supports both guild and channel registration with a disabled global default.
 Register `mail` through `configure_feature_availability`; role filters control
 who may request mail, while responses are visible to everyone who can view the
 requesting conversation. Existing rules retain their coverage without role filters.
+
+`automatic_followups` starts disabled in every guild, including when upgrading
+an existing policy file. It has no environment-variable opt-in or owner bypass.
+Enable it for a guild with `configure_feature_availability`; optional role
+filters limit who can trigger the 90-second continuation. Disabled guilds require
+a mention, a reply that notifies the bot, or `/ask` for another chat answer.
+Coding-thread steering has its own independent registration.
 
 The shared [feature registry and access guard](feature-registration.md) generate
 supported registration scopes, initial policies, and agent capability metadata.

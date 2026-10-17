@@ -111,7 +111,7 @@ export const FEATURES = [
             },
             {
                 author: 'user',
-                text: '輕鬆一點，晚上七點開始，而且有兩個人吃素。',
+                text: '@迷你西米露 輕鬆一點，晚上七點開始，而且有兩個人吃素。',
             },
             {
                 author: 'sago',
@@ -129,14 +129,14 @@ export const FEATURES = [
             },
             {
                 author: 'user',
-                text: '那報名表要問什麼？',
+                text: '@迷你西米露 那報名表要問什麼？',
             },
             {
                 author: 'sago',
                 text: '姓名、聯絡方式、桌遊經驗、飲食需求，再加一欄「想和誰同桌」。不需要收跟活動無關的個資。',
             },
         ],
-        note: '',
+        note: '自動接續預設在所有伺服器關閉；Bot 擁有者可為個別伺服器啟用 90 秒內的下一則訊息接續。未啟用時，請再次標記她、回覆並通知她，或使用 /ask。',
     },
     {
         id: 'summary',
@@ -392,7 +392,7 @@ export const FEATURES = [
             },
             {
                 author: 'user',
-                text: '我只想確認器材要提前多久準備。',
+                text: '@迷你西米露 我只想確認器材要提前多久準備。',
             },
             {
                 author: 'sago',

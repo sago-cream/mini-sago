@@ -1233,6 +1233,17 @@ export async function handleChatbotMention({
     return developerTasks.handle(message, botUserId, accessConfig);
   }
 
+  const automaticFollowups = createFeatureAccess(
+    "automatic_followups",
+    {
+      guildId: message.guild_id,
+      channelId: message.channel_id,
+      roleIds: message.member?.roles,
+      requesterId: requesterUserId,
+      ownerId: accessConfig.ownerUserId,
+    },
+    featureAvailability,
+  );
   let addressingMode =
     invocation?.addressingMode ??
     chatbotAddressingMode(message, botUserId, accessConfig);
@@ -1242,7 +1253,8 @@ export async function handleChatbotMention({
   if (
     request === null &&
     receivedSequence !== undefined &&
-    conversationTracker?.take(message, receivedSequence)
+    conversationTracker?.take(message, receivedSequence) &&
+    automaticFollowups.available()
   ) {
     request = message.content?.trim() ?? "";
     addressingMode = "continuation";
@@ -1954,6 +1966,12 @@ export async function handleChatbotMention({
         chatbotRepository: workflow.chatbotRepository,
         executionRoute,
       });
+      if (!invocation && automaticFollowups.available())
+        requestCapabilities.push(
+          featureCapability("automatic_followups", {
+            availability: "available",
+          }),
+        );
       if (executionRoute === "oracle" && !message.guild_id)
         mcpSession.extend(DEVELOPER_TASK_TTL_MS);
       const answerBase = {
@@ -2120,7 +2138,11 @@ export async function handleChatbotMention({
   ) {
     reply = "我剛剛卡住了 晚點再叫我一次";
   }
-  if (mcpSnapshot.calendarDraftId && !invocation)
+  if (
+    mcpSnapshot.calendarDraftId &&
+    !invocation &&
+    automaticFollowups.available()
+  )
     conversationTracker?.activate(message.channel_id, requesterUserId);
   if (reply || files.length > 0) {
     const content = reply ? formatDiscordAnswers(reply) : null;
@@ -2139,7 +2161,7 @@ export async function handleChatbotMention({
       await respond(content, files);
     });
     clock.mark("handler.completed");
-    if (!invocation) {
+    if (!invocation && automaticFollowups.available()) {
       conversationTracker?.activate(message.channel_id, requesterUserId);
     }
   }

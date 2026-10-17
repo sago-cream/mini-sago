@@ -1183,6 +1183,190 @@ describe("Discord chatbot", () => {
     ).toBe(true);
   });
 
+  test("only registered guilds accept automatic follow-ups, without an owner bypass", async () => {
+    let enabled = false;
+    const availability = {
+      isEnabled: (feature: string) =>
+        feature === "chatbot" || (feature === "automatic_followups" && enabled),
+    } as unknown as FeatureAvailabilityStore;
+    const conversations = new ChatbotConversationTracker();
+    const requests: unknown[] = [];
+    const message = {
+      id: "automatic-follow-up",
+      channel_id: "channel-1",
+      guild_id: "917436845187563610",
+      content: "what about tomorrow?",
+      timestamp: "2026-10-17T01:00:00.000Z",
+      author: { id: ACCESS_CONFIG.ownerUserId, username: "Hsi" },
+    };
+    const handle = (current = message) =>
+      handleChatbotMention({
+        message: current,
+        botUserId: BOT_ID,
+        accessConfig: ACCESS_CONFIG,
+        featureAvailability: availability,
+        conversationTracker: conversations,
+        receivedSequence: conversations.recordMessage(),
+        discordRequest: async (path, options) => {
+          if (path.endsWith("/messages"))
+            requests.push({ path, body: options?.body });
+          return undefined as never;
+        },
+      });
+    for (const userId of [ACCESS_CONFIG.ownerUserId, "member-1"]) {
+      conversations.activate(message.channel_id, userId);
+      expect(
+        await handle({
+          ...message,
+          author: { id: userId, username: "Member" },
+        }),
+      ).toBe(false);
+    }
+    expect(requests).toEqual([]);
+    enabled = true;
+    conversations.activate(message.channel_id, message.author.id);
+    expect(await handle()).toBe(true);
+    expect(requests).toHaveLength(1);
+    enabled = false;
+    conversations.activate(message.channel_id, message.author.id);
+    expect(await handle()).toBe(false);
+    expect(requests).toHaveLength(1);
+    // Explicit addressing remains available with automatic follow-ups disabled.
+    expect(
+      await handle({
+        ...message,
+        content: `<@${BOT_ID}> what about tomorrow?`,
+      }),
+    ).toBe(true);
+    expect(requests).toHaveLength(2);
+    const quietTracker = new ChannelQuietTracker();
+    quietTracker.pause(message.channel_id, 30);
+    enabled = true;
+    conversations.activate(message.channel_id, message.author.id);
+    expect(
+      await handleChatbotMention({
+        message,
+        botUserId: BOT_ID,
+        accessConfig: ACCESS_CONFIG,
+        featureAvailability: availability,
+        conversationTracker: conversations,
+        receivedSequence: conversations.recordMessage(),
+        quietTracker,
+        discordRequest: async () => {
+          throw new Error("Paused channel must stay silent");
+        },
+      }),
+    ).toBe(true);
+  });
+
+  test("only arms and advertises automatic follow-ups when registered at answer delivery", async () => {
+    const previousSecret = process.env.MINISAGO_WORKER_BRIDGE_SECRET;
+    const secret = "automatic-followups-test-secret-at-least-32-bytes";
+    process.env.MINISAGO_WORKER_BRIDGE_SECRET = secret;
+    const sent: string[] = [];
+    const socket = {
+      data: { authenticated: false },
+      send: (value: string) => sent.push(value),
+      close: () => undefined,
+    } as unknown as ServerWebSocket<MacAgentSocketData>;
+    let enabled = false;
+    const featureAvailability = {
+      isEnabled: (feature: string) =>
+        feature === "chatbot" || (feature === "automatic_followups" && enabled),
+    } as unknown as FeatureAvailabilityStore;
+    const conversations = new ChatbotConversationTracker();
+    const message = {
+      id: "answer-before-follow-up",
+      channel_id: "channel-1",
+      guild_id: "917436845187563610",
+      content: `<@${BOT_ID}> hello`,
+      mentions: [{ id: BOT_ID }],
+      timestamp: "2026-10-17T01:00:00.000Z",
+      author: { id: "member-1", username: "Member" },
+    };
+    try {
+      macAgentBridge.open(socket);
+      macAgentBridge.message(
+        socket,
+        JSON.stringify({
+          type: "authenticate",
+          protocolVersion: CHATBOT_PROTOCOL_VERSION,
+          secret,
+          workerId: "oracle",
+          repositories: [],
+        }),
+      );
+      macAgentBridge.message(
+        socket,
+        JSON.stringify({ type: "availability", available: true, capacity: 1 }),
+      );
+      for (const scenario of [
+        "disabled",
+        "enabled",
+        "revoked-in-flight",
+      ] as const) {
+        enabled = scenario !== "disabled";
+        sent.length = 0;
+        const handled = handleChatbotMention({
+          message,
+          botUserId: BOT_ID,
+          accessConfig: ACCESS_CONFIG,
+          featureAvailability,
+          executionOptions: { lazyPreviousTrace: true },
+          guildMemoryStore: {
+            ensure: async () => ({
+              guildId: message.guild_id,
+              revision: 0,
+              entries: [],
+            }),
+            mutate: async () => {
+              throw new Error("Unexpected memory mutation");
+            },
+          },
+          conversationTracker: conversations,
+          receivedSequence: conversations.recordMessage(),
+          discordRequest: async (path) =>
+            (path.includes("messages?") ? [] : { id: "bot-answer" }) as never,
+        });
+        const job = await waitFor(() =>
+          sent
+            .map((value) => JSON.parse(value))
+            .find(
+              (value) => value.type === "job" && value.job.purpose === "answer",
+            ),
+        );
+        expect(
+          job.job.capabilities.some(
+            (capability: { id: string }) =>
+              capability.id === "automatic_followups",
+          ),
+        ).toBe(enabled);
+        if (scenario === "revoked-in-flight") enabled = false;
+        macAgentBridge.message(
+          socket,
+          JSON.stringify({
+            type: "result",
+            jobId: job.job.id,
+            ok: true,
+            content: JSON.stringify({ reply: "Hello", reaction: null }),
+          }),
+        );
+        expect(await handled).toBe(true);
+        expect(
+          conversations.take(
+            { ...message, mentions: [], content: "tomorrow?" },
+            conversations.recordMessage(),
+          ),
+        ).toBe(scenario === "enabled");
+      }
+    } finally {
+      macAgentBridge.close(socket);
+      if (previousSecret === undefined)
+        delete process.env.MINISAGO_WORKER_BRIDGE_SECRET;
+      else process.env.MINISAGO_WORKER_BRIDGE_SECRET = previousSecret;
+    }
+  });
+
   test("stays silent while paused until an addressed wake request", async () => {
     const quietTracker = new ChannelQuietTracker();
     const requests: Array<{ path: string; body: unknown }> = [];

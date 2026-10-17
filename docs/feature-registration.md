@@ -19,26 +19,28 @@ Ask Sago to list registrations first, then use
 `enable`, `disable`, or `inherit`. The host verifies the target and any role IDs
 against Discord. Changes apply immediately and persist across restarts.
 
-| Feature              | Supported scopes |
-| -------------------- | ---------------- |
-| `chatbot`            | Guild, channel   |
-| `ambient_reactions`  | Guild, channel   |
-| `trip_planner`       | Guild, channel   |
-| `ccxp_meetings`      | Guild            |
-| `calendar`           | Guild            |
-| `developer_steering` | Guild            |
-| `mail`               | Guild, channel   |
-| `drive`              | Guild            |
+| Feature               | Supported scopes |
+| --------------------- | ---------------- |
+| `chatbot`             | Guild, channel   |
+| `automatic_followups` | Guild            |
+| `ambient_reactions`   | Guild, channel   |
+| `trip_planner`        | Guild, channel   |
+| `ccxp_meetings`       | Guild            |
+| `calendar`            | Guild            |
+| `developer_steering`  | Guild            |
+| `mail`                | Guild, channel   |
+| `drive`               | Guild            |
 
 Channel rules override guild rules, which override a feature's default. A
 nonempty `allowRoleIds` requires any matching role; `denyRoleIds` always wins.
 Unknown roles fail closed when a filter exists. Each enable replaces the previous
 filters. Omit filters or send empty arrays to clear them; inherit removes the rule.
 
-Calendar, CCXP, developer steering, Mail, and Drive require explicit registration
-with a disabled global default. The owner's chatbot and developer steering access
+Automatic follow-ups, Calendar, CCXP, developer steering, Mail, and Drive require
+explicit registration with a disabled global default. The owner's chatbot and developer steering access
 continues everywhere. Mail also permits the owner's private text DM and excludes
-voice. Calendar, CCXP, and Drive exclude DMs.
+voice. Automatic follow-ups, Calendar, CCXP, and Drive exclude DMs. Automatic
+follow-ups also exclude voice and have no owner bypass.
 
 Mail replies can be seen by everyone who can view the requesting conversation.
 Registration grants access to configured connected mailboxes; each mailbox still
@@ -46,13 +48,37 @@ needs its owner's read-only OAuth grant. Drive still requires the dedicated
 service account, approved drives, Google file ACLs, and mapped Discord roles.
 Calendar mutations still require confirmation.
 
+## Automatic follow-ups
+
+`automatic_followups` is disabled in every guild by default, including for the
+owner. Mentions, replies that notify the bot, `/ask`, and coding-thread steering
+continue independently of this setting. To opt in a guild, the owner can use:
+
+```json
+{
+  "feature": "automatic_followups",
+  "scope": "guild",
+  "targetId": "917436845187563610",
+  "action": "enable"
+}
+```
+
+When enabled, the original requester's next unmentioned message in the same
+channel, within 90 seconds of an answer, can invoke another answer. The rule does
+not determine intent or topic; another person's intervening message or a message
+mentioning another user consumes the window. A new answer restarts the window.
+Chatbot authorization, role filters, and channel quiet mode still apply. Use
+`disable` or `inherit` to turn follow-ups off again.
+
 ## Persistent state and upgrades
 
 `MINISAGO_FEATURE_AVAILABILITY_FILE` selects the existing version-1 JSON policy.
 Its production default is `/app/state/feature-availability.json`. Saved policies,
 including revocations and role filters, remain authoritative. An older policy
 without Drive gains its previous guild `1514899496797212683` once. Mail gains no
-initial registrations. The next owner change persists the migrated snapshot.
+initial registrations. Automatic follow-ups also gain no initial registrations,
+so upgrades disable them in every guild. The next owner change persists the
+migrated snapshot.
 
 The shared store holds its current snapshot in memory. Use the owner tools for
 live changes; direct external file edits require a restart. Background feed

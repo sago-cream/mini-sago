@@ -64,6 +64,7 @@ describe("feature availability", () => {
     expect(snapshot.features.trip_planner.defaultEnabled).toBe(false);
     expect(Object.keys(snapshot.features)).toEqual([
       "chatbot",
+      "automatic_followups",
       "ambient_reactions",
       "trip_planner",
       "ccxp_meetings",
@@ -72,6 +73,84 @@ describe("feature availability", () => {
       "mail",
       "drive",
     ]);
+  });
+
+  test("automatic follow-ups require explicit guild opt-in, including after upgrades", async () => {
+    const { directory, store: availability } = await store({
+      MINISAGO_CHATBOT_GUILD_IDS: "917436845187563610",
+      MINISAGO_CHATBOT_CHANNEL_IDS: "1517766866964316201",
+    });
+    const guildId = "917436845187563610";
+    expect(availability.list().features.automatic_followups).toEqual({
+      defaultEnabled: false,
+      rules: [],
+    });
+    expect(availability.isEnabled("automatic_followups", { guildId })).toBe(
+      false,
+    );
+    const { automatic_followups, ...legacyFeatures } =
+      availability.list().features;
+    const legacyFile = join(directory, "legacy.json");
+    await writeFile(
+      legacyFile,
+      JSON.stringify({ version: 1, features: legacyFeatures }),
+    );
+    const migrated = new FeatureAvailabilityStore(legacyFile, {});
+    expect(migrated.list().features).toEqual({
+      ...legacyFeatures,
+      automatic_followups,
+    });
+    await expect(
+      migrated.configure({
+        feature: "automatic_followups",
+        scope: "channel",
+        targetId: "1517766866964316201",
+        action: "enable",
+      }),
+    ).rejects.toThrow("guild scope");
+    await migrated.configure({
+      feature: "automatic_followups",
+      scope: "guild",
+      targetId: guildId,
+      action: "enable",
+      allowRoleIds: ["1522110684610166907"],
+    });
+    const reloaded = new FeatureAvailabilityStore(legacyFile, {});
+    expect(
+      reloaded.isEnabled("automatic_followups", {
+        guildId,
+        roleIds: ["1522110684610166907"],
+      }),
+    ).toBe(true);
+    expect(
+      reloaded.isEnabled("automatic_followups", { guildId, roleIds: [] }),
+    ).toBe(false);
+    expect(reloaded.isEnabled("automatic_followups", { guildId })).toBe(false);
+    expect(
+      reloaded.isEnabled("automatic_followups", {
+        guildId: "1282936453134815275",
+      }),
+    ).toBe(false);
+    expect(reloaded.isEnabled("automatic_followups", {})).toBe(false);
+    await reloaded.configure({
+      feature: "automatic_followups",
+      scope: "guild",
+      targetId: guildId,
+      action: "disable",
+    });
+    expect(
+      new FeatureAvailabilityStore(legacyFile, {}).isEnabled(
+        "automatic_followups",
+        { guildId, roleIds: ["1522110684610166907"] },
+      ),
+    ).toBe(false);
+    const invalidFile = join(directory, "invalid.json");
+    const invalid = reloaded.list();
+    invalid.features.automatic_followups.defaultEnabled = true;
+    await writeFile(invalidFile, JSON.stringify(invalid));
+    expect(() => new FeatureAvailabilityStore(invalidFile, {})).toThrow(
+      "disabled default",
+    );
   });
 
   test("registers approved CCXP guilds and preserves revocation after restart", async () => {
