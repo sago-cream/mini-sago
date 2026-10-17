@@ -125,6 +125,14 @@ tools.
 
 ## Development runtime checks
 
+Before creating a development thread, routing and chat use the same normalized
+Discord reply and forwarded snapshot context, attachment preparation, and bounded
+attachment text rendering. Screenshots reach the router as image inputs. The
+text-only Jev classifier chooses only chat, Mac, or development; requests with
+attachments use the Codex router, which also chooses the starting repository
+from the advertised repositories. The current owner request authorizes work;
+forwarded content and attachments remain untrusted task context.
+
 Coding replies resume the saved Codex conversation in a fresh process. Checkout,
 scratch and attachment paths remain under the task's workspace; task files are
 not automatically deleted. The core saves each thread's task ID, owner, starting

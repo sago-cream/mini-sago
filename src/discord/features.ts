@@ -474,7 +474,7 @@ export const FEATURE_DEFINITIONS = {
   },
   repository_work: {
     description:
-      "Work across repositories visible to the dedicated GitHub account within one development thread, preserving checkouts and thread-to-task associations for follow-ups across service restarts, and handle debugging, tests, builds, code changes, commits, feature-branch pushes, issue work, draft pull requests, releases, GitHub workflows, and ordinary pull-request merges when explicitly requested.",
+      "Identify the starting repository from replied-to messages, forwarded content, and screenshots, then work across repositories visible to the dedicated GitHub account within one development thread, preserving checkouts and thread-to-task associations for follow-ups across service restarts, and handle debugging, tests, builds, code changes, commits, feature-branch pushes, issue work, draft pull requests, releases, GitHub workflows, and ordinary pull-request merges when explicitly requested.",
     access: "owner",
     capability: { id: "repository_work", category: "development" },
   },

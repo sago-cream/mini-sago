@@ -48,12 +48,12 @@ describe("chatbot attachment limits", () => {
     await prepared.cleanup();
   });
 
-  test.serial("skips attachments outside answer jobs", async () => {
+  test.serial("extracts attachments for repository routing", async () => {
     const originalFetch = globalThis.fetch;
     let fetched = false;
     globalThis.fetch = (async () => {
       fetched = true;
-      return new Response("unused");
+      return new Response("PikPak RSS select all");
     }) as unknown as typeof fetch;
 
     try {
@@ -84,9 +84,11 @@ describe("chatbot attachment limits", () => {
         ],
       });
 
-      expect(fetched).toBe(false);
+      expect(fetched).toBe(true);
       expect(prepared.imagePaths).toEqual([]);
-      expect(prepared.textBlocks).toEqual([]);
+      expect(prepared.textBlocks).toEqual([
+        "Attachment: notes.txt\nPikPak RSS select all",
+      ]);
       await prepared.cleanup();
     } finally {
       globalThis.fetch = originalFetch;
@@ -539,3 +541,129 @@ describe("chatbot attachment limits", () => {
     },
   );
 });
+
+test.serial(
+  "routing and chat prepare the same forwarded reply image and document context",
+  async () => {
+    const { toChatbotMessage } =
+      await import("../../../src/chatbot/chatbot-context");
+    const { buildPromptPlan } = await import("../prompts");
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jivsAAAAASUVORK5CYII=",
+      "base64",
+    );
+    const requestMessage = toChatbotMessage({
+      id: "request",
+      channel_id: "channel",
+      content: "<@bot> pr",
+      timestamp: "2026-10-17T00:00:00Z",
+      referenced_message: {
+        id: "forward",
+        channel_id: "channel",
+        timestamp: "2026-10-17T00:00:00Z",
+        message_snapshots: [
+          {
+            message: {
+              timestamp: "2026-10-14T00:00:00Z",
+              content: "這邊要加一個全選的勾勾",
+              attachments: [
+                {
+                  id: "picture",
+                  filename: "image.png",
+                  content_type: "image/png",
+                  size: png.length,
+                  url: "https://cdn.discordapp.com/image.png",
+                },
+                {
+                  id: "document",
+                  filename: "notes.txt",
+                  content_type: "text/plain",
+                  size: 18,
+                  url: "https://cdn.discordapp.com/notes.txt",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    const base = {
+      id: "forward-route",
+      requesterUserId: "owner",
+      channelId: "channel",
+      requestMessageId: "request",
+      request: "pr",
+      requestMessage,
+      messages: Array.from({ length: 12 }, (_, i) => ({
+        id: `noise-${i}`,
+        author: "User",
+        timestamp: "2026-10-17T00:00:00Z",
+        content: "pr for mini-sago",
+        attachments: [
+          {
+            id: `noise-${i}`,
+            filename: `noise-${i}.png`,
+            size: png.length,
+            url: `https://cdn.discordapp.com/noise-${i}.png`,
+          },
+        ],
+      })),
+    };
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL) =>
+      String(input).endsWith("notes.txt")
+        ? new Response("PikPak RSS select all")
+        : new Response(png)) as unknown as typeof fetch;
+    try {
+      for (const purpose of ["execution_route", "answer"] as const) {
+        const job =
+          purpose === "execution_route"
+            ? {
+                ...base,
+                purpose,
+                availableRepositories: [
+                  "owner/pikpak-rss-manager",
+                  "owner/mini-sago",
+                ],
+              }
+            : { ...base, ...answerDefaults };
+        const prepared = await prepareAttachments(job);
+        try {
+          expect(prepared.imagePaths).toHaveLength(9);
+          expect(await readFile(prepared.imagePaths[0]!)).toEqual(png);
+          expect(basename(prepared.imagePaths[0]!)).toBe("0-image.png");
+          expect(prepared.textBlocks).toEqual([
+            "Attachment: notes.txt\nPikPak RSS select all",
+          ]);
+          const plan = buildPromptPlan(
+            job,
+            prepared.textBlocks,
+            prepared.ignored,
+          );
+          expect(plan.context).toContain(
+            "[Forwarded message]\\n這邊要加一個全選的勾勾",
+          );
+          expect(plan.context).toContain(
+            "<extracted_attachments>\nAttachment: notes.txt\nPikPak RSS select all\n</extracted_attachments>",
+          );
+          expect(plan.developerInstructions).not.toContain(
+            "PikPak RSS select all",
+          );
+        } finally {
+          await prepared.cleanup();
+        }
+      }
+      const skipped = await prepareAttachments({
+        ...base,
+        purpose: "social_action",
+        availableTools: [],
+        socialActionCandidateMessageIds: [],
+      });
+      expect(skipped.imagePaths).toEqual([]);
+      expect(skipped.textBlocks).toEqual([]);
+      await skipped.cleanup();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  },
+);

@@ -261,3 +261,42 @@ describe("request-scoped media registry", () => {
 function fixtureFeatureAccess() {
   return { available: () => true, allowed: async () => true };
 }
+
+test("refreshes a forwarded reply attachment from its visible forwarding message", async () => {
+  const forwarded = (url: string): DiscordMessage => ({
+    ...sourceMessage(),
+    content: "",
+    attachments: [],
+    message_snapshots: [
+      {
+        message: {
+          timestamp: "2026-10-01T00:00:00Z",
+          content: "select all",
+          attachments: sourceMessage(url).attachments,
+        },
+      },
+    ],
+  });
+  const requests: string[] = [];
+  const registry = new ChatbotMediaRegistry(
+    async (input) =>
+      String(input) === originalUrl
+        ? new Response(null, { status: 403 })
+        : new Response(new Uint8Array([1, 2, 3])),
+    (async (path) => {
+      requests.push(path);
+      return forwarded(refreshedUrl);
+    }) as DiscordRequest,
+  );
+  registry.registerMessages([
+    toChatbotMessage({
+      ...sourceMessage(),
+      id: "request",
+      channel_id: "parent",
+      attachments: [],
+      referenced_message: forwarded(originalUrl),
+    }),
+  ]);
+  expect([...(await registry.read("300")).bytes]).toEqual([1, 2, 3]);
+  expect(requests).toEqual(["/channels/100/messages/200"]);
+});

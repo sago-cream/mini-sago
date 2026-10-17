@@ -826,7 +826,7 @@ export const FEATURES = [
         section: 'developer',
         title: '程式開發',
         description:
-            '隨時銜接群組討論進行開發，同一個討論串能跨專案工作，重啟後也能接續進度。',
+            '從回覆、轉發和截圖辨識專案並建立開發討論串；同一串能跨專案工作，重啟後也能接續進度。',
         channel: '程式開發',
         messages: [
             {
