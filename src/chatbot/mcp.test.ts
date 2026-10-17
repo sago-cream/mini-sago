@@ -191,6 +191,7 @@ describe("MiniSago MCP server", () => {
         version: 1 as const,
         features: {
           chatbot: policy,
+          automatic_followups: policy,
           ambient_reactions: policy,
           trip_planner: policy,
           ccxp_meetings: policy,
@@ -226,6 +227,14 @@ describe("MiniSago MCP server", () => {
     });
     expect(listed.structuredContent).toMatchObject({
       definitions: {
+        automatic_followups: {
+          access: "registered",
+          scopes: ["guild"],
+          dm: "none",
+          voice: false,
+          ownerBypass: false,
+          allowDefaultEnabled: false,
+        },
         drive: { access: "registered", scopes: ["guild"] },
         mail: {
           access: "registered",

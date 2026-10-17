@@ -6,6 +6,10 @@ An AI-powered Discord bot for... everything? From chatting, channel summary, mov
 
 Check out the full feature list on our [site](https://mini.sagocream.com/).
 
+Mention MiniSago or reply to her message to continue a conversation. Automatic
+90-second follow-ups are off in every guild by default; the owner can opt a guild
+in through [`automatic_followups` registration](docs/feature-registration.md).
+
 ## Self-host mini sago
 
 You will need a Discord application, a VPS or some machine to throw her on , an agent worker (I used Codex here), and [Bun](https://bun.sh/).

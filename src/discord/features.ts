@@ -92,6 +92,22 @@ export const FEATURE_DEFINITIONS = {
       }),
     },
   },
+  automatic_followups: {
+    description:
+      "Automatically treat the original requester's next unmentioned message in the same channel within 90 seconds of an answer as a follow-up. Requires explicit guild registration; disabled by default for everyone, including the owner.",
+    access: "registered",
+    registration: {
+      scopes: ["guild"],
+      dm: "none",
+      voice: false,
+      allowDefaultEnabled: false,
+      initialPolicy: (): FeaturePolicy => ({
+        defaultEnabled: false,
+        rules: [],
+      }),
+    },
+    capability: { id: "automatic_followups", category: "conversation" },
+  },
   ambient_reactions: {
     description: "Occasionally react to messages without being mentioned.",
     access: "registered",
@@ -414,7 +430,7 @@ export const FEATURE_DEFINITIONS = {
   },
   conversation: {
     description:
-      "Answer, explain, write, reason, and use the supplied nearby Discord conversation while matching the requester's language.",
+      "Answer, explain, write, reason, and use the supplied nearby Discord conversation while matching the requester's language. Unmentioned guild messages invoke another answer only when automatic_followups is available.",
     access: "request",
     capability: { id: "conversation", category: "conversation" },
   },
