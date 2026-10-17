@@ -11,10 +11,12 @@ const root = "/tmp/minisago-sandbox-smoke";
 const codexPath = await resolveCodexPath("/usr/local/bin/codex", null, []);
 const directory = join(root, "repo");
 const temporaryDirectory = join(root, "tmp");
+const repositoriesDirectory = join(root, "repositories");
 const bin = join(root, "bin");
 for (const path of [
   directory,
   temporaryDirectory,
+  repositoriesDirectory,
   bin,
   join(root, "codex", "skills"),
 ])
@@ -30,11 +32,16 @@ await Bun.write(
 await Bun.spawn(["chmod", "+x", join(bin, "gh")]).exited;
 const workspace = {
   directory,
+  repositoriesDirectory,
   temporaryDirectory,
   attachmentsDirectory: root,
   environment: {},
   sandboxReadPaths: [bin],
-  sandboxWritePaths: [join(directory, ".git"), temporaryDirectory],
+  sandboxWritePaths: [
+    join(directory, ".git"),
+    temporaryDirectory,
+    repositoriesDirectory,
+  ],
   cleanup: async () => {},
 };
 const environment = {
@@ -56,6 +63,39 @@ await preflightDeveloperRuntime({
   codexPath,
   configArguments: configs.flatMap((c) => ["--config", c]),
 });
+// Additional repositories share the task's sandbox, including their Git metadata.
+const additionalCheckout = join(repositoriesDirectory, "fixture", "other");
+await runtimeCommand(
+  [
+    codexPath,
+    "sandbox",
+    ...configs.flatMap((c) => ["--config", c]),
+    "--",
+    "/bin/sh",
+    "-c",
+    'set -eu; git clone --no-hardlinks "$1" "$2"; cd "$2"; git switch -c chore/minisago-smoke; echo preserved > follow-up.txt',
+    "minisago-additional-repo",
+    directory,
+    additionalCheckout,
+  ],
+  directory,
+  environment,
+);
+await runtimeCommand(
+  [
+    codexPath,
+    "sandbox",
+    ...configs.flatMap((c) => ["--config", c]),
+    "--",
+    "/bin/sh",
+    "-c",
+    'set -eu; test "$(cat "$1/follow-up.txt")" = preserved; echo continued >> "$1/follow-up.txt"',
+    "minisago-additional-repo-resume",
+    additionalCheckout,
+  ],
+  directory,
+  environment,
+);
 // Check that the bundled uploader is executable inside the developer sandbox.
 await runtimeCommand(
   [

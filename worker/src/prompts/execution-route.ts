@@ -31,7 +31,7 @@ Choose chat when an available_capabilities_json entry can complete the request t
 
 Choose mac only when the request explicitly needs files, applications, browser state, hardware, or another resource on Hsi's Mac.
 
-Set repository to one exact value from available_repositories_json. Use chatbot_repository_json only when the request requires changing the implementation of your behavior, replies, access, Discord handling, or other chatbot capabilities. A request to use an available host tool does not require the chatbot repository. Use null when no single advertised repository is identifiable.
+Set repository to one exact value from available_repositories_json as the starting checkout. For work spanning several repositories, choose the most directly relevant one, or the first explicitly named repository if equally relevant. The task can access additional repositories later in the same thread. Use chatbot_repository_json only when the request requires changing the implementation of your behavior, replies, access, Discord handling, or other chatbot capabilities. A request to use an available host tool does not require the chatbot repository. Use null when no advertised starting repository is identifiable.
 
 For oracle, set threadTitle to an imperative phrase of 3–7 words in the request's language. Omit the repository name and punctuation. For chat and mac, use null.
 

@@ -125,6 +125,69 @@ test("returns final screenshot bytes from the native developer runner", async ()
   });
 });
 
+test("continues work in another repository with persistent paths and image evidence", async () => {
+  const { job, options, directory } = await developerFixture();
+  const calls: DeveloperRun[] = [];
+  const appServer = {
+    run: async (call: DeveloperRun) => {
+      calls.push(call);
+      const root = call.environment.MINISAGO_REPOSITORIES_DIR!;
+      const other = join(root, "owner", "pikpak");
+      const png = Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jivsAAAAASUVORK5CYII=",
+        "base64",
+      );
+      if (calls.length === 1) {
+        await mkdir(other, { recursive: true });
+        await Bun.write(join(other, "work.txt"), "preserve this work");
+      } else {
+        expect(await Bun.file(join(other, "work.txt")).text()).toBe(
+          "preserve this work",
+        );
+      }
+      await Bun.write(join(other, "after.png"), png);
+      return `Done.\n![Other repository](<${join(other, "after.png")}>)`;
+    },
+  } as unknown as CodexAppServerManager;
+  const settings = {
+    ...options,
+    githubRepositories: [job.repository, "owner/pikpak"],
+    appServer,
+  };
+  const first = await runCodexJob(
+    { ...job, request: "find the pikpak repo and create a new branch" },
+    settings,
+  );
+  const resumed = await runCodexJob(
+    {
+      ...job,
+      id: "turn-2",
+      developerTask: { id: "task-1", resumeSessionId: "session-1" },
+    },
+    settings,
+  );
+  expect(first.files[0]?.filename).toBe("after.png");
+  expect(resumed.files[0]?.filename).toBe("after.png");
+  expect(calls[0]!.environment.MINISAGO_REPOSITORIES_DIR).toBe(
+    calls[1]!.environment.MINISAGO_REPOSITORIES_DIR,
+  );
+  for (const call of calls) {
+    expect(call.cwd).toBe(directory);
+    expect(call.developerInstructions).toContain('"owner/pikpak"');
+    expect(call.developerInstructions).toContain("gh repo clone");
+    expect(call.developerInstructions).not.toContain(
+      "Work only in the selected repository",
+    );
+    expect(
+      call.command.find((argument) =>
+        argument.startsWith("permissions.minisago-dev.filesystem="),
+      ),
+    ).toContain(
+      `${JSON.stringify(call.environment.MINISAGO_REPOSITORIES_DIR)}="write"`,
+    );
+  }
+});
+
 test.each([
   {
     repository: "OWNER/REPO",

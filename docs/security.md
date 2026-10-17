@@ -156,16 +156,19 @@ regular file of 8 MB or less. Symlinks and paths outside the roots are rejected.
 
 Coding evidence uploads are selected by local image references in the final
 answer, excluding code examples. The worker resolves each path and admits only
-regular PNG, JPEG, GIF, or WebP files inside the selected repository or current
-turn's output folder, with matching image signatures. Paths and symlinks that
-escape those roots are rejected. The worker and host both enforce at most 10
+regular PNG, JPEG, GIF, or WebP files inside the starting checkout, the task's
+directory for additional repositories, or the current turn's output folder, with
+matching image signatures. Paths and symlinks that escape those roots are rejected. The worker and host both enforce at most 10
 attachments and 8 MB combined; remote image URLs are never fetched for upload.
 
 ## Owner development and GitHub
 
-Development jobs receive one selected disposable repository checkout. GitHub
-uses a dedicated persistent `gh` login. Workers discover every repository that
-credential can access rather than maintaining a second application allowlist.
+Development jobs receive a starting disposable repository checkout and a writable
+directory for additional repositories isolated to the same task. The owner can steer
+work across accessible repositories without opening another thread. Checkouts and
+uncommitted work persist across task continuations. GitHub uses a dedicated
+persistent `gh` login. Workers discover every repository that credential can access
+rather than maintaining a second application allowlist.
 Tokens must never be placed in Discord, tasks, environment files, shell
 arguments, or repository content.
 

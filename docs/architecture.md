@@ -53,7 +53,8 @@ while creating and cleaning up a separate conversation and workspace per answer.
    and creates a short-lived MCP session.
 3. Owner requests first run a bounded router. It chooses `chat` for host-tool
    actions and uncertain requests, `mac` for explicit Mac resources, or `oracle`
-   with one repository for development work.
+   with a starting repository for development work. Development threads can clone
+   additional accessible repositories into the same isolated task workspace.
 4. The worker answers using the request, conversation, and supported attachments.
    It can fetch additional history, accessible guild search, member aliases,
    and metadata about a previous answer through `resolve_context`.

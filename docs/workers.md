@@ -145,10 +145,16 @@ storage and repository access through the actual Codex sandbox. A failed check
 or sandbox initialization error fails the job and remains visible in the thread
 and worker trace. Finishing a turn does not certify PR or CI completion.
 
-Development turns have no fixed job deadline. They discover the selected repository's
-`AGENTS.md` and `AGENTS.override.md` guidance. Release and GitHub workflow commands
-are available within that repository; publishing releases and mutating workflows
-require an explicit owner request and the GitHub login's corresponding permissions.
+Development turns have no fixed job deadline. The routed repository is the starting
+checkout; the owner can request work in another accessible repository in the same
+thread. Workers expose `$MINISAGO_REPOSITORIES_DIR` for additional checkouts,
+using `OWNER/REPO` subdirectories. Clone with `gh repo clone`, create the branch
+named by `$MINISAGO_GIT_BRANCH`, and reuse the checkout on follow-ups. Read each
+repository's applicable `AGENTS.md` and `AGENTS.override.md` before working in it.
+GitHub access follows the dedicated login. Release and GitHub workflow commands
+are available for the requested repositories; publishing releases and mutating
+workflows require an explicit owner request and the GitHub login's corresponding
+permissions.
 
 Development shells support `gh image` uploads and GitHub attachment downloads.
 The Oracle image includes pinned `gh-image` v1.4.0; Mac workers need v1.4.0 or
@@ -167,7 +173,8 @@ queues deployment; the host reports the final result in the Discord thread.
 Coding tasks can include image evidence in their final answer using Markdown such
 as `![After](</absolute/path/to/screenshot.png>)`. The host uploads local PNG, JPEG,
 GIF, and WebP images as native Discord attachments and preserves their captions.
-Paths must be inside the selected repository or that turn's output folder. Up to
+Paths must be inside the starting checkout, additional checkouts under
+`$MINISAGO_REPOSITORIES_DIR`, or that turn's output folder. Up to
 10 images can be sent with an 8 MB combined limit. Code examples and remote URLs
 do not trigger uploads; missing or rejected images leave the answer intact with
 an attachment failure note.

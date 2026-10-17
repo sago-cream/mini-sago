@@ -213,6 +213,7 @@ describe("developer workspace", () => {
     expect(workspace.sandboxWritePaths).toEqual([
       join(workspace.directory, ".git"),
       workspace.temporaryDirectory,
+      workspace.repositoriesDirectory,
     ]);
     await workspace.cleanup();
   });
@@ -254,6 +255,7 @@ describe("developer workspace", () => {
     expect(workspace.sandboxWritePaths).toEqual([
       join(workspace.directory, ".git"),
       workspace.temporaryDirectory,
+      workspace.repositoriesDirectory,
     ]);
   });
 
@@ -274,6 +276,7 @@ describe("developer workspace", () => {
     expect(workspace.sandboxWritePaths).toEqual([
       join(workspace.directory, ".git"),
       workspace.temporaryDirectory,
+      workspace.repositoriesDirectory,
     ]);
   });
 
