@@ -21,6 +21,7 @@ live in [Discord setup](discord-setup.md) and [Workers](workers.md).
 | -------------------------------------- | --------- | ------------------------------------------------------- |
 | `DISCORD_APPLICATION_ID`               | Yes       | Discord application ID                                  |
 | `DISCORD_CUSTOM_STATUS`                | No        | Initial text when no saved status exists                |
+| `MINISAGO_DEVELOPER_THREADS_PATH`      | No        | Persistent development-thread recovery metadata         |
 | `MINISAGO_BOT_STATUS_FILE`             | No        | Persistent bot status; `/app/state/bot-status.json`     |
 | `DISCORD_BOT_TOKEN`                    | Yes       | Discord REST and Gateway authentication                 |
 | `DISCORD_GUILD_ID`                     | No        | Guild for configured-guild features; defaults to WM31   |

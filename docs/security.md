@@ -172,6 +172,14 @@ rather than maintaining a second application allowlist.
 Tokens must never be placed in Discord, tasks, environment files, shell
 arguments, or repository content.
 
+The core persists development-thread task identity, owner, guild, starting
+repository, original request, session ID, and the post-merge addressing rule in
+its private state volume. Runtime MCP tokens, worker leases, and credentials are
+not saved. Recovery validates the configured owner and guild and checks current
+participant steering policy. Associations expire after three idle days; expiry
+removes recovery metadata without deleting worker files. Startup never replays
+interrupted work automatically.
+
 Only the configured owner can route work to Oracle. Every Oracle job uses a
 prepared feature branch, and per-job `gh` and `git` wrappers permit ordinary
 repository work without a second inferred authorization scope:

@@ -127,9 +127,21 @@ tools.
 
 Coding replies resume the saved Codex conversation in a fresh process. Checkout,
 scratch and attachment paths remain under the task's workspace; task files are
-not automatically deleted. The existing thread registry is still in memory and
-expires after three idle days, so restarting the core requires manual task
-recovery. Preserve unfinished work before manually retiring its workspace.
+not automatically deleted. The core saves each thread's task ID, owner, starting
+repository, original request, Codex session ID, and post-merge addressing rule in
+`MINISAGO_DEVELOPER_THREADS_PATH` (default `/app/state/developer-threads.sqlite`).
+A reply restores the saved task before ordinary routing, including when it asks
+for work in another repository. The owner can reply without a mention; registered
+participants are checked against the current `developer_steering` policy. A saved
+task does not rerun automatically at startup. `status` and `stop` do not start a
+model turn. After a PR merge, an explicit mention or reply to the bot is still
+required. Associations expire after three idle days; unfinished files remain for
+explicit cleanup.
+
+Threads created before durable registration can still recover from worker traces
+through an explicit development continuation. Once recovered, their association
+is saved for later restarts. Preserve unfinished work before manually retiring its
+workspace.
 
 The owner can steer coding tasks everywhere. Other human participants can steer
 an active turn or continue a saved task only in guilds registered under

@@ -210,7 +210,7 @@ branch divergence manually if another writer advances the snapshot history.
 
 Service credentials are stored in Bitwarden folder **Obi and MiniSago Recovery**.
 The backup deploy key can be recreated and registered on GitHub after host
-recovery. Media, recordings, traces, sessions, caches, dependencies, and worker
+recovery. Media, recordings, developer-thread recovery metadata, traces, sessions, caches, dependencies, and worker
 checkouts are excluded. Preserve unfinished worker code in its application
 remote before discarding a workspace. The live guild-memory repository keeps
 no remote.
