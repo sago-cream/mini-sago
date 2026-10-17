@@ -538,6 +538,18 @@ describe("Discord chatbot", () => {
       expect(resumedJob.job.developerTask.currentRequesterUserId).toBe(
         "community-participant",
       );
+      const deniedEnd = await contextClient.callTool({
+        name: "end_developer_thread",
+        arguments: {},
+      });
+      expect(deniedEnd.structuredContent).toMatchObject({
+        status: "unavailable",
+      });
+      expect(
+        sent
+          .map((value) => JSON.parse(value))
+          .some((value) => value.type === "stop"),
+      ).toBe(false);
       expect(resumedJob.job.requestMessageId).toBe("steering-message");
       expect(resumedJob.job.messages[0].content).toBe(supplementaryContent);
       for (const extra of [
@@ -918,6 +930,72 @@ describe("Discord chatbot", () => {
           (formData?.get("files[0]") as File | undefined)?.name === "stamp.png",
       )!;
       expect(imageOnly.body).toEqual({ allowed_mentions: { parse: [] } });
+      await handleChatbotMention({
+        message: {
+          id: "owner-end-request",
+          channel_id: "coding-thread",
+          guild_id: "917436845187563610",
+          content: `<@${BOT_ID}> make this a normal thread`,
+          timestamp: new Date().toISOString(),
+          author: { id: ACCESS_CONFIG.ownerUserId, username: "Hsi" },
+        },
+        botUserId: BOT_ID,
+        accessConfig: ACCESS_CONFIG,
+        discordRequest: async () => [] as never,
+      });
+      const endingJob = await waitFor(() =>
+        sent
+          .map((value) => JSON.parse(value))
+          .find(
+            (value) =>
+              value.type === "job" &&
+              value.job.requestMessageId === "owner-end-request",
+          ),
+      );
+      const ended = await contextClient.callTool({
+        name: "end_developer_thread",
+        arguments: {},
+      });
+      expect(ended.structuredContent).toMatchObject({
+        status: "ended",
+        threadId: "coding-thread",
+      });
+      expect(
+        discordCalls.some(
+          ({ path, body }) =>
+            path === "/channels/coding-thread/messages" &&
+            String((body as { content?: string })?.content).includes(
+              "Development thread ended",
+            ),
+        ),
+      ).toBe(true);
+      macAgentBridge.message(
+        socket,
+        JSON.stringify({
+          type: "result",
+          jobId: endingJob.job.id,
+          ok: false,
+          stopped: true,
+          error: "Stopped",
+        }),
+      );
+      expect(
+        await handleChatbotMention({
+          message: {
+            id: "normal-message",
+            channel_id: "coding-thread",
+            guild_id: "917436845187563610",
+            content: "Just chatting",
+            timestamp: new Date().toISOString(),
+            author: { id: ACCESS_CONFIG.ownerUserId },
+          },
+          botUserId: BOT_ID,
+          accessConfig: ACCESS_CONFIG,
+          discordRequest: async () => {
+            throw new Error("Ordinary messages must not invoke the bot");
+          },
+        }),
+      ).toBe(false);
     } finally {
       await contextClient?.close();
       mcpServer.stop(true);

@@ -826,7 +826,7 @@ export const FEATURES = [
         section: 'developer',
         title: '程式開發',
         description:
-            '從回覆、轉發和截圖辨識專案並建立開發討論串；同一串能跨專案工作，重啟後也能接續進度。',
+            '從回覆、轉發和截圖辨識專案並建立開發討論串；同一串能跨專案工作，重啟後也能接續進度。擁有者可指定結束開發討論串，回到一般聊天。',
         channel: '程式開發',
         messages: [
             {
@@ -849,6 +849,14 @@ export const FEATURES = [
             {
                 author: 'sago',
                 text: '驗證完成：空陣列、有資料的列表都通過。已依你的要求開 draft PR（#42，示範），等待 review；還沒有合併或部署。',
+            },
+            {
+                author: 'user',
+                text: '結束這個開發討論串。',
+            },
+            {
+                author: 'sago',
+                text: '已結束開發模式，這串回到一般聊天；需要我時再標註或回覆我。工作檔案會保留。',
             },
         ],
         note: '',

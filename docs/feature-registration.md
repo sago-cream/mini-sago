@@ -111,7 +111,8 @@ for filters and [Mail setup](mail.md) for mailbox authorization.
 ## Bot management
 
 `bot_status` (`update_custom_status`) is an owner-only capability, alongside
-`channel_messaging` and `feature_availability`. These are not guild registrations:
+`channel_messaging`, `developer_thread_control` (`end_developer_thread`), and
+`feature_availability`. These are not guild registrations:
 enabling a community feature never grants bot management access. Identity is
 bound by the host and checked again on every MCP call. See
 [bot management](bot-management.md).

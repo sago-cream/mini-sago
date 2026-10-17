@@ -173,6 +173,12 @@ registrations. The owner listing also describes request and owner-only access
 modes; those modes cannot be made public through registration. See
 [role filters](#feature-registrations-and-role-filters) below.
 
+`developer_thread_control` is owner-only and needs no additional configuration.
+The owner can end a current or specified development thread in the same server
+with `end dev thread` or `end_developer_thread`; this removes its saved association
+from `MINISAGO_DEVELOPER_THREADS_PATH` and returns it to normal chat rules. See
+[development workers](workers.md) for commands and pause behavior.
+
 Background subscriptions default to `.data/service-subscriptions.json`,
 initialized from Gamer Forum, X, and TOEFL destinations. Once changed, the saved
 list takes precedence. Owners can list destinations and subscribe or unsubscribe

@@ -108,6 +108,8 @@ function fixture() {
     turns,
     posts,
     stopped,
+    end: (guildId = "guild", ownerId = "owner") =>
+      registry.end("thread", guildId, ownerId, discord),
     get releases() {
       return releases;
     },
@@ -189,6 +191,73 @@ test("task owns initialization and retains MCP until idle expiry", async () => {
   expect(f.revocations).toBe(1);
   expect(f.registry.has("thread")).toBe(false);
 });
+
+test("ending an idle task clears its association and cancels expiry", async () => {
+  const f = fixture();
+  await f.start();
+  await f.finish();
+  expect(await f.end("other-guild")).toMatchObject({ status: "not_found" });
+  expect(await f.end("guild", "other-owner")).toMatchObject({
+    status: "not_found",
+  });
+  expect(f.registry.has("thread")).toBe(true);
+  expect(await f.end()).toMatchObject({ status: "ended" });
+  expect(f.registry.has("thread")).toBe(false);
+  expect(f.registry.saved("thread")).toBeUndefined();
+  expect(f.expiry).toBeUndefined();
+  expect(f.revocations).toBe(1);
+  expect(await f.registry.handle(message("Just chatting"), "bot", access)).toBe(
+    false,
+  );
+  expect(await f.registry.handle(message("<@bot> Hello"), "bot", access)).toBe(
+    false,
+  );
+  expect(await f.end()).toMatchObject({ status: "not_found" });
+});
+
+test.each([false, true])(
+  "ending active work discards queued steering and late output (success=%s)",
+  async (ok) => {
+    const f = fixture();
+    const steering = Promise.withResolvers<boolean>();
+    const entered = Promise.withResolvers<void>();
+    f.setSteer(async () => {
+      entered.resolve();
+      return steering.promise;
+    });
+    await f.start();
+    const followUp = f.registry.handle(message("Also do this"), "bot", access);
+    await entered.promise;
+    await f.end();
+    steering.resolve(false);
+    await followUp;
+    expect(f.stopped).toEqual([f.turns[0]!.job.id]);
+    expect(f.revocations).toBe(1);
+    f.turns[0]!.progress!({
+      phase: "implementing",
+      summary: "Late progress",
+      kind: "action",
+      sessionId: "late-session",
+    });
+    f.turns[0]!.result.resolve(
+      ok
+        ? { ok: true, content: "Late answer" }
+        : {
+            ok: false,
+            stopped: true,
+            error: "Stopped",
+            failureKind: "internal",
+          },
+    );
+    await Bun.sleep(0);
+    expect(f.releases).toBe(1);
+    expect(f.posts).toHaveLength(1);
+    expect(f.posts[0]).toContain("Development thread ended");
+    expect(f.registry.saved("thread")).toBeUndefined();
+    expect(f.expiry).toBeUndefined();
+    expect(f.turns).toHaveLength(1);
+  },
+);
 
 test("setup failure leaves request cleanup in charge", async () => {
   const f = fixture();
