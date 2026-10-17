@@ -1,3 +1,4 @@
+import { hasContextAttachments } from "../../contracts/message-context";
 import { z } from "zod";
 import type {
   ChatbotMessage,
@@ -27,9 +28,7 @@ export function jevRequest(job: ExecutionRouteJob) {
     model: "jev-latest",
     state: {
       request: truncateContextText(job.request, 12000),
-      ...(job.requestMessage
-        ? { context: context({ ...job.requestMessage, content: "" }) }
-        : {}),
+      ...(job.requestMessage ? { context: context(job.requestMessage) } : {}),
       recent: budgetMessages(job.messages).messages.map(context),
       hostCapabilities: (job.capabilities ?? [])
         .filter((c) => c.category !== "development")
@@ -80,6 +79,7 @@ export async function routeWithJev(
     fetch?: (input: string, init: RequestInit) => Promise<Response>;
   } = {},
 ): Promise<string | undefined> {
+  if (hasContextAttachments(job)) return undefined;
   const key = options.apiKey ?? process.env.TYPESAFE_API_KEY?.trim();
   if (!key) return undefined;
   try {

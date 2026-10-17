@@ -5,7 +5,7 @@ import {
 } from "../../../contracts/answer-contract";
 import { taiwaneseLanguageReference } from "./language";
 
-export const PROMPT_VERSION = 66;
+export const PROMPT_VERSION = 67;
 
 export const VOICE_ANSWER_OUTPUT_SCHEMA = {
   type: "object",

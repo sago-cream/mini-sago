@@ -34,9 +34,9 @@ export { EXECUTION_ROUTE_OUTPUT_SCHEMA } from "./execution-route";
 export { SOCIAL_ACTION_OUTPUT_SCHEMA } from "./social-action";
 
 export const PROMPT_PLAN_VERSIONS = {
-  policy: 16,
+  policy: 17,
   task: 3,
-  context: 8,
+  context: 9,
 } as const;
 
 export type PromptPlan = {
@@ -86,7 +86,7 @@ export function buildPromptPlan(
       "execution_route",
       EXECUTION_ROUTE_INSTRUCTIONS,
       EXECUTION_ROUTE_TASK_INSTRUCTION,
-      executionRouteContext(job),
+      executionRouteContext(job, attachmentText, ignoredAttachments),
     );
   }
   if (job.purpose === "social_action") {

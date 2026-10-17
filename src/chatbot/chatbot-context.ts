@@ -52,6 +52,12 @@ export type DiscordMessage = {
       animated?: boolean;
     };
   }>;
+  message_snapshots?: Array<{
+    message: Pick<
+      DiscordMessage,
+      "content" | "timestamp" | "attachments" | "embeds" | "sticker_items"
+    >;
+  }>;
   referenced_message?: DiscordMessage | null;
 };
 
@@ -143,7 +149,9 @@ function attachment(attachment: DiscordAttachment): ChatbotAttachment {
   };
 }
 
-function messageContent(message: DiscordMessage) {
+function plainMessageContent(
+  message: Pick<DiscordMessage, "content" | "embeds" | "sticker_items">,
+) {
   const parts = [message.content?.trim() ?? ""];
 
   for (const embed of message.embeds ?? []) {
@@ -159,6 +167,35 @@ function messageContent(message: DiscordMessage) {
   }
 
   return parts.filter(Boolean).join("\n");
+}
+
+function messageContent(message: DiscordMessage) {
+  return [
+    plainMessageContent(message),
+    ...(message.message_snapshots ?? [])
+      .slice(0, 10)
+      .map(
+        ({ message: snapshot }) =>
+          `[Forwarded message]\n${plainMessageContent(snapshot)}`,
+      ),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export function discordMessageAttachments(message: DiscordMessage) {
+  const items = [
+    ...(message.attachments ?? []),
+    ...(message.message_snapshots ?? [])
+      .slice(0, 10)
+      .flatMap((snapshot) => snapshot.message.attachments ?? []),
+  ];
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
 }
 
 function messageReactions(message: DiscordMessage) {
@@ -192,7 +229,7 @@ function contextMessage(
     ...(aliases.length > 1 ? { authorAliases: aliases } : {}),
     timestamp: message.timestamp,
     content: messageContent(message),
-    attachments: (message.attachments ?? []).map(attachment),
+    attachments: discordMessageAttachments(message).map(attachment),
     ...(message.reactions?.length
       ? { reactions: messageReactions(message) }
       : {}),

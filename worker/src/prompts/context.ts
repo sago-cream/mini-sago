@@ -74,6 +74,10 @@ function requestMessageContext(job: CodexJob) {
   return {
     author: message.author,
     timestamp: message.timestamp,
+    content: truncateContextText(
+      message.content,
+      CHATBOT_CONTEXT_BUDGETS.messageCharacters,
+    ),
     ...(message.authorAliases?.length
       ? { authorAliases: message.authorAliases }
       : {}),
@@ -189,12 +193,37 @@ export function answerContext(
     if (tools.omission) omissions.push(tools.omission);
   }
 
+  sections.push(
+    ...attachmentContextSections(
+      attachmentText,
+      ignoredAttachments,
+      remainingCharacters,
+      omissions,
+    ),
+  );
+
+  if (omissions.length) {
+    sections.push(block("context_omissions_json", omissions));
+  }
+
+  return sections.join("\n\n");
+}
+
+function attachmentContextSections(
+  attachmentText: string[],
+  ignoredAttachments: string[],
+  remainingCharacters: () => number,
+  omissions: ContextOmission[],
+) {
+  const sections: string[] = [];
+  const available = () =>
+    Math.max(0, remainingCharacters() - sections.join("\n\n").length);
   const attachments = budgetTextItems(
     "extracted_attachments",
     attachmentText,
     Math.min(
       CHATBOT_CONTEXT_BUDGETS.extractedAttachmentsCharacters,
-      remainingCharacters(),
+      available(),
     ),
   );
   if (attachments.items.length > 0) {
@@ -208,19 +237,39 @@ export function answerContext(
   const ignored = budgetTextItems(
     "ignored_attachments",
     ignoredAttachments,
-    Math.min(
-      CHATBOT_CONTEXT_BUDGETS.ignoredAttachmentsCharacters,
-      remainingCharacters(),
-    ),
+    Math.min(CHATBOT_CONTEXT_BUDGETS.ignoredAttachmentsCharacters, available()),
   );
   if (ignored.items.length > 0) {
     sections.push(block("ignored_attachments", ignored.items.join("\n")));
   }
   if (ignored.omission) omissions.push(ignored.omission);
 
-  if (omissions.length) {
-    sections.push(block("context_omissions_json", omissions));
-  }
+  return sections;
+}
 
+export function withAttachmentContext(
+  base: string,
+  attachmentText: string[],
+  ignoredAttachments: string[],
+) {
+  const omissions: ContextOmission[] = [];
+  const sections = [base];
+  const remainingCharacters = () =>
+    Math.max(
+      0,
+      CHATBOT_CONTEXT_BUDGETS.initialContextCharacters -
+        sections.join("\n\n").length -
+        2000,
+    );
+  sections.push(
+    ...attachmentContextSections(
+      attachmentText,
+      ignoredAttachments,
+      remainingCharacters,
+      omissions,
+    ),
+  );
+  if (omissions.length)
+    sections.push(block("context_omissions_json", omissions));
   return sections.join("\n\n");
 }

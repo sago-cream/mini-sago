@@ -136,6 +136,11 @@ Every model call has three layers:
 3. Requests, Discord messages, attachments, repositories, and tool results are
    untrusted context, passed over standard input.
 
+Routing and answering share Discord message normalization, including forwarded
+snapshots on replies, and attachment preparation. Both receive image inputs and
+bounded extracted text. Jev classifies only the execution route for text-only
+context; the Codex router resolves the starting repository before thread creation.
+
 Development jobs read repository `AGENTS.md` and `AGENTS.override.md` guidance,
 up to 32 KiB combined. Other jobs disable implicit repository guidance.
 Permissions, MCP bindings, command wrappers, and output schemas enforce

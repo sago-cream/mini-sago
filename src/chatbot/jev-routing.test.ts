@@ -93,3 +93,44 @@ test("compact routing retains follow-up context without message identifiers", ()
   expect(state).not.toContain("2026-09-20");
   expect(Object.keys(request.questions)).toEqual(["route"]);
 });
+
+test("Jev retains current forwarded text and leaves attachment decisions to the Codex router", async () => {
+  const forwarded = {
+    ...job.requestMessage!,
+    content: "pr\n[Forwarded message]\nPikPak RSS select all",
+  };
+  expect(
+    JSON.stringify(jevRequest({ ...job, requestMessage: forwarded }).state),
+  ).toContain("PikPak RSS select all");
+  const image = {
+    id: "image",
+    filename: "image.png",
+    size: 3,
+    url: "https://cdn.discordapp.com/image.png",
+  };
+  const attached = { ...forwarded, attachments: [image] };
+  let calls = 0;
+  for (const context of [
+    { requestMessage: attached, messages: [] },
+    {
+      requestMessage: { ...forwarded, referencedMessage: attached },
+      messages: [],
+    },
+    { requestMessage: forwarded, messages: [attached] },
+  ]) {
+    expect(
+      await routeWithJev(
+        { ...job, ...context },
+        {
+          apiKey: "test",
+          fetch: async () => {
+            calls++;
+            return Response.json(response("chat"));
+          },
+        },
+      ),
+    ).toBeUndefined();
+  }
+  expect(calls).toBe(0);
+  expect(jevRequest(job).questions).not.toHaveProperty("repository");
+});

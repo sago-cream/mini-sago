@@ -1,3 +1,4 @@
+import type { DiscordMessage } from "../chatbot/chatbot-context";
 import { BotManagement, registerBotManagement } from "./bot-management";
 import { createFeatureAccess } from "./feature-access";
 import { getGuildMemoryStore } from "../chatbot/guild-memory";
@@ -133,7 +134,7 @@ type DiscordMessageCreate = {
   }>;
   sticker_items?: Array<{ name?: string }>;
   components?: unknown[];
-  message_snapshots?: unknown[];
+  message_snapshots?: DiscordMessage["message_snapshots"];
   poll?: unknown;
   referenced_message?: DiscordMessageCreate | null;
   mentions?: DiscordUser[];

@@ -5,7 +5,11 @@ import type {
   ChatbotMessage,
 } from "../../contracts/worker-contract";
 import type { DiscordRequest } from "../discord/api/request";
-import type { DiscordMessage } from "./chatbot-context";
+import {
+  discordMessageAttachments,
+  type DiscordMessage,
+} from "./chatbot-context";
+import { messageContextEntries } from "../../contracts/message-context";
 
 const MAX_INPUT_BYTES = 20 * 1024 * 1024;
 const MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
@@ -94,7 +98,7 @@ export class ChatbotMediaRegistry {
   }
 
   registerMessages(messages: ChatbotMessage[]) {
-    const visit = (message: ChatbotMessage) => {
+    for (const { message } of messageContextEntries({ messages })) {
       for (const attachment of message.attachments) {
         this.registerUrl({
           mediaId: attachment.id,
@@ -109,9 +113,7 @@ export class ChatbotMediaRegistry {
             : {}),
         });
       }
-      if (message.referencedMessage) visit(message.referencedMessage);
-    };
-    messages.forEach(visit);
+    }
   }
 
   put(input: {
@@ -166,7 +168,7 @@ export class ChatbotMediaRegistry {
       const message = await this.discordRequest<DiscordMessage>(
         `/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}`,
       );
-      const attachment = message.attachments?.find(
+      const attachment = discordMessageAttachments(message).find(
         (item) => item.id === asset.mediaId,
       );
       if (

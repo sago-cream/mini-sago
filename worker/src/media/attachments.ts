@@ -1,3 +1,4 @@
+import { messageContextEntries } from "../../../contracts/message-context";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, extname, join } from "node:path";
@@ -110,29 +111,18 @@ function isSupported(attachment: ChatbotAttachment) {
 function rankCandidates(job: CodexJob) {
   const tokens = queryTokens(job.request);
   const candidates: AttachmentCandidate[] = [];
-  const contextMessages = [
-    ...(job.requestMessage ? [job.requestMessage] : []),
-    ...job.messages,
-  ];
-
   const seen = new Set<string>();
-  for (const [messageIndex, message] of contextMessages.entries()) {
-    const direct = message === job.requestMessage;
-    for (const contextMessage of [
-      message,
-      ...(message.referencedMessage ? [message.referencedMessage] : []),
-    ]) {
-      for (const item of contextMessage.attachments) {
-        if (seen.has(item.id)) continue;
-        seen.add(item.id);
-        candidates.push({
-          attachment: item,
-          direct,
-          surroundingText:
-            `${contextMessage.content} ${item.filename}`.toLocaleLowerCase(),
-          order: messageIndex,
-        });
-      }
+  for (const { message, direct, order } of messageContextEntries(job)) {
+    for (const item of message.attachments) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      candidates.push({
+        attachment: item,
+        direct,
+        surroundingText:
+          `${message.content} ${item.filename}`.toLocaleLowerCase(),
+        order,
+      });
     }
   }
 
@@ -310,7 +300,7 @@ export async function prepareAttachments(
   }> = [];
   const textBlocks: string[] = [];
   const ignored: string[] = [];
-  const candidates = job.purpose === "answer" ? rankCandidates(job) : [];
+  const candidates = job.purpose === "social_action" ? [] : rankCandidates(job);
   let downloadedBytes = 0;
   let extractedCharacters = 0;
 
