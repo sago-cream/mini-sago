@@ -1,3 +1,4 @@
+import { endDeveloperThreadTarget } from "./developer-thread-control";
 import {
   DeveloperThreadStore,
   DEVELOPER_TASK_TTL_MS,
@@ -640,6 +641,7 @@ type DeveloperTask = {
   activeJobId?: string;
   nextRequest?: string;
   requiresAddressing?: boolean;
+  ended?: boolean;
   traceMessageIds: string[];
   messageQueue: Promise<void>;
   cancelCleanup?: () => void;
@@ -703,6 +705,50 @@ export class DeveloperTaskRegistry {
     return this.store.get(threadId);
   }
 
+  currentRequester(threadId: string) {
+    const task = this.tasks.get(threadId);
+    return (
+      task?.job.developerTask?.currentRequesterUserId ?? task?.requesterUserId
+    );
+  }
+
+  async end(
+    threadId: string,
+    guildId: string,
+    ownerUserId: string,
+    discordRequest: DiscordRequest,
+  ) {
+    const task = this.tasks.get(threadId);
+    const identity = task ?? this.saved(threadId);
+    if (
+      !identity ||
+      identity.guildId !== guildId ||
+      identity.requesterUserId !== ownerUserId
+    )
+      return { status: "not_found" as const, threadId };
+
+    this.store.remove(threadId);
+    this.tasks.delete(threadId);
+    if (task) {
+      task.ended = true;
+      task.nextRequest = undefined;
+      task.cancelCleanup?.();
+      task.cancelCleanup = undefined;
+      task.mcpSession.revoke();
+      if (task.activeJobId && task.workflow) {
+        task.workflow.stop(task.activeJobId);
+      } else this.releaseWorkflow(task);
+      await task.messageQueue.catch(() => undefined);
+    }
+    await discordRequest(`/channels/${threadId}/messages`, {
+      method: "POST",
+      body: channelMessageBody(
+        "Development thread ended. This is now a normal thread; coding replies will no longer follow every message. Mention me or reply to me when you need me.",
+      ),
+    });
+    return { status: "ended" as const, threadId };
+  }
+
   async recover<T>(threadId: string, operation: () => Promise<T>): Promise<T> {
     const previous = this.recoveries.get(threadId);
     const pending = (previous ?? Promise.resolve())
@@ -729,8 +775,10 @@ export class DeveloperTaskRegistry {
       | "job"
       | "sessionId"
       | "requiresAddressing"
+      | "ended"
     >,
   ) {
+    if (task.ended) return;
     this.store.save({
       id: task.id,
       threadId: task.threadId,
@@ -882,6 +930,7 @@ export class DeveloperTaskRegistry {
 
     const requestMessage = toChatbotMessage(message, botUserId);
     const messages = await task.refreshContext(message).catch(() => []);
+    if (task.ended) return true;
     task.job = {
       ...task.job,
       requestMessageId: message.id,
@@ -913,7 +962,7 @@ export class DeveloperTaskRegistry {
       const activeJobId = task.activeJobId;
       if (await task.workflow.steer(activeJobId, steeringRequest)) {
         task.summary = "Applying new direction to the active turn.";
-      } else {
+      } else if (!task.ended) {
         task.nextRequest = task.nextRequest
           ? `${task.nextRequest}\n\n${followUpRequest}`
           : followUpRequest;
@@ -933,7 +982,12 @@ export class DeveloperTaskRegistry {
   }
 
   private launch(task: DeveloperTask, request: string) {
+    if (task.ended) return;
     void this.run(task, request).catch(async (error) => {
+      if (task.ended) {
+        this.releaseWorkflow(task);
+        return;
+      }
       task.state = "failed";
       task.summary = `Failed: ${
         error instanceof Error
@@ -947,6 +1001,7 @@ export class DeveloperTaskRegistry {
   }
 
   private async run(task: DeveloperTask, request: string) {
+    if (task.ended) return;
     task.cancelCleanup?.();
     task.cancelCleanup = undefined;
     if (!task.sessionId && request !== task.request) {
@@ -1017,6 +1072,10 @@ export class DeveloperTaskRegistry {
 
     const result = await dispatch.result;
     delete task.activeJobId;
+    if (task.ended) {
+      this.releaseWorkflow(task);
+      return;
+    }
     if (!result.ok && result.stopped) {
       await this.settleTrace(task, false);
       task.state = "stopped";
@@ -1058,6 +1117,7 @@ export class DeveloperTaskRegistry {
   }
 
   private onProgress(task: DeveloperTask, progress: ChatbotTaskProgress) {
+    if (task.ended) return;
     const previousSessionId = task.sessionId;
     if (progress.sessionId) task.sessionId = progress.sessionId;
     if (progress.completion === "pull_request_merged") {
@@ -1078,6 +1138,7 @@ export class DeveloperTaskRegistry {
   }
 
   private scheduleCleanup(task: DeveloperTask) {
+    if (task.ended) return;
     this.persist(task);
     task.cancelCleanup?.();
     task.cancelCleanup = this.scheduleExpiry(() => {
@@ -1098,12 +1159,13 @@ export class DeveloperTaskRegistry {
             : task.state === "completed"
               ? "Idle"
               : "Failed";
-    return `**${state} · ${task.repository}**\n${task.summary}\n\nReply here to steer me. Say \`stop\` to pause or \`status\` for an update.`;
+    return `**${state} · ${task.repository}**\n${task.summary}\n\nReply here to steer me. Say \`stop\` to pause or \`status\` for an update. The owner can say \`end dev thread\` to return this to a normal thread.`;
   }
 
   private postTrace(task: DeveloperTask, progress: ChatbotTaskProgress) {
     task.messageQueue = task.messageQueue
       .then(async () => {
+        if (task.ended) return;
         const message = await task.discordRequest<{ id: string }>(
           `/channels/${task.threadId}/messages`,
           {
@@ -1148,6 +1210,7 @@ export class DeveloperTaskRegistry {
     content: string | null,
     files: ChatbotOutgoingFile[] = [],
   ) {
+    if (task.ended) return;
     const body = channelMessageBody(content);
     const formData = messageUpload(body, files);
     await task.discordRequest(`/channels/${task.threadId}/messages`, {
@@ -1330,6 +1393,38 @@ async function handleChatbotMentionRequest({
   }
 
   webhookLoopTracker.observe(message, botUserId);
+
+  if (
+    !invocation &&
+    requesterUserId === accessConfig.ownerUserId &&
+    message.guild_id &&
+    !message.author?.bot &&
+    !message.webhook_id
+  ) {
+    const target = endDeveloperThreadTarget(
+      extractChatbotRequest(message, botUserId, accessConfig) ??
+        message.content ??
+        "",
+      message.channel_id,
+    );
+    if (target) {
+      const end = () =>
+        developerTaskRegistry.end(
+          target,
+          message.guild_id!,
+          accessConfig.ownerUserId,
+          discordRequest,
+        );
+      const result = await (target === message.channel_id
+        ? end()
+        : developerTaskRegistry.recover(target, end));
+      if (result.status === "not_found")
+        await respond(
+          "No active or saved development task was found for that thread in this server.",
+        );
+      return true;
+    }
+  }
 
   if (!invocation && developerTaskRegistry.has(message.channel_id)) {
     return developerTaskRegistry.handle(message, botUserId, accessConfig);
@@ -1914,6 +2009,30 @@ async function handleChatbotMentionRequest({
         ...(requesterUserId === accessConfig.ownerUserId
           ? {
               updateCustomStatus,
+              ...(message.guild_id
+                ? {
+                    endDeveloperThread: (threadId?: string) => {
+                      if (
+                        (developerTaskRegistry.currentRequester(
+                          contextChannelId,
+                        ) ?? requesterUserId) !== accessConfig.ownerUserId
+                      )
+                        throw new Error(
+                          "Only the owner can end development threads.",
+                        );
+                      return developerTaskRegistry.recover(
+                        threadId ?? contextChannelId,
+                        () =>
+                          developerTaskRegistry.end(
+                            threadId ?? contextChannelId,
+                            message.guild_id!,
+                            accessConfig.ownerUserId,
+                            discordRequest,
+                          ),
+                      );
+                    },
+                  }
+                : {}),
               sendChannelMessage: (input: {
                 content: string;
                 channelId?: string;

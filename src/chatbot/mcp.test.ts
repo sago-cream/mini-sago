@@ -1553,6 +1553,84 @@ function registerChatbotMcpSession(
   });
 }
 
+test("development thread control is owner-bound and validates exact thread targets", async () => {
+  let requesterId = "owner";
+  const calls: Array<string | undefined> = [];
+  const makeSession = (initialRequester = requesterId) =>
+    registerChatbotMcpSession(
+      {
+        ...handlers(),
+        endDeveloperThread: async (threadId) => {
+          calls.push(threadId);
+          return { status: "ended", threadId: threadId ?? "current-thread" };
+        },
+      },
+      {
+        featureAccess: (feature) => ({
+          available: () =>
+            createFeatureAccess(feature, {
+              requesterId: initialRequester,
+              ownerId: "owner",
+            }).available(),
+          allowed: () =>
+            createFeatureAccess(feature, {
+              requesterId,
+              ownerId: "owner",
+            }).allowed(),
+        }),
+      },
+    );
+  const session = makeSession();
+  const client = await connect(session.token);
+  expect(
+    session.capabilities.some((c) => c.id === "developer_thread_control"),
+  ).toBe(true);
+  expect(
+    (await client.listTools()).tools.some(
+      (t) => t.name === "end_developer_thread",
+    ),
+  ).toBe(true);
+  for (const args of [{}, { threadId: "123456789012345678" }]) {
+    expect(
+      JSON.stringify(
+        await client.callTool({
+          name: "end_developer_thread",
+          arguments: args,
+        }),
+      ),
+    ).toContain('"status":"ended"');
+  }
+  expect(
+    (
+      await client.callTool({
+        name: "end_developer_thread",
+        arguments: { threadId: "guess-by-name" },
+      })
+    ).isError,
+  ).toBe(true);
+  requesterId = "member";
+  expect(
+    JSON.stringify(
+      await client.callTool({ name: "end_developer_thread", arguments: {} }),
+    ),
+  ).toContain("forbidden");
+  expect(calls).toEqual([undefined, "123456789012345678"]);
+  await client.close();
+  session.revoke();
+  const memberSession = makeSession();
+  const memberClient = await connect(memberSession.token);
+  expect(
+    memberSession.capabilities.some((c) => c.id === "developer_thread_control"),
+  ).toBe(false);
+  expect(
+    (await memberClient.listTools()).tools.some(
+      (t) => t.name === "end_developer_thread",
+    ),
+  ).toBe(false);
+  await memberClient.close();
+  memberSession.revoke();
+});
+
 test("owner status MCP tool updates immediately and validates bounded inputs", async () => {
   const calls: unknown[] = [];
   const session = registerChatbotMcpSession(

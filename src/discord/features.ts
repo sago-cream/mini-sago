@@ -378,6 +378,17 @@ export const FEATURE_DEFINITIONS = {
       tools: ["send_channel_message"],
     },
   },
+  developer_thread_control: {
+    description:
+      "End a specified development thread for an explicit owner request, stopping active coding and returning it to ordinary chat without waiting for a PR merge. Use end_developer_thread with the current thread or an exact thread ID in this server. Pausing with stop preserves automatic coding replies; ending removes the saved task association and keeps task files.",
+    access: "owner",
+    requires: ["A development thread in the current server."],
+    capability: {
+      id: "developer_thread_control",
+      category: "discord",
+      tools: ["end_developer_thread"],
+    },
+  },
   channel_quiet_mode: {
     description:
       "Pause your replies and automatic activity in the current Discord thread or channel for a bounded time.",

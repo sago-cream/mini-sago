@@ -426,6 +426,10 @@ export type ChatbotMcpSessionHandlers = {
     durationMinutes: number;
   };
   getCodexUsage?: () => Promise<CodexUsageSnapshot | null>;
+  endDeveloperThread?: (threadId?: string) => Promise<{
+    status: "ended" | "not_found";
+    threadId: string;
+  }>;
   updateCustomStatus?: (
     input: BotStatusInput,
   ) => BotStatusResult | Promise<BotStatusResult>;
@@ -611,6 +615,13 @@ function availableCapabilities(
   if (handlers.updateCustomStatus) {
     capabilities.push(
       featureCapability("bot_status", { availability: "available" }),
+    );
+  }
+  if (handlers.endDeveloperThread) {
+    capabilities.push(
+      featureCapability("developer_thread_control", {
+        availability: "available",
+      }),
     );
   }
   if (handlers.sendChannelMessage) {
@@ -1240,6 +1251,36 @@ function createServer(session: ChatbotMcpSession) {
     );
   }
 
+  if (session.handlers.endDeveloperThread) {
+    registerFeatureTool(
+      "end_developer_thread",
+      {
+        description:
+          "End a development thread only when the owner explicitly requests it. Omit threadId for the current thread, or supply an exact thread ID in this server. Stops active coding, clears queued follow-ups and the saved coding association, and posts confirmation in the target thread. The Discord thread and task files remain; future messages use ordinary chat rules. This works without a PR merge. Do not use for a temporary stop or pause.",
+        inputSchema: {
+          threadId: z
+            .string()
+            .regex(/^\d{17,20}$/u)
+            .optional(),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: true,
+        },
+      },
+      async ({ threadId }) => {
+        try {
+          return toolResult(
+            await session.handlers.endDeveloperThread!(threadId),
+          );
+        } catch (error) {
+          return unavailable(error);
+        }
+      },
+    );
+  }
   if (session.handlers.updateCustomStatus) {
     registerFeatureTool(
       "update_custom_status",

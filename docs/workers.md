@@ -146,6 +146,19 @@ model turn. After a PR merge, an explicit mention or reply to the bot is still
 required. Associations expire after three idle days; unfinished files remain for
 explicit cleanup.
 
+The owner can say `end dev thread` (or `結束這個開發討論串`) in a coding
+thread to return it to ordinary chat without a PR merge. To end another thread
+in the same server, say `@MiniSago end dev thread <#THREAD_ID>` or provide its
+Discord thread link. Natural-language owner requests can also use the
+`end_developer_thread` host tool with an exact thread ID; omitting it selects the
+current thread. Ending stops active coding, discards queued follow-ups, and
+removes the durable thread association. It works for saved tasks while the worker
+is offline and survives service restarts. The Discord thread and workspace files
+remain. Future messages follow normal chatbot addressing and optional automatic
+follow-up rules; a new explicit development request can start development again.
+`stop` and `pause` only pause work and preserve coding-thread continuations.
+Registered participants cannot end development threads.
+
 Threads created before durable registration can still recover from worker traces
 through an explicit development continuation. Once recovered, their association
 is saved for later restarts. Preserve unfinished work before manually retiring its

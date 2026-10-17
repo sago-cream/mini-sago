@@ -13,7 +13,8 @@ in through [`automatic_followups` registration](docs/feature-registration.md).
 Owner development requests use replied-to messages, forwarded content, and
 screenshots to choose a starting repository. Development threads can work across
 accessible GitHub repositories in one conversation, keeping each task’s checkouts and progress for follow-ups across
-service restarts. See
+service restarts. The owner can say `end dev thread` to return a development
+thread to ordinary chat without merging a PR. See
 [development workers](docs/workers.md).
 
 ## Self-host mini sago
