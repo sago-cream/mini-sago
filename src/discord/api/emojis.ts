@@ -149,7 +149,7 @@ export async function listGuildEmojis({
   };
 }
 
-function resolveEmoji(emojis: SharedGuildEmoji[], value: string) {
+export function resolveEmoji(emojis: SharedGuildEmoji[], value: string) {
   const query = value.trim();
   const mention = query.match(CUSTOM_EMOJI);
   const id =

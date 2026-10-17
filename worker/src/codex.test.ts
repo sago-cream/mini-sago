@@ -285,7 +285,7 @@ describe("Codex chatbot runner", () => {
         "--config",
         'mcp_servers.minisago_media.args=["/app/worker/src/media/media-mcp.ts"]',
         "--config",
-        'mcp_servers.minisago_media.env_vars=["MINISAGO_MEDIA_MANIFEST","MINISAGO_SANDBOX_URL","MINISAGO_MCP_URL","MINISAGO_MCP_TOKEN","MINISAGO_MEDIA_DEVELOPER"]',
+        'mcp_servers.minisago_media.env_vars=["MINISAGO_MEDIA_MANIFEST","MINISAGO_SANDBOX_URL","MINISAGO_MCP_URL","MINISAGO_MCP_TOKEN","MINISAGO_MEDIA_DEVELOPER","MINISAGO_IMAGE_CODEX_PATH","MINISAGO_IMAGE_CODEX_HOME","MINISAGO_IMAGE_MODEL"]',
         "--config",
         "mcp_servers.minisago_media.required=true",
         "--config",
@@ -293,7 +293,7 @@ describe("Codex chatbot runner", () => {
         "--config",
         "mcp_servers.minisago_media.startup_timeout_sec=10",
         "--config",
-        "mcp_servers.minisago_media.tool_timeout_sec=135",
+        "mcp_servers.minisago_media.tool_timeout_sec=270",
       ],
       environment: {
         MINISAGO_MEDIA_MANIFEST: "/tmp/request/media-manifest.json",
@@ -301,6 +301,9 @@ describe("Codex chatbot runner", () => {
         MINISAGO_MCP_URL: "https://sago.example/api/chatbot/mcp",
         MINISAGO_MCP_TOKEN: "token-1",
         MINISAGO_MEDIA_DEVELOPER: "0",
+        MINISAGO_IMAGE_CODEX_PATH: "",
+        MINISAGO_IMAGE_CODEX_HOME: "",
+        MINISAGO_IMAGE_MODEL: "",
       },
     });
     expect(

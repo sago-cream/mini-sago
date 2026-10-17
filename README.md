@@ -17,6 +17,12 @@ service restarts. The owner can say `end dev thread` to return a development
 thread to ordinary chat without merging a PR. See
 [development workers](docs/workers.md).
 
+Ask Sago to generate an image or edit an attachment, avatar, or existing emoji.
+She sends the result back as a Discord attachment and can add an edited copy as
+an emoji or sticker when requested. Image generation uses the Linux worker's
+ChatGPT sign-in; no separate API key is needed. See
+[image generation and emoji edits](docs/workers.md#image-generation-and-emoji-edits).
+
 ## Self-host mini sago
 
 You will need a Discord application, a VPS or some machine to throw her on , an agent worker (I used Codex here), and [Bun](https://bun.sh/).

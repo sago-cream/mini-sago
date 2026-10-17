@@ -5,7 +5,7 @@ import {
 } from "../../../contracts/answer-contract";
 import { taiwaneseLanguageReference } from "./language";
 
-export const PROMPT_VERSION = 67;
+export const PROMPT_VERSION = 68;
 
 export const VOICE_ANSWER_OUTPUT_SCHEMA = {
   type: "object",
@@ -114,7 +114,7 @@ const RESPONSE_SHAPE_INSTRUCTIONS = `The reaction field is null by default. Use 
 
 const VOICE_RESPONSE_INSTRUCTIONS = `The reply is spoken live through a Japanese voice. Return one brief, natural Japanese reply in short complete sentences. Put the useful answer first. Do not use Markdown, URLs, emoji, Latin letters, self-introduction markers, or stage directions. Speak in the first person and do not refer to yourself as MiniSago, Sago, or 迷你西米露.`;
 
-const ARTIFACT_INSTRUCTIONS = `To attach generated media, put the exact media ID returned by the request-local tool in artifacts. Otherwise leave artifacts empty. Do not say a file was attached unless its ID is in artifacts.`;
+const ARTIFACT_INSTRUCTIONS = `To attach generated media, put the exact media ID returned by the request-local tool in artifacts. Otherwise leave artifacts empty. For AI image generation or editing, use generate_image with request-local mediaIds; use read_guild_emoji first for an existing custom emoji. Never substitute a procedural drawing for requested AI generation. The host automatically attaches the latest completed generate_image result to the Discord answer, including when it is also added as an emoji or sticker. You can include that exact mediaId in artifacts; it will be attached once. Other files are attached only when their IDs are in artifacts.`;
 
 const CAPABILITY_INSTRUCTIONS = `available_capabilities_json is host-derived and authoritative for what you can do in this request. Use it when asked about your features or limitations. Do not substitute generic Codex, workspace, skill, plugin, or system capabilities that the catalog did not report.`;
 

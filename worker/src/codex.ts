@@ -440,6 +440,7 @@ export function mediaMcpConfig(
     bunPath?: string;
     serverPath?: string;
     developerAttachments?: boolean;
+    imageGeneration?: { codexPath: string; codexHome: string; model: string };
   } = {},
 ) {
   const bunPath = options.bunPath ?? process.execPath;
@@ -451,7 +452,7 @@ export function mediaMcpConfig(
       "--config",
       `mcp_servers.minisago_media.args=[${JSON.stringify(serverPath)}]`,
       "--config",
-      'mcp_servers.minisago_media.env_vars=["MINISAGO_MEDIA_MANIFEST","MINISAGO_SANDBOX_URL","MINISAGO_MCP_URL","MINISAGO_MCP_TOKEN","MINISAGO_MEDIA_DEVELOPER"]',
+      'mcp_servers.minisago_media.env_vars=["MINISAGO_MEDIA_MANIFEST","MINISAGO_SANDBOX_URL","MINISAGO_MCP_URL","MINISAGO_MCP_TOKEN","MINISAGO_MEDIA_DEVELOPER","MINISAGO_IMAGE_CODEX_PATH","MINISAGO_IMAGE_CODEX_HOME","MINISAGO_IMAGE_MODEL"]',
       "--config",
       "mcp_servers.minisago_media.required=true",
       "--config",
@@ -459,7 +460,7 @@ export function mediaMcpConfig(
       "--config",
       "mcp_servers.minisago_media.startup_timeout_sec=10",
       "--config",
-      "mcp_servers.minisago_media.tool_timeout_sec=135",
+      "mcp_servers.minisago_media.tool_timeout_sec=270",
     ],
     environment: {
       MINISAGO_MEDIA_MANIFEST: manifestPath,
@@ -467,6 +468,9 @@ export function mediaMcpConfig(
       MINISAGO_MCP_URL: mcpUrl,
       MINISAGO_MCP_TOKEN: mcpToken,
       MINISAGO_MEDIA_DEVELOPER: options.developerAttachments ? "1" : "0",
+      MINISAGO_IMAGE_CODEX_PATH: options.imageGeneration?.codexPath ?? "",
+      MINISAGO_IMAGE_CODEX_HOME: options.imageGeneration?.codexHome ?? "",
+      MINISAGO_IMAGE_MODEL: options.imageGeneration?.model ?? "",
     },
   };
 }
@@ -1007,7 +1011,10 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
   const timeoutController = new AbortController();
   const timeout = hasDeveloperAccess
     ? undefined
-    : setTimeout(() => timeoutController.abort(), LOCAL_CHAT_TIMEOUT_MS);
+    : setTimeout(
+        () => timeoutController.abort(),
+        hasMediaTools && !job.streamReply ? 290_000 : LOCAL_CHAT_TIMEOUT_MS,
+      );
   const abort = () => timeoutController.abort();
   options.signal?.addEventListener("abort", abort, { once: true });
   if (options.signal?.aborted) timeoutController.abort();
@@ -1062,7 +1069,18 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
           options.sandboxUrl,
           options.mcpUrl,
           job.mcpAccessToken,
-          { developerAttachments: hasDeveloperAccess },
+          {
+            developerAttachments: hasDeveloperAccess,
+            ...(!job.streamReply
+              ? {
+                  imageGeneration: {
+                    codexPath: options.codexPath,
+                    codexHome: options.codexHome,
+                    model: OWNER_CHATBOT_PROFILE.model,
+                  },
+                }
+              : {}),
+          },
         )
       : undefined;
     const macFilesMcp = hasMacFileAccess
@@ -1103,6 +1121,7 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
       "features.hooks=false",
       "--config",
       "features.memories=false",
+      ...(hasMediaTools ? ["--config", "features.image_generation=false"] : []),
       ...(hasDeveloperAccess ? [] : ["--config", CHAT_LOCAL_TOOLS_CONFIG]),
       "--config",
       "allow_login_shell=false",

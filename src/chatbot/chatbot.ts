@@ -1,4 +1,5 @@
 import { endDeveloperThreadTarget } from "./developer-thread-control";
+import { readGuildEmojiMedia } from "./emoji-media";
 import {
   DeveloperThreadStore,
   DEVELOPER_TASK_TTL_MS,
@@ -187,6 +188,11 @@ export function supplementalCapabilities({
       availability: "conditional",
       condition:
         "A supported attachment and a compatible chat worker are required; outputs are temporary and bounded.",
+    }),
+    featureCapability("image_generation", {
+      availability: "conditional",
+      condition:
+        "A compatible Linux worker with a ChatGPT-authenticated Codex CLI is required. Outputs are returned as Discord attachments and reusable media IDs.",
     }),
   );
   if (isOwner && availableRepositories.length > 0) {
@@ -1920,6 +1926,13 @@ async function handleChatbotMentionRequest({
                 ),
               listGuildEmojis: (guild: string) =>
                 listGuildEmojis({ guild, discordRequest: expressionRequest }),
+              readGuildEmoji: (input: { emoji: string; guild?: string }) =>
+                readGuildEmojiMedia({
+                  emoji: input.emoji,
+                  guild: input.guild ?? message.guild_id!,
+                  registry: mediaRegistry,
+                  discordRequest: expressionRequest,
+                }),
               addGuildExpression: (input: ChatbotGuildExpressionInput) =>
                 addGuildExpressionForRequest({
                   input,
@@ -2160,7 +2173,14 @@ async function handleChatbotMentionRequest({
           request,
           requestMessage,
           messages,
-          capabilities: mcpSession.capabilities,
+          capabilities: [
+            ...mcpSession.capabilities,
+            featureCapability("image_generation", {
+              availability: "conditional",
+              condition:
+                "A compatible Linux worker with a ChatGPT-authenticated Codex CLI is required.",
+            }),
+          ],
           availableRepositories: workflow.availableRepositories,
           ...(workflow.chatbotRepository
             ? { chatbotRepository: workflow.chatbotRepository }

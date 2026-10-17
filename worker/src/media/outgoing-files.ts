@@ -1,5 +1,6 @@
 import { readFile, realpath, stat } from "node:fs/promises";
 import { basename, extname, isAbsolute, relative, resolve } from "node:path";
+import { latestGeneratedImage, clearGeneratedImage } from "./generated-image";
 
 import {
   CHATBOT_OUTGOING_FILE_LIMITS,
@@ -144,6 +145,8 @@ export async function prepareGeneratedArtifacts(
   outputRoot: string,
 ): Promise<{ content: string; files: ChatbotOutgoingFile[] }> {
   const requested = requestedArtifactIds(content);
+  const generatedImage = await latestGeneratedImage(outputRoot);
+  if (generatedImage) requested.artifacts = [generatedImage];
   const root = await realpath(outputRoot);
   const files: ChatbotOutgoingFile[] = [];
 
@@ -160,6 +163,7 @@ export async function prepareGeneratedArtifacts(
     files.push(await readOutgoingFile(path));
   }
 
+  if (generatedImage) await clearGeneratedImage(outputRoot, generatedImage);
   return { content: requested.content, files };
 }
 
@@ -219,6 +223,9 @@ export async function prepareDeveloperImages(
   outputRoot: string,
   additionalRoots: string[] = [],
 ): Promise<{ content: string; files: ChatbotOutgoingFile[] }> {
+  const generatedImage = await latestGeneratedImage(outputRoot);
+  if (generatedImage)
+    content = `![Generated image](<${resolve(outputRoot, generatedImage)}>)\n\n${content}`;
   const roots = await Promise.all(
     [workspaceRoot, outputRoot, ...additionalRoots].map((root) =>
       realpath(root),
@@ -294,6 +301,8 @@ export async function prepareDeveloperImages(
     }
   }
   response += content.slice(offset);
+  if (generatedImage && files.some((file) => file.filename === generatedImage))
+    await clearGeneratedImage(outputRoot, generatedImage);
   return {
     content: [response.trim(), ...new Set(warnings)]
       .filter(Boolean)

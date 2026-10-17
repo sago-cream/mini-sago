@@ -83,6 +83,7 @@ export class ChatbotMediaRegistry {
     size?: number;
     url: string;
     source?: AttachmentSource;
+    authorize?: () => Promise<void>;
   }): ChatbotMediaRef {
     const mediaId = validatedId(input.mediaId ?? `media-${randomUUID()}`);
     const asset: MediaAsset = {
@@ -92,6 +93,7 @@ export class ChatbotMediaRegistry {
       ...(input.size !== undefined ? { size: input.size } : {}),
       url: validateUrl(input.url),
       source: input.source,
+      ...(input.authorize ? { authorize: input.authorize } : {}),
     };
     this.assets.set(mediaId, asset);
     return this.reference(asset);
