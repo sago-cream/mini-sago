@@ -51,7 +51,8 @@ while creating and cleaning up a separate conversation and workspace per answer.
 1. The Gateway recognizes a mention, reply, owner DM, or active continuation.
 2. The host authorizes the requester, gathers nearby messages, reserves a worker,
    and creates a short-lived MCP session.
-3. Owner requests first run a bounded router. It chooses `chat` for host-tool
+3. Saved development threads recover their task and session from the core state
+   store before routing. Other owner requests run a bounded router. It chooses `chat` for host-tool
    actions and uncertain requests, `mac` for explicit Mac resources, or `oracle`
    with a starting repository for development work. Development threads can clone
    additional accessible repositories into the same isolated task workspace.

@@ -28,7 +28,8 @@ import {
   formatDiscordAnswers,
   getNearbyHumanMessages,
   getRecentHumanMessages,
-  handleChatbotMention,
+  handleChatbotMention as runChatbotMention,
+  DeveloperTaskRegistry,
   isConversationContextMessage,
   isChatbotAuthorized,
   isHumanContextMessage,
@@ -43,6 +44,15 @@ import {
   toChatbotMessage,
   type DiscordRequest,
 } from "./chatbot";
+
+const testDeveloperTasks = new DeveloperTaskRegistry();
+const handleChatbotMention = (
+  options: Parameters<typeof runChatbotMention>[0],
+) =>
+  runChatbotMention({
+    ...options,
+    developerTaskRegistry: options.developerTaskRegistry ?? testDeveloperTasks,
+  });
 
 const BOT_ID = "123456789012345678";
 const ACCESS_CONFIG: ChatbotAccessConfig = {

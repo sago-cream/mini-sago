@@ -1,3 +1,7 @@
+import {
+  DeveloperThreadStore,
+  DEVELOPER_TASK_TTL_MS,
+} from "./developer-thread-store";
 import { updateCustomStatus } from "../discord/bot-management";
 import {
   createFeatureAccess,
@@ -133,7 +137,6 @@ export { parseChatbotAnswerDecision } from "../../contracts/answer-contract";
 const DISCORD_MESSAGE_LIMIT = 2_000;
 const TYPING_REFRESH_MS = 8_000;
 const ACTIVE_CONVERSATION_TTL_MS = 90_000;
-const DEVELOPER_TASK_TTL_MS = 3 * 24 * 60 * 60_000;
 const serviceSubscriptionStore = getServiceSubscriptionStore();
 const webhookLoops = new WebhookLoopTracker();
 
@@ -624,6 +627,7 @@ export class ChatbotRequestResources {
 type DeveloperTask = {
   id: string;
   threadId: string;
+  guildId: string;
   requesterUserId: string;
   repository: string;
   allowParticipantSteering: (message: DiscordMessage) => boolean;
@@ -672,6 +676,7 @@ export async function createDeveloperThread(
 
 export class DeveloperTaskRegistry {
   private tasks = new Map<string, DeveloperTask>();
+  private recoveries = new Map<string, Promise<unknown>>();
 
   constructor(
     private readonly acquireWorkflow = () =>
@@ -683,10 +688,61 @@ export class DeveloperTaskRegistry {
       timer.unref?.();
       return () => clearTimeout(timer);
     },
+    private readonly store = new DeveloperThreadStore(":memory:"),
   ) {}
 
   has(threadId: string) {
     return this.tasks.has(threadId);
+  }
+
+  recovering(threadId: string) {
+    return this.recoveries.has(threadId);
+  }
+
+  saved(threadId: string) {
+    return this.store.get(threadId);
+  }
+
+  async recover<T>(threadId: string, operation: () => Promise<T>): Promise<T> {
+    const previous = this.recoveries.get(threadId);
+    const pending = (previous ?? Promise.resolve())
+      .catch(() => undefined)
+      .then(operation);
+    this.recoveries.set(threadId, pending);
+    try {
+      return await pending;
+    } finally {
+      if (this.recoveries.get(threadId) === pending)
+        this.recoveries.delete(threadId);
+    }
+  }
+
+  private persist(
+    task: Pick<
+      DeveloperTask,
+      | "id"
+      | "threadId"
+      | "guildId"
+      | "requesterUserId"
+      | "repository"
+      | "request"
+      | "job"
+      | "sessionId"
+      | "requiresAddressing"
+    >,
+  ) {
+    this.store.save({
+      id: task.id,
+      threadId: task.threadId,
+      guildId: task.guildId,
+      requesterUserId: task.requesterUserId,
+      repository: task.repository,
+      request: task.request,
+      title: task.job.developerTask?.title,
+      ...(task.sessionId ? { resumeSessionId: task.sessionId } : {}),
+      requiresAddressing: Boolean(task.requiresAddressing),
+      expiresAt: Date.now() + DEVELOPER_TASK_TTL_MS,
+    });
   }
 
   async start({
@@ -699,7 +755,11 @@ export class DeveloperTaskRegistry {
     activateContext,
     refreshContext,
     discordRequest,
+    recoverOnly = false,
+    requiresAddressing = false,
   }: {
+    recoverOnly?: boolean;
+    requiresAddressing?: boolean;
     message: DiscordMessage;
     job: OracleAnswerJob;
     title?: string;
@@ -710,11 +770,9 @@ export class DeveloperTaskRegistry {
     refreshContext: (message: DiscordMessage) => Promise<ChatbotMessage[]>;
     discordRequest: DiscordRequest;
   }) {
-    const threadId = await createDeveloperThread(
-      message,
-      title,
-      discordRequest,
-    );
+    const threadId = recoverOnly
+      ? message.channel_id
+      : await createDeveloperThread(message, title, discordRequest);
     const preserved =
       threadId === message.channel_id ? await loadPreviousTask() : undefined;
     const recovered =
@@ -724,16 +782,20 @@ export class DeveloperTaskRegistry {
         : undefined;
     const taskId = recovered?.id ?? randomUUID();
     activateContext(threadId);
-    const task: DeveloperTask = {
+    const taskState: Omit<DeveloperTask, "workflow" | "mcpSession"> = {
       id: taskId,
       threadId,
+      guildId: message.guild_id!,
       requesterUserId: job.requesterUserId,
       repository: job.repository,
       allowParticipantSteering,
+      requiresAddressing,
       request:
-        recovered && !recovered.resumeSessionId
-          ? `${recovered.request}\n\nAdditional direction: ${job.request}`
-          : job.request,
+        recoverOnly && recovered
+          ? recovered.request
+          : recovered && !recovered.resumeSessionId
+            ? `${recovered.request}\n\nAdditional direction: ${job.request}`
+            : job.request,
       job: {
         ...job,
         developerTask: {
@@ -741,7 +803,6 @@ export class DeveloperTaskRegistry {
           title: recovered?.title ?? developerThreadName(title),
         },
       },
-      ...resources.retainForTask(),
       state: "running",
       ...(recovered?.resumeSessionId
         ? { sessionId: recovered.resumeSessionId }
@@ -752,8 +813,14 @@ export class DeveloperTaskRegistry {
       refreshContext,
       discordRequest,
     };
+    this.persist(taskState);
+    const task: DeveloperTask = { ...taskState, ...resources.retainForTask() };
     this.tasks.set(threadId, task);
-    this.launch(task, task.request);
+    if (recoverOnly) {
+      task.state = "stopped";
+      task.summary = "The saved coding task is ready to continue.";
+      this.scheduleCleanup(task);
+    } else this.launch(task, task.request);
   }
 
   async handle(
@@ -800,12 +867,15 @@ export class DeveloperTaskRegistry {
           "Stopping after the current operation; work is preserved.";
         task.workflow.stop(task.activeJobId);
       } else {
+        this.releaseWorkflow(task);
         await this.post(task, "This coding task is not currently running.");
       }
       return true;
     }
 
     if (/^(?:status|進度|狀態)[?？\s]*$/iu.test(request)) {
+      if (task.state !== "running" && task.state !== "stopping")
+        this.releaseWorkflow(task);
       await this.post(task, this.status(task));
       return true;
     }
@@ -883,6 +953,7 @@ export class DeveloperTaskRegistry {
       request = `${task.request}\n\nAdditional direction: ${request}`;
     }
     task.mcpSession.extend(DEVELOPER_TASK_TTL_MS);
+    this.persist(task);
     if (!task.workflow) {
       const acquired = this.acquireWorkflow();
       if (acquired.status !== "accepted") {
@@ -987,10 +1058,16 @@ export class DeveloperTaskRegistry {
   }
 
   private onProgress(task: DeveloperTask, progress: ChatbotTaskProgress) {
+    const previousSessionId = task.sessionId;
     if (progress.sessionId) task.sessionId = progress.sessionId;
     if (progress.completion === "pull_request_merged") {
       task.requiresAddressing = true;
     }
+    if (
+      task.sessionId !== previousSessionId ||
+      progress.completion === "pull_request_merged"
+    )
+      this.persist(task);
     task.summary = progress.summary;
     if (progress.kind) this.postTrace(task, progress);
   }
@@ -1001,10 +1078,12 @@ export class DeveloperTaskRegistry {
   }
 
   private scheduleCleanup(task: DeveloperTask) {
+    this.persist(task);
     task.cancelCleanup?.();
     task.cancelCleanup = this.scheduleExpiry(() => {
       task.mcpSession.revoke();
       this.tasks.delete(task.threadId);
+      this.store.remove(task.threadId);
     });
   }
 
@@ -1078,7 +1157,11 @@ export class DeveloperTaskRegistry {
   }
 }
 
-const developerTasks = new DeveloperTaskRegistry();
+const developerTasks = new DeveloperTaskRegistry(
+  undefined,
+  undefined,
+  new DeveloperThreadStore(),
+);
 
 async function withTyping<T>(
   channelId: string,
@@ -1177,7 +1260,24 @@ export type ChatbotExecutionOptions = {
   routeRequest?: (job: ExecutionRouteJob) => Promise<string | undefined>;
 };
 
-export async function handleChatbotMention({
+export async function handleChatbotMention(
+  input: Parameters<typeof handleChatbotMentionRequest>[0],
+) {
+  const registry = input.developerTaskRegistry ?? developerTasks;
+  if (
+    !input.invocation &&
+    (registry.recovering(input.message.channel_id) ||
+      (!registry.has(input.message.channel_id) &&
+        registry.saved(input.message.channel_id)))
+  ) {
+    return registry.recover(input.message.channel_id, () =>
+      handleChatbotMentionRequest(input),
+    );
+  }
+  return handleChatbotMentionRequest(input);
+}
+
+async function handleChatbotMentionRequest({
   message,
   botUserId,
   discordRequest,
@@ -1191,6 +1291,7 @@ export async function handleChatbotMention({
   featureAvailability,
   guildMemoryStore = getGuildMemoryStore(),
   executionOptions = {},
+  developerTaskRegistry = developerTasks,
 }: {
   message: ChatbotMention;
   botUserId: string;
@@ -1205,6 +1306,7 @@ export async function handleChatbotMention({
   featureAvailability?: FeatureAvailabilityStore;
   guildMemoryStore?: Pick<GuildMemoryStore, "ensure" | "mutate">;
   executionOptions?: ChatbotExecutionOptions;
+  developerTaskRegistry?: DeveloperTaskRegistry;
 }) {
   const clock = timing(executionOptions.onTiming);
   clock.mark("handler.received");
@@ -1229,10 +1331,36 @@ export async function handleChatbotMention({
 
   webhookLoopTracker.observe(message, botUserId);
 
-  if (!invocation && developerTasks.has(message.channel_id)) {
-    return developerTasks.handle(message, botUserId, accessConfig);
+  if (!invocation && developerTaskRegistry.has(message.channel_id)) {
+    return developerTaskRegistry.handle(message, botUserId, accessConfig);
   }
 
+  const storedTask = !invocation
+    ? developerTaskRegistry.saved(message.channel_id)
+    : undefined;
+  const canSteer = (participant: DiscordMessage) =>
+    Boolean(
+      featureAvailability &&
+      createFeatureAccess(
+        "developer_steering",
+        {
+          guildId: message.guild_id,
+          roleIds: participant.member?.roles,
+          requesterId: participant.author?.id,
+          ownerId: accessConfig.ownerUserId,
+        },
+        featureAvailability,
+      ).available(),
+    );
+  const savedTask =
+    storedTask &&
+    storedTask.guildId === message.guild_id &&
+    storedTask.requesterUserId === accessConfig.ownerUserId &&
+    !message.author?.bot &&
+    !message.webhook_id &&
+    (requesterUserId === storedTask.requesterUserId || canSteer(message))
+      ? storedTask
+      : undefined;
   const automaticFollowups = createFeatureAccess(
     "automatic_followups",
     {
@@ -1250,6 +1378,12 @@ export async function handleChatbotMention({
   let request =
     invocation?.request ??
     extractChatbotRequest(message, botUserId, accessConfig);
+  if (savedTask) {
+    if (savedTask.requiresAddressing && !addressingMode) return false;
+    request ??= message.content?.trim() ?? "";
+    addressingMode ??= "continuation";
+    if (!request && !message.attachments?.length) return true;
+  }
   if (
     request === null &&
     receivedSequence !== undefined &&
@@ -1264,6 +1398,7 @@ export async function handleChatbotMention({
   }
 
   if (
+    !savedTask &&
     !isChatbotAuthorized(
       requesterUserId,
       accessConfig,
@@ -1297,7 +1432,9 @@ export async function handleChatbotMention({
 
   if (!webhookLoopTracker.allowResponse(message)) return true;
 
-  const acquired = macAgentBridge.acquireWorkflow();
+  const acquired = macAgentBridge.acquireWorkflow(
+    savedTask ? ["dev"] : ["chat"],
+  );
 
   if (acquired.status === "offline") {
     const content = "我現在沒接上工作機 晚點再叫我一次 💤";
@@ -1879,7 +2016,18 @@ export async function handleChatbotMention({
 
       resources.attachSession(mcpSession);
 
-      if (
+      if (savedTask) {
+        executionRoute = "oracle";
+        selectedRepository = savedTask.repository;
+        developerThreadTitle = savedTask.title;
+        const routed = workflow.route(["dev"], savedTask.repository);
+        if (routed.status !== "accepted")
+          return {
+            ok: false as const,
+            error: "The saved task's coding worker is unavailable.",
+            failureKind: "unavailable" as const,
+          };
+      } else if (
         requesterUserId === accessConfig.ownerUserId &&
         !invocation?.chatOnly &&
         !isChannelQuietRequest(request)
@@ -1954,7 +2102,8 @@ export async function handleChatbotMention({
 
       // Routing may have selected a different worker with its own trace state.
       previousTracePromise = undefined;
-      if (!executionOptions.lazyPreviousTrace) await getPreviousTrace();
+      if (!savedTask && !executionOptions.lazyPreviousTrace)
+        await getPreviousTrace();
 
       const requestCapabilities = supplementalCapabilities({
         isOwner: requesterUserId === accessConfig.ownerUserId,
@@ -1976,7 +2125,7 @@ export async function handleChatbotMention({
         mcpSession.extend(DEVELOPER_TASK_TTL_MS);
       const answerBase = {
         id: randomUUID(),
-        requesterUserId,
+        requesterUserId: savedTask?.requesterUserId ?? requesterUserId,
         purpose: "answer" as const,
         channelId: message.channel_id,
         requestMessageId: message.id,
@@ -2013,26 +2162,16 @@ export async function handleChatbotMention({
       }
 
       if (job.executionRoute === "oracle" && message.guild_id) {
-        await developerTasks.start({
+        await developerTaskRegistry.start({
           message,
           job,
           title: developerThreadTitle,
           resources,
           loadPreviousTask: async () =>
-            (await getPreviousTrace()).developerTask,
-          allowParticipantSteering: (participant) =>
-            featureAvailability
-              ? createFeatureAccess(
-                  "developer_steering",
-                  {
-                    guildId: message.guild_id,
-                    roleIds: participant.member?.roles,
-                    requesterId: participant.author?.id,
-                    ownerId: accessConfig.ownerUserId,
-                  },
-                  featureAvailability,
-                ).available()
-              : false,
+            savedTask ?? (await getPreviousTrace()).developerTask,
+          recoverOnly: Boolean(savedTask),
+          requiresAddressing: savedTask?.requiresAddressing,
+          allowParticipantSteering: canSteer,
           activateContext: (threadId) => {
             contextChannelId = threadId;
           },
@@ -2052,6 +2191,8 @@ export async function handleChatbotMention({
           },
           discordRequest,
         });
+        if (savedTask)
+          await developerTaskRegistry.handle(message, botUserId, accessConfig);
         return { ok: true as const, content: "" };
       }
       const answerDone = clock.start("host.answer_dispatch");

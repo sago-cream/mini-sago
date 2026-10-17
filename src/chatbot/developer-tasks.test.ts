@@ -167,6 +167,14 @@ test("task owns initialization and retains MCP until idle expiry", async () => {
   await f.start();
   expect(f.contextChannel).toBe("thread");
   expect(f.registry.has("thread")).toBe(true);
+  expect(f.registry.saved("thread")).toMatchObject({
+    id: f.turns[0]!.job.developerTask!.id,
+    guildId: "guild",
+    requesterUserId: "owner",
+    repository: "owner/repo",
+    request: "Implement the change.",
+    requiresAddressing: false,
+  });
   expect(f.turns[0]!.job.developerTask).toMatchObject({
     title: "Add a feature",
   });
