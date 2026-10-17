@@ -419,6 +419,7 @@ export const FEATURE_DEFINITIONS = {
       tools: [
         "list_shared_guilds",
         "list_guild_emojis",
+        "read_guild_emoji",
         "add_guild_expression",
         "rename_guild_emoji",
       ],
@@ -482,6 +483,16 @@ export const FEATURE_DEFINITIONS = {
       "Inspect or transform request-local images, audio, and video with bounded offline tools, including image conversion, video frames, transcoding, and Python-based analysis.",
     access: "request",
     capability: { id: "media_processing", category: "attachments" },
+  },
+  image_generation: {
+    description:
+      "Generate or edit images with generate_image through the worker's ChatGPT-authenticated Codex image generation. Use mediaIds for attachments, avatars, existing emojis from read_guild_emoji, or prior media outputs. Set purpose to emoji or sticker for transparent Discord-sized assets. The host sends the latest generated image back as a Discord attachment; it is also a reusable mediaId for add_guild_expression. Only add an expression when explicitly requested; editing preserves the original. Animated inputs produce a still image. Never use procedural drawing as a substitute for requested AI image generation.",
+    access: "request",
+    capability: {
+      id: "image_generation",
+      category: "attachments",
+      tools: ["generate_image"],
+    },
   },
   repository_work: {
     description:

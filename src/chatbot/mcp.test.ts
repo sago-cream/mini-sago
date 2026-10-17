@@ -1553,6 +1553,48 @@ function registerChatbotMcpSession(
   });
 }
 
+test("emoji media reads expose scoped IDs without a caller-controlled URL", async () => {
+  const calls: unknown[] = [];
+  const session = registerChatbotMcpSession({
+    ...handlers(),
+    readGuildEmoji: async (input) => {
+      calls.push(input);
+      return {
+        mediaId: "emoji-source",
+        filename: "wave.png",
+        contentType: "image/png",
+        animated: true,
+      };
+    },
+  });
+  const client = await connect(session.token);
+  expect(
+    (await client.listTools()).tools.some(
+      (tool) => tool.name === "read_guild_emoji",
+    ),
+  ).toBe(true);
+  const result = await client.callTool({
+    name: "read_guild_emoji",
+    arguments: { emoji: "wave", guild: "Shared" },
+  });
+  expect(result.structuredContent).toMatchObject({
+    status: "complete",
+    mediaId: "emoji-source",
+    animated: true,
+  });
+  expect(calls).toEqual([{ emoji: "wave", guild: "Shared" }]);
+  expect(
+    (
+      await client.callTool({
+        name: "read_guild_emoji",
+        arguments: { emoji: "" },
+      })
+    ).isError,
+  ).toBe(true);
+  await client.close();
+  session.revoke();
+});
+
 test("development thread control is owner-bound and validates exact thread targets", async () => {
   let requesterId = "owner";
   const calls: Array<string | undefined> = [];

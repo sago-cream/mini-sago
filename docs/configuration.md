@@ -119,6 +119,14 @@ on both sides.
 Prompt policy and context budgets are versioned with the application. Roll them
 back by deploying the corresponding commit.
 
+The Linux media MCP's `generate_image` tool uses the same Codex executable and
+ChatGPT sign-in configured by `MINISAGO_CODEX_PATH` and `MINISAGO_CODEX_HOME`.
+Image generation needs no separate API key or registration setting. The worker
+passes these trusted paths to its MCP adapter; tool callers supply only a prompt,
+request-local media IDs, and image options. See
+[image generation and emoji edits](workers.md#image-generation-and-emoji-edits)
+for formats, delivery, and limits.
+
 Workers discover repositories from their dedicated GitHub CLI login at startup.
 Set `MINISAGO_CHATBOT_REPOSITORY` when that login can access multiple repositories
 so requests to change MiniSago itself do not rely on name inference. This selects

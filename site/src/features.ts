@@ -678,6 +678,41 @@ export const FEATURES = [
         note: '',
     },
     {
+        id: 'image-generation',
+        section: 'discord',
+        title: '圖片生成與改圖',
+        description:
+            '生成圖片，或修改附件、頭像和現有表符；成品會以 Discord 附件傳回，也能依要求新增為表符或貼圖。',
+        channel: 'mini-sago',
+        messages: [
+            {
+                author: 'user',
+                text: '@迷你西米露 把這個藍色表符改成紅色，再戴上耳機，背景透明。傳圖片給我，也新增成 mascot_headphones。',
+                file: {
+                    name: 'mascot.png',
+                    detail: '原始表符',
+                    kind: 'image',
+                    src: '/demos/imagegen-original-emoji.png',
+                    width: 128,
+                    height: 128,
+                },
+            },
+            {
+                author: 'sago',
+                text: '已改成紅色、加上耳機，並新增 mascot_headphones。原本的表符保留；這張透明 PNG 也可以直接下載。',
+                file: {
+                    name: 'mascot_headphones.png',
+                    detail: '128 × 128 · 透明 PNG',
+                    kind: 'image',
+                    src: '/demos/imagegen-edited-emoji.png',
+                    width: 128,
+                    height: 128,
+                },
+            },
+        ],
+        note: '動態來源會以靜態圖片改圖；新增表符或貼圖需明確提出，並受 Discord 權限與大小限制。',
+    },
+    {
         id: 'expressions',
         section: 'discord',
         title: '表符管理',

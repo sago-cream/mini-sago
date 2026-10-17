@@ -63,6 +63,7 @@ import type {
   ChatbotCapability,
   ChatbotMemberResult,
   ChatbotMessage,
+  ChatbotMediaRef,
   ChatbotTraceContext,
   CodexUsageSnapshot,
 } from "../../contracts/worker-contract";
@@ -308,6 +309,10 @@ export type ChatbotGuildEmojiRenameInput = {
 export type ChatbotMcpSessionHandlers = {
   mentionMembers?: (input: MemberMentionInput) => Promise<MemberMentionResult>;
   mediaRegistry?: ChatbotMediaRegistry;
+  readGuildEmoji?: (input: {
+    emoji: string;
+    guild?: string;
+  }) => Promise<ChatbotMediaRef & { animated: boolean }>;
   supplementalCapabilities?: ChatbotCapability[];
   listFeatureAvailability?: () => FeatureAvailabilitySnapshot;
   configureFeatureAvailability?: (
@@ -646,7 +651,16 @@ function availableCapabilities(
     handlers.renameGuildEmoji
   ) {
     capabilities.push(
-      featureCapability("custom_expressions", { availability: "available" }),
+      featureCapability("custom_expressions", {
+        availability: "available",
+        tools: [
+          "list_shared_guilds",
+          "list_guild_emojis",
+          ...(handlers.readGuildEmoji ? ["read_guild_emoji"] : []),
+          "add_guild_expression",
+          "rename_guild_emoji",
+        ],
+      }),
     );
   }
   if (
@@ -1275,6 +1289,35 @@ function createServer(session: ChatbotMcpSession) {
           return toolResult(
             await session.handlers.endDeveloperThread!(threadId),
           );
+        } catch (error) {
+          return unavailable(error);
+        }
+      },
+    );
+  }
+  if (session.handlers.readGuildEmoji) {
+    registerFeatureTool(
+      "read_guild_emoji",
+      {
+        description:
+          "Read an existing custom emoji as a request-local mediaId for inspection or image editing. Identify it by exact name, ID, or custom emoji value. guild defaults to this server and must be shared with the requester. Animated emoji are read as a still PNG for editing; the original emoji is preserved. Pass the mediaId to generate_image, then add_guild_expression only if the requester asks to add the edited copy.",
+        inputSchema: {
+          emoji: z.string().trim().min(1).max(100),
+          guild: z.string().trim().min(1).max(100).optional(),
+        },
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: true,
+        },
+      },
+      async (input) => {
+        try {
+          return toolResult({
+            status: "complete",
+            ...(await session.handlers.readGuildEmoji!(input)),
+          });
         } catch (error) {
           return unavailable(error);
         }

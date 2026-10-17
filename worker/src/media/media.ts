@@ -322,6 +322,54 @@ export class MediaProcessor {
     };
   }
 
+  async importImage(bytes: Uint8Array) {
+    if (
+      bytes.byteLength > MAX_OUTPUT_BYTES ||
+      !Buffer.from(bytes.subarray(0, 8)).equals(
+        Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+      )
+    )
+      throw new Error("Image generation did not produce a bounded PNG image.");
+    const output = await this.output("png");
+    await Bun.write(output.path, bytes);
+    await this.probePath(output.path);
+    return this.finishOutput(output);
+  }
+
+  async expressionImage(mediaId: string, kind: "emoji" | "sticker") {
+    const source = await this.attachment(mediaId);
+    await this.probePath(source.path);
+    const dimension = kind === "emoji" ? 128 : 320;
+    const output = await this.output("png");
+    await this.runner("/usr/bin/ffmpeg", [
+      "-nostdin",
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-y",
+      "-threads",
+      "2",
+      "-protocol_whitelist",
+      "file,pipe",
+      "-i",
+      source.path,
+      "-frames:v",
+      "1",
+      "-vf",
+      `scale=${dimension}:${dimension}:force_original_aspect_ratio=decrease,format=rgba,pad=${dimension}:${dimension}:(ow-iw)/2:(oh-ih)/2:color=0x00000000`,
+      "-map_metadata",
+      "-1",
+      "-compression_level",
+      "9",
+      output.path,
+    ]);
+    const result = await this.finishOutput(output);
+    const maximum = kind === "emoji" ? 256 * 1024 : 512 * 1024;
+    if (result.size > maximum)
+      throw new Error("Generated expression exceeds Discord's upload limit.");
+    return result;
+  }
+
   async transformImage(input: {
     mediaId: string;
     format: "jpeg" | "png" | "webp";

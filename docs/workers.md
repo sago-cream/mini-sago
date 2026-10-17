@@ -123,6 +123,40 @@ jobs. Chat jobs do not receive arbitrary Python or shell execution. Media work
 uses the image's FFmpeg binaries only through MiniSago's request-local typed MCP
 tools.
 
+## Image generation and emoji edits
+
+Linux chat and development requests expose `generate_image` through the media
+MCP. It starts a separate, bounded Codex invocation using the worker's existing
+`MINISAGO_CODEX_PATH` and `MINISAGO_CODEX_HOME` ChatGPT sign-in. Keep the CLI
+current; the published worker image pins the latest stable CLI at build time.
+No `OPENAI_API_KEY`, new credential, or feature registration is required beyond
+ordinary chatbot access. Image generation consumes the signed-in account's
+Codex usage limits. It is available for text requests, not live voice responses.
+
+For example, ask Sago to generate a mascot, edit an attached picture, or
+「把這個伺服器的 wave 表符改成紅色、戴耳機，傳圖片給我，也新增成 wave_headphones」.
+`read_guild_emoji` resolves an exact emoji name, ID, or custom emoji value in the
+current or another shared guild to a request-local `mediaId`. Membership is
+checked again when the bytes are read. `generate_image` accepts a prompt and up
+to five `mediaIds` from attachments, avatars, emoji reads, or prior media outputs.
+Omit the references to generate a new image.
+
+Set `purpose` to `emoji` for a 128×128 PNG below 256 KiB, or `sticker` for a
+320×320 PNG below 512 KiB. Both request transparency by default;
+`transparentBackground` can override it. Ordinary `image` output is a PNG up to
+8 MB. Emoji and other animated inputs are edited as still images; the original
+is preserved. The returned `mediaId` can be reused in `add_guild_expression` or
+another edit. Adding an expression still requires an explicit request and the
+bot's destination-server permissions.
+
+The host attaches the latest completed generated image to the Discord answer,
+including when it is also added as an emoji or sticker. Chat and development
+threads both deliver it once, even if the model omits an attachment reference.
+Subsequent requests can reply to that Discord attachment to edit it again.
+Generation has a four-minute limit within the request's five-minute budget;
+prefer one generation or edit per request. Failures report that no image was
+produced instead of substituting a procedural drawing.
+
 ## Development runtime checks
 
 Before creating a development thread, routing and chat use the same normalized

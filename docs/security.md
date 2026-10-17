@@ -12,6 +12,7 @@ permissions.
 | Permission-filtered Discord context        | Yes                              | Yes                                        |
 | Host-bound reminders and voice actions     | Yes                              | Yes                                        |
 | Expression management in shared servers    | Yes                              | Yes                                        |
+| Image generation and image edits           | Authorized text requests         | Authorized text requests                   |
 | Cross-channel messaging                    | No                               | Yes                                        |
 | Repository checkout and developer commands | No                               | Yes                                        |
 | GitHub mutation                            | No                               | Owner-routed tasks only                    |
@@ -92,7 +93,8 @@ capabilities or priority.
 Every Codex run ignores normal user configuration, memories, plugins, and
 user-configured MCP servers. Chat jobs cannot read installed skills, have
 restricted filesystem access, and have no general network permission outside
-Codex's own web search and MiniSago's MCP server.
+Codex's own web search and MiniSago's MCP server. Image generation uses the
+bounded media MCP described below.
 
 Oracle development jobs can read the skills installed in their isolated Codex
 home. Oracle snapshots the linked skill commits only when the trusted Skillbook
@@ -149,6 +151,25 @@ strip output metadata. Inputs are limited to 20 MB, 10 minutes, 8,192 pixels per
 dimension, and 40 megapixels. Commands use fixed local protocols, two threads,
 and a 45-second deadline. Presets further limit generated clips to 15 seconds
 for GIF, 30 seconds for MP4, and 120 seconds for MP3.
+
+`generate_image` sends the requested prompt and selected image references to
+Codex's built-in image generator using the worker's existing ChatGPT login.
+Its separate Codex process ignores user config and project instructions, has
+shell execution, image-file browsing, web search, hooks, memories, and delegation
+disabled, and receives no Discord/MCP bearer token, GitHub token, or API key.
+The model can read only its prepared reference folder and minimal runtime files;
+there is no general command-network access. The generator is limited to four
+minutes, five references totaling 40 MB, and one PNG of at most 8 MB. The host
+reads only that invocation's generated-image directory and removes its temporary
+copy after publication. Normal chat uses the typed MCP instead of exposing a
+second direct native generation path.
+
+`read_guild_emoji` registers an exact emoji's Discord CDN PNG without exposing
+its URL. Community reads recheck shared-guild membership before downloading;
+animated sources become a still reference. The latest completed generated image
+is attached once to the Discord response from the request's output folder.
+Editing never deletes or replaces the original emoji. Adding the edited copy
+uses the existing expression permissions and explicit-request rule.
 
 Mac file requests are owner-only and read-only. Search is limited to configured
 roots, and the host revalidates the exact path before uploading at most one

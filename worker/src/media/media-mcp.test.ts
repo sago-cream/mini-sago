@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -19,13 +26,26 @@ const temporaryDirectories: string[] = [];
 const clients: Client[] = [];
 
 async function connectMedia(
-  options: { developer?: boolean; mcpUrl?: string; token?: string } = {},
+  options: {
+    developer?: boolean;
+    mcpUrl?: string;
+    token?: string;
+    imageGeneration?: boolean;
+  } = {},
 ) {
   const root = await mkdtemp(join(tmpdir(), "minisago-media-mcp-"));
   temporaryDirectories.push(root);
   const outputs = join(root, "outputs");
   await mkdir(outputs);
   const manifestPath = join(root, "media-manifest.json");
+  const codexPath = join(root, "codex");
+  if (options.imageGeneration) {
+    await writeFile(
+      codexPath,
+      `#!${process.execPath}\nconsole.log(JSON.stringify({type:'thread.started',thread_id:'12345678-1234-1234-1234-123456789abc'}));`,
+    );
+    await chmod(codexPath, 0o700);
+  }
   await writeFile(
     manifestPath,
     JSON.stringify({
@@ -46,6 +66,12 @@ async function connectMedia(
         options.mcpUrl ?? "http://localhost:3000/api/chatbot/mcp",
       MINISAGO_MCP_TOKEN: options.token ?? "request-token",
       MINISAGO_MEDIA_DEVELOPER: options.developer ? "1" : "0",
+      ...(options.imageGeneration
+        ? {
+            MINISAGO_IMAGE_CODEX_PATH: codexPath,
+            MINISAGO_IMAGE_CODEX_HOME: root,
+          }
+        : {}),
     },
     stderr: "pipe",
   });
@@ -66,6 +92,38 @@ afterEach(async () => {
 });
 
 describe("MiniSago media MCP", () => {
+  test("exposes bounded generation and editing without an API key and reports unavailable generation accurately", async () => {
+    const { client } = await connectMedia({ imageGeneration: true });
+    const tools = await client.listTools();
+    const tool = tools.tools.find((tool) => tool.name === "generate_image")!;
+    expect(tool.inputSchema.properties).not.toHaveProperty("apiKey");
+    expect(tool.inputSchema.properties).not.toHaveProperty("url");
+    expect(tool.inputSchema.properties).not.toHaveProperty("path");
+    expect(tool.annotations?.openWorldHint).toBe(true);
+    expect(
+      (
+        await client.callTool({
+          name: "generate_image",
+          arguments: { prompt: "" },
+        })
+      ).isError,
+    ).toBe(true);
+    expect(
+      (
+        await client.callTool({
+          name: "generate_image",
+          arguments: { prompt: "test", mediaIds: Array(6).fill("image") },
+        })
+      ).isError,
+    ).toBe(true);
+    const result = await client.callTool({
+      name: "generate_image",
+      arguments: { prompt: "Draw an emoji", purpose: "emoji" },
+    });
+    expect(result.structuredContent).toMatchObject({ status: "unavailable" });
+    expect(JSON.stringify(result)).toContain("no image was produced");
+  });
+
   test("starts over stdio with only the curated request-local tools", async () => {
     const { client } = await connectMedia();
 
