@@ -48,7 +48,7 @@ test("images copy code from the consolidated source layout", () => {
 });
 
 test("hosted image includes Git for local server-memory history", () => {
-  expect(hostedDockerfile).toContain("RUN apk add --no-cache git");
+  expect(hostedDockerfile).toMatch(/RUN apk add[^\n]*\bgit\b/);
 });
 
 test("hosted image bundles local speech tools", () => {

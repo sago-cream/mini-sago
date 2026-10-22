@@ -3,7 +3,7 @@ FROM oven/bun:1.3.9-alpine AS speech-builder
 ARG WHISPER_CPP_VERSION=1.9.1
 ARG WHISPER_MODEL_SHA256=1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b
 
-RUN apk add --no-cache build-base cmake wget python3
+RUN apk add --no-cache --upgrade ca-certificates build-base cmake wget python3
 WORKDIR /build
 COPY scripts/whisper /instrument
 RUN wget -qO whisper.tar.gz "https://github.com/ggml-org/whisper.cpp/archive/refs/tags/v${WHISPER_CPP_VERSION}.tar.gz" \
@@ -28,10 +28,11 @@ RUN wget -qO /out/ggml-silero.bin https://huggingface.co/ggml-org/whisper-vad/re
 
 FROM oven/bun:1.3.9-alpine AS builder
 
+RUN apk add --no-cache --upgrade ca-certificates
 WORKDIR /app
 
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+RUN bun install --cafile=/etc/ssl/certs/ca-certificates.crt --frozen-lockfile
 COPY . .
 RUN bun run build
 
@@ -44,9 +45,9 @@ ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
 COPY package.json bun.lock ./
-RUN apk add --no-cache git
+RUN apk add --no-cache --upgrade ca-certificates git
 RUN apk add --no-cache ffmpeg libstdc++
-RUN bun install --frozen-lockfile --production
+RUN bun install --cafile=/etc/ssl/certs/ca-certificates.crt --frozen-lockfile --production
 
 COPY --from=builder --chown=bun:bun /app/src ./src
 COPY --from=builder --chown=bun:bun /app/scripts/backfill-guild-memory.ts ./scripts/backfill-guild-memory.ts
