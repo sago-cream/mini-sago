@@ -189,6 +189,11 @@ scans staged changes with Gitleaks, commits them, and pushes to the private
 repository's `main` branch. It runs independently of the bot containers and the
 Mac. Missed runs catch up after Oracle starts.
 
+The hourly job commits only meaningful state changes. Top-level `lastCheckedAt`
+updates alone in the four monitor JSON files do not create snapshots; changed
+post cursors, memory, reminders, settings and file additions/deletions still do.
+Meaningful snapshots retain current timestamps. Live polling stays unchanged.
+
 A repository-scoped write deploy key lives at
 `/etc/minisago-state/id_ed25519`, outside both the checkout and bot containers.
 Git uses strict host-key verification with
@@ -246,6 +251,17 @@ To recover after losing the server:
 
 The former Oracle bot/CouchDB snapshot and restore-test timers are retired;
 Git history is the durable-state recovery source.
+
+Mail credentials use a separate daily backup outside Git. Sago Cloud's
+`sago-cloud-mail-backup.timer` saves only the encrypted credential table,
+excluding invitations, pending OAuth flows and browser receipts. Daily mail and
+media authentication snapshots are copied to the FileVault-protected recovery
+Mac, verified, and retained for 30 days. The Mac agent retries hourly while awake
+and logged in, copying once per 24 hours and restoring its original Tailscale
+profile and connection state after access to Oracle. The encryption key and OAuth
+client configuration stay separate in Bitwarden/Vaultwarden. Follow the
+[private database backup runbook](https://github.com/sago-cream/sago-cloud/blob/main/docs/backups.md)
+to install, check or restore these copies.
 
 ### Worker unavailable
 
