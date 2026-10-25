@@ -72,11 +72,20 @@ Changing OAuth client IDs requires new grants.
 
 On Sago Cloud, store secrets in `/srv/sago-cloud/secrets/bot-core.env` and the
 database in the persistent core state volume. Never mount it in AI workers.
-Back up the encrypted database with SQLite's backup API while running, or copy
-it while core is stopped. Keep the encryption key and client secret in
-Vaultwarden separately. This credential database is outside the ordinary
-`minisago-state` JSON/Markdown allowlist: do not add decrypted tokens, pending
-OAuth sessions, or mailbox content to Git backups.
+Sago Cloud's `sago-cloud-mail-backup.timer` takes a daily SQLite snapshot of only
+the encrypted `credentials` table while core runs. It excludes invitations,
+pending OAuth flows and browser receipts. The private backup agent copies these
+snapshots to the FileVault-protected recovery Mac, checks hashes and SQLite
+integrity, and retains 30 days outside Git. See the
+[private database backup runbook](https://github.com/sago-cream/sago-cloud/blob/main/docs/backups.md)
+for installation and recovery. Keep the matching encryption key and client
+secret in Vaultwarden separately. This credential database stays outside the
+ordinary `minisago-state` JSON/Markdown allowlist; decrypted tokens, pending OAuth
+sessions and mailbox content do not belong in Git backups. During recovery, stop
+core, preserve its current database and WAL/SHM files for rollback, restore the
+credential snapshot with private permissions and the original ownership, then
+restart with the matching key and client configuration. Core recreates empty
+invitation/session tables; revoked grants require reconnection.
 
 ## Invite the owner
 
