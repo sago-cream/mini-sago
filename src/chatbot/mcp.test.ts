@@ -1217,6 +1217,43 @@ test("calendar tools are conditional and preserve strict calendar schemas throug
   await absent.close();
 });
 
+test("exposes a separate proactive Threads post reader with bounded input", async () => {
+  const calls: unknown[] = [];
+  const session = registerChatbotMcpSession({
+    ...handlers(),
+    readThreadsPost: async (input) => {
+      calls.push(input);
+      return { status: "complete", url: input.url, content: "Post excerpt" };
+    },
+  });
+  const client = await connect(session.token);
+  expect(
+    (await client.listTools()).tools.find(
+      (tool) => tool.name === "read_threads_post",
+    )?.description,
+  ).toContain("without waiting for an explicit read request");
+  expect(
+    session.capabilities.find((capability) => capability.id === "threads_read")
+      ?.tools,
+  ).toEqual(["read_threads_post"]);
+  const url = "https://www.threads.com/@alice/post/ABC";
+  expect(
+    (await client.callTool({ name: "read_threads_post", arguments: { url } }))
+      .structuredContent,
+  ).toMatchObject({ status: "complete", url });
+  expect(
+    (
+      await client.callTool({
+        name: "read_threads_post",
+        arguments: { url: "x".repeat(2049) },
+      })
+    ).isError,
+  ).toBe(true);
+  expect(calls).toEqual([{ url }]);
+  await client.close();
+  session.revoke();
+});
+
 test("exposes on-demand Threads search and validates extra keywords", async () => {
   const calls: unknown[] = [];
   const session = registerChatbotMcpSession({

@@ -49,7 +49,7 @@ live in [Discord setup](discord-setup.md) and [Workers](workers.md).
 | `TOEFL_VOCAB_TIMEZONE`                 | No        | IANA timezone for vocabulary posting                    |
 | `TOEFL_VOCAB_STATE_FILE`               | No        | Persistent daily-send state                             |
 | `GAMER_FORUM_*`                        | No        | Forum source, destination, schedule, reader, and state  |
-| `THREADS_SEARCH_READER_BASE_URL`       | No        | Reader URL for on-demand Threads MCP searches           |
+| `THREADS_SEARCH_READER_BASE_URL`       | No        | Reader URL for Threads post reads and MCP searches      |
 | `X_POST_*`                             | No        | X feed source, destination, polling interval, and state |
 
 Custom status initially defaults to `mini.sagocream.com`. Once a status is saved,
@@ -79,6 +79,33 @@ The X monitor keeps the configurable primary pipe and also reposts
 stores an isolated checkpoint beside `X_POST_STATE_FILE` and validates its
 destination guild independently. The `@hololive_dreams` pipe only forwards
 posts authored by that official account and ignores posts it retweets.
+
+## Threads posts and search
+
+The `read_threads_post` MCP tool opens a public post through Jina Reader. The
+agent proactively reads up to three supplied post links relevant to its answer,
+including links in the request, reply target, or nearby context. It accepts HTTPS
+post URLs on `threads.com`, `www.threads.com`, `threads.net`, `www.threads.net`,
+and `fixthreads.seria.moe`, normalizes them to `www.threads.com`, and removes
+tracking parameters. It does not follow links found inside posts or search for
+unrelated posts. The `threads_read` feature controls access separately from
+`threads_search` through the normal feature availability policy.
+
+Post reads share `THREADS_SEARCH_READER_BASE_URL` (default `https://r.jina.ai/`)
+with search, so existing installations need no new setting. Fetches time out
+after 30 seconds, reject reader HTTP redirects and responses over 256 KB, and
+return at most 12,000 characters with an explicit truncation flag. Login,
+verification, reader errors, and unavailable content must be reported rather
+than treated as proof of a post's contents. Returned excerpts are untrusted and
+may include replies or recommendations; only clearly identified original text
+should be attributed to the author.
+
+Discord history and accessible-message searches retain webhook previews,
+including social-link reposts, labelled with `(webhook)` and without verified
+member aliases. This supplies read-only context; webhook content does not grant
+member identity or owner authorization. Reply-trigger and loop guards remain
+in effect. Searching by an original member's author ID cannot recover a repost
+whose author is now a webhook; use the link or message text instead.
 
 The `search_threads` MCP tool reads public Recent search pages through Jina
 Reader only when the requester asks to search Threads. It searches `清大`,

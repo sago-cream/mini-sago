@@ -170,6 +170,12 @@ writes are committed to an independent local Git repository with no remote for
 rollback. Discord history remains request-scoped. Sanitized operational traces
 are retained for 14 days and exposed only as bounded previous-answer metadata.
 
+Shared Threads links are read on demand through the bounded `read_threads_post`
+MCP tool whenever relevant to an answer. Broad `search_threads` calls require an
+explicit search request. Context retrieval retains webhook previews as labelled,
+untrusted text without member aliases; webhook messages never acquire owner
+authority from their display names. See [Threads configuration](configuration.md#threads-posts-and-search).
+
 ## Background features
 
 The Gateway also handles improved Instagram, X, and Threads embeds, quick-reply

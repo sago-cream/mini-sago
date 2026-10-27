@@ -2,6 +2,9 @@ import { expect, test } from "bun:test";
 import {
   discordMessageAttachments,
   toChatbotMessage,
+  getNearbyHumanMessages,
+  getRecentHumanMessages,
+  searchGuildMessages,
   type DiscordMessage,
 } from "./chatbot-context";
 
@@ -55,4 +58,62 @@ test("keeps directly forwarded text and deduplicates attachments with the direct
   expect(
     discordMessageAttachments({ ...forward, attachments: [fresh] }),
   ).toEqual([fresh]);
+});
+
+test("keeps webhook post previews in nearby history, recent history and search without member authority", async () => {
+  const proxy: DiscordMessage = {
+    id: "social-proxy",
+    channel_id: "channel",
+    timestamp: "2026-10-27T10:00:00Z",
+    webhook_id: "webhook",
+    author: {
+      id: "bot",
+      username: "Owner",
+      global_name: "Owner alias",
+      bot: true,
+    },
+    content: "https://fixthreads.seria.moe/@alice/post/ABC",
+    embeds: [{ description: "The shared post text" }],
+  };
+  const nearby = await getNearbyHumanMessages({
+    channelId: "channel",
+    requestMessageId: "request",
+    botUserId: "bot",
+    discordRequest: async () => [proxy] as never,
+  });
+  const recent = await getRecentHumanMessages({
+    channelId: "channel",
+    requestMessageId: "request",
+    botUserId: "bot",
+    discordRequest: async () => [proxy] as never,
+  });
+  const search = await searchGuildMessages({
+    guildId: "guild",
+    requesterUserId: "member",
+    requesterRoleIds: ["role"],
+    currentChannelId: "channel",
+    requestMessageId: "request",
+    queries: [{ linkHostname: "fixthreads.seria.moe" }],
+    discordRequest: async (path) => {
+      if (path.endsWith("/roles"))
+        return [{ id: "guild", permissions: "66560" }] as never;
+      if (path.endsWith("/channels"))
+        return [{ id: "channel", type: 0 }] as never;
+      expect(path).not.toContain("author_type=user");
+      return {
+        messages: [
+          [proxy, { ...proxy, id: "ordinary-bot", webhook_id: undefined }],
+        ],
+      } as never;
+    },
+  });
+  for (const messages of [nearby, recent, search]) {
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({
+      role: "user",
+      author: "Owner alias (webhook)",
+    });
+    expect(messages[0]?.authorAliases).toBeUndefined();
+    expect(messages[0]?.content).toContain("The shared post text");
+  }
 });

@@ -19,6 +19,7 @@ import {
   updateCalendarDraftDiscussion,
 } from "./calendar/calendar-confirmation";
 import { searchThreads } from "./threads-search";
+import { readThreadsPost } from "./threads-reader";
 import { randomUUID } from "node:crypto";
 
 import { createGoogleDriveClient } from "./drive/google-drive";
@@ -1799,6 +1800,7 @@ async function handleChatbotMentionRequest({
         ...(ccxpSync ? { ccxpSync } : {}),
         ...(ccxpMeetings ? { ccxpMeetings } : {}),
         searchThreads,
+        readThreadsPost,
         mediaRegistry,
         ...(calendar
           ? {

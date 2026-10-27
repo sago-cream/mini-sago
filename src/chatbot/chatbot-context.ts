@@ -219,13 +219,18 @@ function contextMessage(
   message: DiscordMessage,
   botUserId?: string,
 ): Omit<ChatbotMessage, "referencedMessage"> {
-  const aliases = authorAliases(message);
+  const aliases = message.webhook_id ? [] : authorAliases(message);
 
   return {
     id: message.id,
     channelId: message.channel_id,
-    role: message.author?.id === botUserId ? "assistant" : "user",
-    author: authorName(message),
+    role:
+      !message.webhook_id && message.author?.id === botUserId
+        ? "assistant"
+        : "user",
+    author: message.webhook_id
+      ? `${authorName(message)} (webhook)`
+      : authorName(message),
     ...(aliases.length > 1 ? { authorAliases: aliases } : {}),
     timestamp: message.timestamp,
     content: messageContent(message),
@@ -253,7 +258,7 @@ export function isConversationContextMessage(
   requestMessageId: string,
   botUserId: string,
 ) {
-  return message.id !== requestMessageId && !message.webhook_id;
+  return message.id !== requestMessageId;
 }
 
 export function isHumanContextMessage(
@@ -544,7 +549,6 @@ export async function searchGuildMessages({
 
     const query = new URLSearchParams({
       limit: String(CHATBOT_CONTEXT_LIMITS.searchResultsPerQuery),
-      author_type: "user",
       sort_by: search.sortBy ?? (search.content ? "relevance" : "timestamp"),
       sort_order: search.sortOrder ?? "desc",
     });
@@ -573,8 +577,7 @@ export async function searchGuildMessages({
         for (const message of response.messages.flat()) {
           if (
             message.id === requestMessageId ||
-            message.webhook_id ||
-            message.author?.bot
+            (message.author?.bot && !message.webhook_id)
           ) {
             continue;
           }
