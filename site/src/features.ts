@@ -809,7 +809,7 @@ export const FEATURES = [
         section: 'discord',
         title: '訂閱資訊推播',
         description:
-            '從托福單字、雀魂禮品碼到 codex reset 推文，讓你滑 DC 也能接收各種資訊。',
+            '訂閱托福單字、雀魂禮品碼與 X 推文。推文預設每天台灣時間晚上 9 點彙整成繁體中文摘要，附上原文連結。',
         channel: '每日單字',
         messages: [
             {

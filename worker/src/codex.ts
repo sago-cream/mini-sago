@@ -378,6 +378,12 @@ export function assertChatbotJobAllowed(
   accessConfig: ChatbotAccessConfig,
 ) {
   if (
+    job.purpose === "x_post_digest" &&
+    chatbotAccessTier(job.requesterUserId, accessConfig) !== "owner"
+  ) {
+    throw new Error("Requester cannot run background digests.");
+  }
+  if (
     job.purpose === "execution_route" &&
     chatbotAccessTier(job.requesterUserId, accessConfig) !== "owner"
   ) {
@@ -1112,7 +1118,9 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
       "--config",
       'approval_policy="never"',
       "--config",
-      'web_search="live"',
+      job.purpose === "x_post_digest"
+        ? 'web_search="disabled"'
+        : 'web_search="live"',
       "--config",
       hasDeveloperAccess || hasMacFileAccess
         ? 'default_permissions="minisago-dev"'

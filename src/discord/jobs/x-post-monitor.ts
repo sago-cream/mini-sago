@@ -6,6 +6,16 @@ import {
   type ServiceDestination,
 } from "../service-subscriptions";
 import { decodeEntities, readJsonFile, writeJsonFile } from "./job-utils";
+import {
+  buildXPostDigest,
+  getXPostDigestSchedule,
+  queueXPost,
+  summarizeXPosts,
+  xPostDigestDueDate,
+  type PendingXPost,
+  type XPostDigest,
+  type XPostDigestSchedule,
+} from "./x-post-digest";
 
 const DEFAULT_HANDLE = "thsottiaux";
 const DEFAULT_STATE_FILE = ".data/x-post-state.json";
@@ -40,7 +50,7 @@ export type XPost = {
   imageUrl?: string;
 };
 
-type XPostMonitorConfig = {
+export type XPostMonitorConfig = {
   service: ManagedServiceId;
   botToken: string;
   handle: string;
@@ -48,12 +58,15 @@ type XPostMonitorConfig = {
   stateFile: string;
   checkIntervalMs: number;
   onlyAuthoredPosts: boolean;
+  digestSchedule?: XPostDigestSchedule;
 };
 
-type XPostState = {
+export type XPostState = {
   lastPostId?: string;
   lastPostUrl?: string;
   lastCheckedAt?: string;
+  pendingPosts?: PendingXPost[];
+  digest?: XPostDigest;
 };
 
 type DiscordChannel = {
@@ -201,6 +214,30 @@ export function getXPostMonitorConfigs(
   }
 
   const handle = env.X_POST_HANDLE?.trim() || DEFAULT_HANDLE;
+  if (!/^[A-Za-z0-9_]{1,15}$/.test(handle))
+    throw new Error("X_POST_HANDLE must be a valid X handle.");
+  const mode = env.X_POST_DELIVERY_MODE?.trim() || "daily_digest";
+  if (mode !== "daily_digest" && mode !== "instant")
+    throw new Error("X_POST_DELIVERY_MODE must be daily_digest or instant.");
+  const digestSchedule = getXPostDigestSchedule(env);
+  const digestServices =
+    env.X_POST_DIGEST_SERVICES === undefined
+      ? ["x_posts_primary", "x_posts_thsottiaux", "x_posts_hololive_dreams"]
+      : env.X_POST_DIGEST_SERVICES.split(",")
+          .map((value) => value.trim())
+          .filter(Boolean);
+  if (
+    digestServices.some(
+      (service) =>
+        ![
+          "x_posts_primary",
+          "x_posts_thsottiaux",
+          "x_posts_hololive_dreams",
+        ].includes(service),
+    )
+  ) {
+    throw new Error("X_POST_DIGEST_SERVICES contains an unknown X service.");
+  }
   const stateFile = env.X_POST_STATE_FILE?.trim() || DEFAULT_STATE_FILE;
   const sharedConfig = {
     botToken,
@@ -217,7 +254,7 @@ export function getXPostMonitorConfigs(
     onlyAuthoredPosts: false,
   };
 
-  return [
+  const configs: XPostMonitorConfig[] = [
     primaryConfig,
     ...DEFAULT_ADDITIONAL_PIPES.map(
       ({
@@ -235,11 +272,18 @@ export function getXPostMonitorConfigs(
       }),
     ),
   ];
+  return configs.map((config) => ({
+    ...config,
+    ...(mode === "daily_digest" && digestServices.includes(config.service)
+      ? { digestSchedule }
+      : {}),
+  }));
 }
 
 async function fetchLatestXPosts(feedUrl: string) {
   const response = await fetch(feedUrl, {
     headers: { "User-Agent": USER_AGENT },
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {
@@ -251,10 +295,11 @@ async function fetchLatestXPosts(feedUrl: string) {
   return parseXPosts(await response.text());
 }
 
-async function sendXPost(
+async function sendXPayload(
   config: XPostMonitorConfig,
   destination: ServiceDestination,
-  post: XPost,
+  content: string,
+  suppressEmbeds = false,
 ) {
   const discordRequest = createDiscordRequest(config.botToken);
   const channel = await discordRequest<DiscordChannel>(
@@ -269,18 +314,169 @@ async function sendXPost(
 
   await discordRequest(`/channels/${destination.channelId}/messages`, {
     method: "POST",
-    body: buildXPostMessage(post, config.handle),
+    body: {
+      content,
+      allowed_mentions: { parse: [] },
+      ...(suppressEmbeds ? { flags: 4 } : {}),
+    },
   });
+}
+
+async function sendXPost(
+  config: XPostMonitorConfig,
+  destination: ServiceDestination,
+  post: XPost,
+) {
+  await sendXPayload(
+    config,
+    destination,
+    buildXPostMessage(post, config.handle).content,
+  );
+}
+
+type DigestDependencies = {
+  fetchPosts: (url: string) => Promise<XPost[]>;
+  readState: () => Promise<XPostState>;
+  saveState: (state: XPostState) => Promise<void>;
+  summarize: (
+    posts: XPost[],
+    destination: ServiceDestination,
+  ) => Promise<string>;
+  send: (destination: ServiceDestination, content: string) => Promise<void>;
+};
+
+export async function runXPostDigestTick(
+  config: XPostMonitorConfig,
+  destinations: ServiceDestination[],
+  now = new Date(),
+  dependencies: Partial<DigestDependencies> = {},
+) {
+  if (!config.digestSchedule || !destinations.length) return;
+  const deps: DigestDependencies = {
+    fetchPosts: fetchLatestXPosts,
+    readState: () => readJsonFile<XPostState>(config.stateFile, () => ({})),
+    saveState: (state) => writeJsonFile(config.stateFile, state),
+    summarize: summarizeXPosts,
+    send: (destination, content) =>
+      sendXPayload(config, destination, content, true),
+    ...dependencies,
+  };
+  const state = await deps.readState();
+  let posts: XPost[] | undefined;
+  try {
+    posts = await deps.fetchPosts(config.feedUrl);
+  } catch (error) {
+    console.warn(
+      `Failed to collect @${config.handle} posts; attempting saved digest:`,
+      error,
+    );
+  }
+  if (posts?.length) {
+    const sorted = posts.sort((a, b) => comparePostIds(a.id, b.id));
+    const latest = sorted.at(-1)!;
+    const pending = state.pendingPosts ?? [];
+    const previousCount = pending.length;
+    const previousId = state.lastPostId;
+    if (state.lastPostId) {
+      const knownIds = new Set(pending.map(({ post }) => post.id));
+      for (const post of sorted) {
+        if (
+          comparePostIds(post.id, state.lastPostId) > 0 &&
+          !knownIds.has(post.id) &&
+          (!config.onlyAuthoredPosts || isXPostAuthoredBy(post, config.handle))
+        ) {
+          pending.push(queueXPost(post, now, config.digestSchedule));
+          knownIds.add(post.id);
+        }
+      }
+    }
+    // Seed new installations without replaying historical feed items.
+    if (!state.lastPostId || comparePostIds(latest.id, state.lastPostId) > 0) {
+      state.lastPostId = latest.id;
+      state.lastPostUrl = latest.url;
+    }
+    if (
+      pending.length !== previousCount ||
+      state.lastPostId !== previousId ||
+      shouldCheckpointXPostState(state.lastCheckedAt, now)
+    ) {
+      state.pendingPosts = pending;
+      state.lastCheckedAt = now.toISOString();
+      await deps.saveState(state);
+    }
+  }
+  if (!state.digest) {
+    const dueDate = xPostDigestDueDate(now, config.digestSchedule);
+    const eligible = (state.pendingPosts ?? [])
+      .filter(({ dateKey }) => dateKey <= dueDate)
+      .sort(
+        (a, b) =>
+          a.dateKey.localeCompare(b.dateKey) ||
+          comparePostIds(a.post.id, b.post.id),
+      );
+    const dateKey = eligible[0]?.dateKey;
+    if (!dateKey) return;
+    // Bound each worker call; remaining posts drain on subsequent polling ticks.
+    const batch = eligible
+      .filter((entry) => entry.dateKey === dateKey)
+      .slice(0, 10)
+      .map(({ post }) => post);
+    state.digest = buildXPostDigest(
+      batch,
+      dateKey,
+      config.handle,
+      await deps.summarize(batch, destinations[0]!),
+    );
+    await deps.saveState(state);
+  }
+  const digest = state.digest;
+  const failures: unknown[] = [];
+  for (const destination of destinations) {
+    try {
+      for (
+        let index = digest.delivered[destination.channelId] ?? 0;
+        index < digest.messages.length;
+        index++
+      ) {
+        await deps.send(destination, digest.messages[index]!);
+        digest.delivered[destination.channelId] = index + 1;
+        await deps.saveState(state);
+      }
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length)
+    throw new AggregateError(
+      failures,
+      "Some X digest destinations failed; saved for retry.",
+    );
+  const sentIds = new Set(digest.postIds);
+  state.pendingPosts = (state.pendingPosts ?? []).filter(
+    ({ post }) => !sentIds.has(post.id),
+  );
+  delete state.digest;
+  await deps.saveState(state);
 }
 
 async function sendXPostAlertsIfNeeded(
   config: XPostMonitorConfig,
   now = new Date(),
+  collect = true,
 ) {
   const destinations = getServiceSubscriptionStore().destinations(
     config.service,
   );
   if (destinations.length === 0) return;
+  if (config.digestSchedule) {
+    await runXPostDigestTick(
+      config,
+      destinations,
+      now,
+      collect ? {} : { fetchPosts: async () => [] },
+    );
+    return;
+  }
 
   const feedPosts = await fetchLatestXPosts(config.feedUrl);
   const latestPost = feedPosts
@@ -295,6 +491,7 @@ async function sendXPostAlertsIfNeeded(
 
   if (!state.lastPostId) {
     await writeJsonFile(config.stateFile, {
+      ...state,
       lastPostId: latestPost.id,
       lastPostUrl: latestPost.url,
       lastCheckedAt: now.toISOString(),
@@ -324,6 +521,7 @@ async function sendXPostAlertsIfNeeded(
       );
     }
     await writeJsonFile(config.stateFile, {
+      ...state,
       lastPostId: post.id,
       lastPostUrl: post.url,
       lastCheckedAt: now.toISOString(),
@@ -353,6 +551,7 @@ export function startXPostMonitor() {
 
   return configs.map((config) => {
     let running = false;
+    let nextFeedCheckAt = 0;
     const tick = async () => {
       if (running) {
         return;
@@ -361,7 +560,10 @@ export function startXPostMonitor() {
       running = true;
 
       try {
-        await sendXPostAlertsIfNeeded(config);
+        const now = new Date();
+        const collect = now.getTime() >= nextFeedCheckAt;
+        if (collect) nextFeedCheckAt = now.getTime() + config.checkIntervalMs;
+        await sendXPostAlertsIfNeeded(config, now, collect);
       } catch (error) {
         console.error(`Failed to check @${config.handle} X posts:`, error);
       } finally {
@@ -370,7 +572,13 @@ export function startXPostMonitor() {
     };
 
     void tick();
-    const timer = setInterval(() => void tick(), config.checkIntervalMs);
+    // Check digest deadlines once a minute without increasing RSS traffic.
+    const timer = setInterval(
+      () => void tick(),
+      config.digestSchedule
+        ? Math.min(60_000, config.checkIntervalMs)
+        : config.checkIntervalMs,
+    );
     console.log(
       `X post monitor enabled for @${config.handle} every ${config.checkIntervalMs}ms.`,
     );

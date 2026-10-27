@@ -29,6 +29,12 @@ fixed-preview links work; unavailable or truncated content is reported. Broader
 Threads searches (`海巡脆`) still require an explicit request. See
 [Threads configuration](docs/configuration.md#threads-posts-and-search).
 
+X subscriptions collect new posts every five minutes and send a Traditional
+Chinese digest with original links every evening at 21:00 Asia/Taipei. Pending
+posts and delivery progress survive restarts; unavailable workers or failed
+destinations retry on later polls. Operators can select digest services or
+restore instant reposts. See [X digest configuration](docs/configuration.md#x-post-digests).
+
 ## Self-host mini sago
 
 You will need a Discord application, a VPS or some machine to throw her on , an agent worker (I used Codex here), and [Bun](https://bun.sh/).

@@ -33,6 +33,9 @@ describe("chatbot job protocol", () => {
       parseChatbotJob({ ...common, purpose: "trace_lookup" })?.purpose,
     ).toBe("trace_lookup");
     expect(
+      parseChatbotJob({ ...common, purpose: "x_post_digest" })?.purpose,
+    ).toBe("x_post_digest");
+    expect(
       parseChatbotJob({
         ...common,
         purpose: "social_action",
@@ -108,6 +111,21 @@ describe("chatbot job protocol", () => {
   });
 
   test("rejects fields that belong to another job shape", () => {
+    for (const field of [
+      "mcpAccessToken",
+      "repository",
+      "availableTools",
+      "availableRepositories",
+      "streamReply",
+    ]) {
+      expect(
+        parseChatbotJob({
+          ...common,
+          purpose: "x_post_digest",
+          [field]: "unexpected",
+        }),
+      ).toBeNull();
+    }
     expect(
       parseChatbotJob({
         ...common,
