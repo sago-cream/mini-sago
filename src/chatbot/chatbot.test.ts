@@ -2434,7 +2434,8 @@ describe("Discord chatbot", () => {
 
   test("backfills beyond seven days until it has 100 context messages", async () => {
     const recentPage = Array.from({ length: 100 }, (_, index) => ({
-      id: `recent-${index}`,
+      // Exclude the request itself so history still needs an older page.
+      id: index === 99 ? "request" : `recent-${index}`,
       channel_id: "channel-1",
       content: `recent ${index}`,
       timestamp: "2026-07-19T12:00:00.000Z",
@@ -2467,7 +2468,7 @@ describe("Discord chatbot", () => {
 
     expect(requestedPaths).toHaveLength(2);
     expect(messages).toHaveLength(100);
-    expect(messages[0]?.id).toBe("older-49");
+    expect(messages[0]?.id).toBe("older-0");
     expect(messages.at(-1)?.id).toBe("recent-0");
   });
 

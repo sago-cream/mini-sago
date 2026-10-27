@@ -23,6 +23,12 @@ an emoji or sticker when requested. Image generation uses the Linux worker's
 ChatGPT sign-in; no separate API key is needed. See
 [image generation and emoji edits](docs/workers.md#image-generation-and-emoji-edits).
 
+When a shared Threads post is relevant to a conversation, Sago reads the public
+post before answering about it and cites its source. Original Threads links and
+fixed-preview links work; unavailable or truncated content is reported. Broader
+Threads searches (`海巡脆`) still require an explicit request. See
+[Threads configuration](docs/configuration.md#threads-posts-and-search).
+
 ## Self-host mini sago
 
 You will need a Discord application, a VPS or some machine to throw her on , an agent worker (I used Codex here), and [Bun](https://bun.sh/).

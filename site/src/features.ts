@@ -471,7 +471,8 @@ export const FEATURES = [
         id: 'threads',
         section: 'lookup',
         title: '脆海巡',
-        description: '在 Threads 上海巡清大、學生會與指定主題的討論。',
+        description:
+            '主動讀取對話中相關的 Threads 貼文連結，也能依要求海巡指定主題。',
         channel: '清大生活',
         messages: [
             {
@@ -497,7 +498,7 @@ export const FEATURES = [
                 text: '打包：寢具、網路線、清潔用品、換洗衣物。\n先確認：床墊尺寸、插座與用電規定、入住時間。網友的經驗可以參考，規定要以你住的宿舍公告為準。',
             },
         ],
-        note: '',
+        note: '相關貼文連結會先讀取再回答，支援 Threads 原始與預覽連結。無法讀取時會說明；海巡搜尋仍需明確要求。',
     },
     {
         id: 'documents',
