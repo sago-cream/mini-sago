@@ -1,12 +1,10 @@
+import {
+  buildReaderUrl,
+  fetchReaderPage,
+  publicPageReaderBaseUrl,
+} from "./public-page-reader";
+
 const DEFAULT_QUERIES = ["清大", "NTHU", "學生會"];
-const DEFAULT_READER_BASE_URL = "https://r.jina.ai/";
-
-export const THREADS_SEARCH_READER_HEADERS = {
-  "User-Agent": "MiniSago/0.1",
-  "X-Cache-Tolerance": "300",
-  "X-Respond-With": "markdown",
-} as const;
-
 export type ThreadsSearchPost = {
   id: string;
   username: string;
@@ -25,9 +23,9 @@ export function buildThreadsSearchUrl(query: string) {
 
 export function buildThreadsReaderUrl(
   query: string,
-  readerBaseUrl = DEFAULT_READER_BASE_URL,
+  readerBaseUrl = publicPageReaderBaseUrl(),
 ) {
-  return `${readerBaseUrl.replace(/\/*$/, "/")}${buildThreadsSearchUrl(query)}`;
+  return buildReaderUrl(buildThreadsSearchUrl(query), readerBaseUrl);
 }
 
 function cleanPostText(value: string) {
@@ -79,29 +77,20 @@ export function parseThreadsSearchPosts(markdown: string) {
 }
 
 async function fetchThreadsSearchPosts(query: string, readerBaseUrl: string) {
-  const response = await fetch(buildThreadsReaderUrl(query, readerBaseUrl), {
-    headers: THREADS_SEARCH_READER_HEADERS,
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!response.ok) {
-    throw new Error(`Threads reader returned ${response.status}.`);
-  }
-
-  const markdown = await response.text();
+  const markdown = await fetchReaderPage(
+    buildThreadsSearchUrl(query),
+    readerBaseUrl,
+  );
   const posts = parseThreadsSearchPosts(markdown);
   if (posts.length === 0) {
-    const reason = markdown.includes("requiring CAPTCHA")
-      ? "Threads required a CAPTCHA"
-      : "the search returned no readable posts";
-    throw new Error(reason);
+    throw new Error("The search returned no readable posts.");
   }
   return posts;
 }
 
 export async function searchThreads(
   input: { additionalKeywords?: string[] } = {},
-  readerBaseUrl = process.env.THREADS_SEARCH_READER_BASE_URL?.trim() ||
-    DEFAULT_READER_BASE_URL,
+  readerBaseUrl = publicPageReaderBaseUrl(),
 ) {
   const queries = [
     ...new Set(

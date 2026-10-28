@@ -5,7 +5,6 @@ import {
   buildThreadsSearchUrl,
   parseThreadsSearchPosts,
   searchThreads,
-  THREADS_SEARCH_READER_HEADERS,
 } from "./threads-search";
 
 const sampleSearch = `Title: Search • Threads
@@ -48,11 +47,6 @@ describe("Threads search", () => {
     expect(buildThreadsReaderUrl("NTHU")).toBe(
       "https://r.jina.ai/https://www.threads.com/search?q=NTHU&serp_type=default&filter=recent",
     );
-    expect(THREADS_SEARCH_READER_HEADERS).toEqual({
-      "User-Agent": "MiniSago/0.1",
-      "X-Cache-Tolerance": "300",
-      "X-Respond-With": "markdown",
-    });
   });
 
   test("parses posts and removes reader presentation noise", () => {

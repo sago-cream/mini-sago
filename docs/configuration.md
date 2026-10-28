@@ -17,40 +17,41 @@ live in [Discord setup](discord-setup.md) and [Workers](workers.md).
 
 ## Hosted service
 
-| Name                                   | Required  | Purpose                                                 |
-| -------------------------------------- | --------- | ------------------------------------------------------- |
-| `DISCORD_APPLICATION_ID`               | Yes       | Discord application ID                                  |
-| `DISCORD_CUSTOM_STATUS`                | No        | Initial text when no saved status exists                |
-| `MINISAGO_DEVELOPER_THREADS_PATH`      | No        | Persistent development-thread recovery metadata         |
-| `MINISAGO_BOT_STATUS_FILE`             | No        | Persistent bot status; `/app/state/bot-status.json`     |
-| `DISCORD_BOT_TOKEN`                    | Yes       | Discord REST and Gateway authentication                 |
-| `DISCORD_GUILD_ID`                     | No        | Guild for configured-guild features; defaults to WM31   |
-| `DISCORD_GATEWAY_DISABLED`             | No        | Use `true` for HTTP-only instances                      |
-| `MINISAGO_CHATBOT_OWNER_USER_ID`       | Yes       | Sole owner of privileged routing and mutations          |
-| `MINISAGO_CHATBOT_GUILD_IDS`           | No        | Comma-separated guilds whose members may use chat       |
-| `MINISAGO_CHATBOT_CHANNEL_IDS`         | No        | Comma-separated channel exceptions                      |
-| `MINISAGO_CHATBOT_ROLE_IDS`            | No        | Comma-separated roles that may mention the chatbot      |
-| `MINISAGO_AMBIENT_REACTIONS_ENABLED`   | No        | Enable occasional ambient reactions                     |
-| `MINISAGO_AMBIENT_ATTENTION_CHANCE`    | No        | Chance from 0 to 1 that a burst schedules evaluation    |
-| `MINISAGO_AMBIENT_MAX_CHECKS_PER_HOUR` | No        | Hourly ambient model-call ceiling; defaults to 4        |
-| `MINISAGO_REMINDER_STATE_FILE`         | No        | Persistent reminder state                               |
-| `MINISAGO_GUILD_MEMORY_DIRECTORY`      | No        | Per-server Markdown memory and local Git history        |
-| `MINISAGO_FEATURE_AVAILABILITY_FILE`   | No        | Persistent guild and channel feature policy             |
-| `MINISAGO_SERVICE_SUBSCRIPTIONS_FILE`  | No        | Persistent background-service destinations              |
-| `MINISAGO_TRIP_WORKSPACE_URL`          | No        | Kyushu workspace API; defaults to the shared planner    |
-| `MINISAGO_TRIP_WORKSPACE_TOKEN`        | No        | Dedicated token enabling guild-bound itinerary edits    |
-| `MINISAGO_MAC_BRIDGE_SECRET`           | Chatbot   | Authenticate the fixed Mac worker profile               |
-| `MINISAGO_WORKER_BRIDGE_SECRET`        | Chatbot   | Authenticate the fixed Oracle worker profile            |
-| `GITHUB_WEBHOOK_SECRET`                | PR bridge | Verify GitHub's `X-Hub-Signature-256`                   |
-| `GITHUB_PR_THREAD_CHANNEL_ID`          | No        | Discord destination for PR review threads               |
-| `GITHUB_PR_THREAD_STATE_FILE`          | No        | Persistent PR-to-thread mapping                         |
-| `TOEFL_VOCAB_CHANNEL_ID`               | No        | Vocabulary destination; blank disables posting          |
-| `TOEFL_VOCAB_TIME`                     | No        | Local `HH:MM` posting time                              |
-| `TOEFL_VOCAB_TIMEZONE`                 | No        | IANA timezone for vocabulary posting                    |
-| `TOEFL_VOCAB_STATE_FILE`               | No        | Persistent daily-send state                             |
-| `GAMER_FORUM_*`                        | No        | Forum source, destination, schedule, reader, and state  |
-| `THREADS_SEARCH_READER_BASE_URL`       | No        | Reader URL for Threads post reads and MCP searches      |
-| `X_POST_*`                             | No        | X feed source, destination, polling interval, and state |
+| Name                                   | Required  | Purpose                                                              |
+| -------------------------------------- | --------- | -------------------------------------------------------------------- |
+| `DISCORD_APPLICATION_ID`               | Yes       | Discord application ID                                               |
+| `DISCORD_CUSTOM_STATUS`                | No        | Initial text when no saved status exists                             |
+| `MINISAGO_DEVELOPER_THREADS_PATH`      | No        | Persistent development-thread recovery metadata                      |
+| `MINISAGO_BOT_STATUS_FILE`             | No        | Persistent bot status; `/app/state/bot-status.json`                  |
+| `DISCORD_BOT_TOKEN`                    | Yes       | Discord REST and Gateway authentication                              |
+| `DISCORD_GUILD_ID`                     | No        | Guild for configured-guild features; defaults to WM31                |
+| `DISCORD_GATEWAY_DISABLED`             | No        | Use `true` for HTTP-only instances                                   |
+| `MINISAGO_CHATBOT_OWNER_USER_ID`       | Yes       | Sole owner of privileged routing and mutations                       |
+| `MINISAGO_CHATBOT_GUILD_IDS`           | No        | Comma-separated guilds whose members may use chat                    |
+| `MINISAGO_CHATBOT_CHANNEL_IDS`         | No        | Comma-separated channel exceptions                                   |
+| `MINISAGO_CHATBOT_ROLE_IDS`            | No        | Comma-separated roles that may mention the chatbot                   |
+| `MINISAGO_AMBIENT_REACTIONS_ENABLED`   | No        | Enable occasional ambient reactions                                  |
+| `MINISAGO_AMBIENT_ATTENTION_CHANCE`    | No        | Chance from 0 to 1 that a burst schedules evaluation                 |
+| `MINISAGO_AMBIENT_MAX_CHECKS_PER_HOUR` | No        | Hourly ambient model-call ceiling; defaults to 4                     |
+| `MINISAGO_REMINDER_STATE_FILE`         | No        | Persistent reminder state                                            |
+| `MINISAGO_GUILD_MEMORY_DIRECTORY`      | No        | Per-server Markdown memory and local Git history                     |
+| `MINISAGO_FEATURE_AVAILABILITY_FILE`   | No        | Persistent guild and channel feature policy                          |
+| `MINISAGO_SERVICE_SUBSCRIPTIONS_FILE`  | No        | Persistent background-service destinations                           |
+| `MINISAGO_TRIP_WORKSPACE_URL`          | No        | Kyushu workspace API; defaults to the shared planner                 |
+| `MINISAGO_TRIP_WORKSPACE_TOKEN`        | No        | Dedicated token enabling guild-bound itinerary edits                 |
+| `MINISAGO_MAC_BRIDGE_SECRET`           | Chatbot   | Authenticate the fixed Mac worker profile                            |
+| `MINISAGO_WORKER_BRIDGE_SECRET`        | Chatbot   | Authenticate the fixed Oracle worker profile                         |
+| `GITHUB_WEBHOOK_SECRET`                | PR bridge | Verify GitHub's `X-Hub-Signature-256`                                |
+| `GITHUB_PR_THREAD_CHANNEL_ID`          | No        | Discord destination for PR review threads                            |
+| `GITHUB_PR_THREAD_STATE_FILE`          | No        | Persistent PR-to-thread mapping                                      |
+| `TOEFL_VOCAB_CHANNEL_ID`               | No        | Vocabulary destination; blank disables posting                       |
+| `TOEFL_VOCAB_TIME`                     | No        | Local `HH:MM` posting time                                           |
+| `TOEFL_VOCAB_TIMEZONE`                 | No        | IANA timezone for vocabulary posting                                 |
+| `TOEFL_VOCAB_STATE_FILE`               | No        | Persistent daily-send state                                          |
+| `GAMER_FORUM_*`                        | No        | Forum source, destination, schedule, reader, and state               |
+| `LINK_READER_BASE_URL`                 | No        | Public page and Threads search reader (default `https://r.jina.ai/`) |
+| `THREADS_SEARCH_READER_BASE_URL`       | No        | Legacy fallback when `LINK_READER_BASE_URL` is unset                 |
+| `X_POST_*`                             | No        | X feed source, destination, polling interval, and state              |
 
 Custom status initially defaults to `mini.sagocream.com`. Once a status is saved,
 it takes precedence over the environment default and survives restarts.
@@ -122,25 +123,36 @@ digest mode resumes it. Back up all X state files with the other durable state.
 Chat tools continue to manage service destinations; schedule and mode are
 operator environment settings and require restarting the hosted service.
 
-## Threads posts and search
+## Shared links and Threads search
 
-The `read_threads_post` MCP tool opens a public post through Jina Reader. The
-agent proactively reads up to three supplied post links relevant to its answer,
-including links in the request, reply target, or nearby context. It accepts HTTPS
-post URLs on `threads.com`, `www.threads.com`, `threads.net`, `www.threads.net`,
-and `fixthreads.seria.moe`, normalizes them to `www.threads.com`, and removes
-tracking parameters. It does not follow links found inside posts or search for
-unrelated posts. The `threads_read` feature controls access separately from
-`threads_search` through the normal feature availability policy.
+The `read_link` MCP tool reads relevant shared public HTTP/HTTPS webpages and social
+posts before the agent makes claims about their contents. It replaces the
+Threads-only `read_threads_post` tool and `threads_read` capability with the
+`link_read` capability. The agent reads up to three relevant URLs per answer
+from the request, reply target, or nearby context; it does not fetch unrelated
+links or follow URLs discovered inside pages. Protected sources continue to use
+registered, authorized tools. Public reader requests must not include private
+links, credentials, or signed access parameters.
 
-Post reads share `THREADS_SEARCH_READER_BASE_URL` (default `https://r.jina.ai/`)
-with search, so existing installations need no new setting. Fetches time out
-after 30 seconds, reject reader HTTP redirects and responses over 256 KB, and
-return at most 12,000 characters with an explicit truncation flag. Login,
-verification, reader errors, and unavailable content must be reported rather
-than treated as proof of a post's contents. Returned excerpts are untrusted and
-may include replies or recommendations; only clearly identified original text
-should be attributed to the author.
+Original and fixed-preview Threads, X/Twitter, and Instagram URLs normalize to
+their source hosts. Tracking parameters are removed from recognized post URLs;
+ordinary website query parameters are preserved. The tool rejects IP literals,
+local/reserved hostnames, non-HTTP(S) URLs, credentials, nonstandard ports, and
+recognized token/signature query parameters before contacting the reader.
+
+Page reads and Threads searches share `LINK_READER_BASE_URL`, defaulting to
+`https://r.jina.ai/`. Existing `THREADS_SEARCH_READER_BASE_URL` settings remain a
+fallback when the new setting is unset. Fetches time out after 30 seconds,
+reject reader HTTP redirects, and cancel responses exceeding 256 KB. Page reads
+return at most 12,000 characters with an explicit truncation flag. This is a
+public reader service, not an authenticated browser for private content.
+
+Failed, login-gated, verification-blocked, empty, or oversized reads return an
+explicit unavailable result. The agent cites sources, reports limitations, and
+uses only available excerpts. Page text is untrusted and may include comments,
+recommendations, or preview text. A preview does not establish the full article,
+unseen images, or a video transcript. If the reader tool is unavailable, the
+agent can attempt live browsing under the same rules.
 
 Discord history and accessible-message searches retain webhook previews,
 including social-link reposts, labelled with `(webhook)` and without verified

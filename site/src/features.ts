@@ -471,8 +471,7 @@ export const FEATURES = [
         id: 'threads',
         section: 'lookup',
         title: '脆海巡',
-        description:
-            '主動讀取對話中相關的 Threads 貼文連結，也能依要求海巡指定主題。',
+        description: '依要求搜尋 Threads 指定主題，整理公開貼文與來源。',
         channel: '清大生活',
         messages: [
             {
@@ -498,7 +497,7 @@ export const FEATURES = [
                 text: '打包：寢具、網路線、清潔用品、換洗衣物。\n先確認：床墊尺寸、插座與用電規定、入住時間。網友的經驗可以參考，規定要以你住的宿舍公告為準。',
             },
         ],
-        note: '相關貼文連結會先讀取再回答，支援 Threads 原始與預覽連結。無法讀取時會說明；海巡搜尋仍需明確要求。',
+        note: '海巡搜尋需要明確要求；對話中相關的分享連結則會先讀取再回答。',
     },
     {
         id: 'documents',
@@ -765,9 +764,9 @@ export const FEATURES = [
     {
         id: 'social',
         section: 'discord',
-        title: '補全轉發內容',
+        title: '讀取分享連結',
         description:
-            '調整 Instagram、X 和 Threads 的連結，讓內容能直接在 Discord 閱讀。',
+            '回答前先讀取相關的公開網頁、Instagram、X 與 Threads 連結，附上來源；也能自動展開社群預覽。',
         channel: '分享連結',
         messages: [
             {
@@ -802,7 +801,7 @@ export const FEATURES = [
                 },
             },
         ],
-        note: '',
+        note: '讀取失敗或內容被截斷時會說明，不會把預覽當作全文或影片逐字稿；私人資料仍透過已授權的工具讀取。',
     },
     {
         id: 'feeds',

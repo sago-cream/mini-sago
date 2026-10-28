@@ -1,3 +1,4 @@
+import { LINK_READING_INSTRUCTIONS } from "../../contracts/link-reading";
 import { createFeatureAccess } from "../discord/feature-access";
 import { calendarSettings } from "./calendar/calendar-settings";
 import { afterEach, describe, expect, test } from "bun:test";
@@ -1217,34 +1218,39 @@ test("calendar tools are conditional and preserve strict calendar schemas throug
   await absent.close();
 });
 
-test("exposes a separate proactive Threads post reader with bounded input", async () => {
+test("exposes one shared link reader for public websites and social posts", async () => {
   const calls: unknown[] = [];
   const session = registerChatbotMcpSession({
     ...handlers(),
-    readThreadsPost: async (input) => {
+    readLink: async (input) => {
       calls.push(input);
       return { status: "complete", url: input.url, content: "Post excerpt" };
     },
   });
   const client = await connect(session.token);
+  expect(client.getInstructions()).toContain(LINK_READING_INSTRUCTIONS);
   expect(
-    (await client.listTools()).tools.find(
-      (tool) => tool.name === "read_threads_post",
-    )?.description,
+    (await client.listTools()).tools.find((tool) => tool.name === "read_link")
+      ?.description,
   ).toContain("without waiting for an explicit read request");
   expect(
-    session.capabilities.find((capability) => capability.id === "threads_read")
+    session.capabilities.find((capability) => capability.id === "link_read")
       ?.tools,
-  ).toEqual(["read_threads_post"]);
-  const url = "https://www.threads.com/@alice/post/ABC";
+  ).toEqual(["read_link"]);
   expect(
-    (await client.callTool({ name: "read_threads_post", arguments: { url } }))
+    (await client.listTools()).tools.some(
+      (tool) => tool.name === "read_threads_post",
+    ),
+  ).toBe(false);
+  const url = "https://example.com/article";
+  expect(
+    (await client.callTool({ name: "read_link", arguments: { url } }))
       .structuredContent,
   ).toMatchObject({ status: "complete", url });
   expect(
     (
       await client.callTool({
-        name: "read_threads_post",
+        name: "read_link",
         arguments: { url: "x".repeat(2049) },
       })
     ).isError,
@@ -1267,7 +1273,7 @@ test("exposes on-demand Threads search and validates extra keywords", async () =
   const tool = (await client.listTools()).tools.find(
     (tool) => tool.name === "search_threads",
   );
-  expect(tool?.description).toContain("only when explicitly asked");
+  expect(tool?.description).toContain("only for explicit search requests");
   expect(tool?.description).toContain("海巡脆");
   expect(
     session.capabilities.find(

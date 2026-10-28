@@ -23,11 +23,13 @@ an emoji or sticker when requested. Image generation uses the Linux worker's
 ChatGPT sign-in; no separate API key is needed. See
 [image generation and emoji edits](docs/workers.md#image-generation-and-emoji-edits).
 
-When a shared Threads post is relevant to a conversation, Sago reads the public
-post before answering about it and cites its source. Original Threads links and
-fixed-preview links work; unavailable or truncated content is reported. Broader
-Threads searches (`海巡脆`) still require an explicit request. See
-[Threads configuration](docs/configuration.md#threads-posts-and-search).
+When shared public links are relevant to an answer, Sago reads the pages before
+making claims about their contents and cites the sources. Websites and original
+or fixed-preview Threads, X/Twitter, and Instagram links use one reader. Failed
+or truncated reads are reported; previews do not establish full articles or
+unseen videos. Protected sources use their authorized tools. Broader Threads
+searches (`海巡脆`) still require an explicit request. See
+[link reading configuration](docs/configuration.md#shared-links-and-threads-search).
 
 X subscriptions collect new posts every five minutes and send a Traditional
 Chinese digest with original links every evening at 21:00 Asia/Taipei. Pending
