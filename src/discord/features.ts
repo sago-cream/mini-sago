@@ -319,7 +319,7 @@ export const FEATURE_DEFINITIONS = {
   },
   managed_services: {
     description:
-      "List background posting services and subscribe or unsubscribe exact Discord destination channels without a deployment. X services default to daily Traditional Chinese digests at 21:00 Asia/Taipei; schedule and delivery mode are operator settings.",
+      "List background posting services and subscribe or unsubscribe exact Discord destination channels without a deployment. X services use instant reposts unless opted into daily Traditional Chinese digests at 21:00 Asia/Taipei; only Holodori (@hololive_dreams) is opted in by default. Digest selection, schedule, and delivery mode are operator settings.",
     access: "owner",
     capability: {
       id: "managed_services",

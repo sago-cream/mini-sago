@@ -43,7 +43,10 @@ const summaries = (posts: XPost[]) =>
   });
 
 function fixture(initial: XPostState = { lastPostId: "1" }) {
-  const config = getXPostMonitorConfigs({ DISCORD_BOT_TOKEN: "test" })[0]!;
+  const config = getXPostMonitorConfigs({
+    DISCORD_BOT_TOKEN: "test",
+    X_POST_DIGEST_SERVICES: "x_posts_primary",
+  })[0]!;
   let state = structuredClone(initial);
   let feed = [post("2"), post("1")];
   const sent: Array<{ channelId: string; content: string }> = [];
@@ -156,7 +159,32 @@ describe("X daily Chinese digest", () => {
       fetchMock.mockRestore();
     }
   });
-  test("defaults to 21:00 Taipei, validates configuration, and supports per-service instant delivery", () => {
+  test("opts in only Holodori by default and supports explicit per-service digest selection", () => {
+    expect(
+      getXPostMonitorConfigs({ DISCORD_BOT_TOKEN: "test" }).map((config) => [
+        config.service,
+        config.digestSchedule,
+      ]),
+    ).toEqual([
+      ["x_posts_primary", undefined],
+      ["x_posts_thsottiaux", undefined],
+      ["x_posts_hololive_dreams", schedule],
+    ]);
+    expect(
+      getXPostMonitorConfigs({
+        DISCORD_BOT_TOKEN: "test",
+        X_POST_DIGEST_SERVICES: " , ",
+      }).every((config) => !config.digestSchedule),
+    ).toBe(true);
+    expect(
+      getXPostMonitorConfigs({
+        DISCORD_BOT_TOKEN: "test",
+        X_POST_DIGEST_SERVICES: "x_posts_primary, x_posts_hololive_dreams",
+      }).map((config) => Boolean(config.digestSchedule)),
+    ).toEqual([true, false, true]);
+  });
+
+  test("defaults to 21:00 Taipei, validates configuration, and supports instant delivery for all services", () => {
     expect(getXPostDigestSchedule({})).toEqual(schedule);
     expect(() =>
       getXPostDigestSchedule({ X_POST_DIGEST_TIME: "25:00" }),
@@ -168,6 +196,7 @@ describe("X daily Chinese digest", () => {
       getXPostMonitorConfigs({
         DISCORD_BOT_TOKEN: "test",
         X_POST_DELIVERY_MODE: "instant",
+        X_POST_DIGEST_SERVICES: "x_posts_primary,x_posts_hololive_dreams",
       }).every((config) => !config.digestSchedule),
     ).toBe(true);
     expect(

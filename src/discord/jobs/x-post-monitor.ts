@@ -222,7 +222,7 @@ export function getXPostMonitorConfigs(
   const digestSchedule = getXPostDigestSchedule(env);
   const digestServices =
     env.X_POST_DIGEST_SERVICES === undefined
-      ? ["x_posts_primary", "x_posts_thsottiaux", "x_posts_hololive_dreams"]
+      ? ["x_posts_hololive_dreams"]
       : env.X_POST_DIGEST_SERVICES.split(",")
           .map((value) => value.trim())
           .filter(Boolean);

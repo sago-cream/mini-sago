@@ -98,8 +98,10 @@ and Calendar confirmation remain additional checks. See
 Owners can change feature coverage without deploying. Persisted channel rules
 override guild rules. A separate subscription list selects destination channels
 for Gamer Forum, X subscriptions, and TOEFL; jobs read it before delivery. X
-monitors persist collected posts, request tool-free Traditional Chinese summaries
-through a dedicated worker job at the daily 21:00 Taipei cutoff, and checkpoint
+services use instant reposts unless opted into daily digests; only Holodori is
+opted in by default. Digest monitors persist collected posts, request tool-free
+Traditional Chinese summaries through a dedicated worker job at the daily 21:00
+Taipei cutoff, and checkpoint
 message progress per destination for retries. See
 [Configuration](configuration.md) for registrations and role filters.
 
