@@ -96,7 +96,7 @@ describe("service subscriptions", () => {
     expect(
       listing.services.find((service) => service.id === "x_posts_primary")
         ?.name,
-    ).toBe("@example X reposts (primary)");
+    ).toBe("@example X subscription (primary)");
   });
 
   test("keeps healthy destinations running when one delivery fails", async () => {

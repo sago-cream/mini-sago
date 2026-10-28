@@ -1,5 +1,9 @@
 import type { CodexJob } from "../../../contracts/worker-contract";
 import {
+  X_POST_DIGEST_INSTRUCTIONS,
+  X_POST_DIGEST_OUTPUT_SCHEMA,
+} from "./x-post-digest";
+import {
   ARTIFACT_ANSWER_OUTPUT_SCHEMA,
   ANSWER_OUTPUT_SCHEMA,
   ANSWER_TASK_INSTRUCTION,
@@ -34,9 +38,9 @@ export { EXECUTION_ROUTE_OUTPUT_SCHEMA } from "./execution-route";
 export { SOCIAL_ACTION_OUTPUT_SCHEMA } from "./social-action";
 
 export const PROMPT_PLAN_VERSIONS = {
-  policy: 18,
-  task: 3,
-  context: 9,
+  policy: 19,
+  task: 4,
+  context: 10,
 } as const;
 
 export type PromptPlan = {
@@ -81,6 +85,14 @@ export function buildPromptPlan(
   developerPolicy?: string,
   macFileRoots: string[] = [],
 ): PromptPlan {
+  if (job.purpose === "x_post_digest") {
+    return promptPlan(
+      job.purpose,
+      X_POST_DIGEST_INSTRUCTIONS,
+      "Summarize each supplied post in Traditional Chinese using the required JSON schema.",
+      JSON.stringify({ sourcePosts: job.request }),
+    );
+  }
   if (job.purpose === "execution_route") {
     return promptPlan(
       "execution_route",
@@ -106,6 +118,7 @@ export function buildPromptPlan(
 }
 
 export function outputSchemaForJob(job: CodexJob) {
+  if (job.purpose === "x_post_digest") return X_POST_DIGEST_OUTPUT_SCHEMA;
   if (job.purpose === "execution_route") return EXECUTION_ROUTE_OUTPUT_SCHEMA;
   if (job.purpose === "social_action") return SOCIAL_ACTION_OUTPUT_SCHEMA;
   if (job.purpose === "answer") {

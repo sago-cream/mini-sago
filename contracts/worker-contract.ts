@@ -1,4 +1,4 @@
-export const CHATBOT_PROTOCOL_VERSION = 36;
+export const CHATBOT_PROTOCOL_VERSION = 37;
 export const CHATBOT_JOB_TIMEOUT_MS = 5 * 60_000;
 export const CHATBOT_OUTGOING_FILE_LIMITS = {
   count: 10,
@@ -211,6 +211,14 @@ export type TraceLookupJob = ChatbotJobBase &
     socialActionCandidateMessageIds?: never;
   };
 
+export type XPostDigestJob = ChatbotJobBase &
+  NonAnswerJob &
+  NonRoutingJob & {
+    purpose: "x_post_digest";
+    availableTools?: never;
+    socialActionCandidateMessageIds?: never;
+  };
+
 export type SocialActionJob = ChatbotJobBase &
   NonAnswerJob &
   NonRoutingJob & {
@@ -255,7 +263,11 @@ export type OracleAnswerJob = AnswerJobBase & {
 };
 
 export type AnswerJob = ChatAnswerJob | MacAnswerJob | OracleAnswerJob;
-export type CodexJob = AnswerJob | ExecutionRouteJob | SocialActionJob;
+export type CodexJob =
+  | AnswerJob
+  | ExecutionRouteJob
+  | SocialActionJob
+  | XPostDigestJob;
 export type ChatbotJob = CodexJob | TraceLookupJob;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -429,7 +441,7 @@ export function parseChatbotJob(value: unknown): ChatbotJob | null {
     return value as ExecutionRouteJob;
   }
 
-  if (value.purpose === "trace_lookup") {
+  if (value.purpose === "trace_lookup" || value.purpose === "x_post_digest") {
     if (
       !hasOnlyAbsent(value, [
         ...ANSWER_ONLY_FIELDS,
@@ -440,7 +452,7 @@ export function parseChatbotJob(value: unknown): ChatbotJob | null {
     ) {
       return null;
     }
-    return value as TraceLookupJob;
+    return value as TraceLookupJob | XPostDigestJob;
   }
 
   if (value.purpose === "social_action") {

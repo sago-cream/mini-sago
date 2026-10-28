@@ -7,9 +7,9 @@ import { TARGET_GUILD_ID } from "./config";
 
 export const MANAGED_SERVICE_DEFINITIONS = {
   gamer_forum: "Gamer forum reposts",
-  x_posts_primary: "Primary X account reposts",
-  x_posts_thsottiaux: "@thsottiaux X reposts",
-  x_posts_hololive_dreams: "@hololive_dreams X reposts",
+  x_posts_primary: "Primary X account subscription",
+  x_posts_thsottiaux: "@thsottiaux X subscription",
+  x_posts_hololive_dreams: "@hololive_dreams X subscription",
   toefl_vocab: "Daily TOEFL vocabulary",
 } as const;
 
@@ -154,7 +154,7 @@ export function formatManagedServices(
       id,
       name:
         id === "x_posts_primary"
-          ? `@${environment.X_POST_HANDLE?.trim() || "thsottiaux"} X reposts (primary)`
+          ? `@${environment.X_POST_HANDLE?.trim() || "thsottiaux"} X subscription (primary)`
           : name,
       destinations: snapshot.services[id].map((destination) => ({
         ...destination,

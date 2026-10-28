@@ -73,12 +73,54 @@ are `1394943277836402779` and `1000249491494019092`. The separate Oracle collect
 rotation notices, the nightly schedule, and owner-only manual sync via
 `MINISAGO_CCXP_SYNC_QUEUE_PATH` are documented in [CCXP meeting retrieval](ccxp-meetings.md).
 
-The X monitor keeps the configurable primary pipe and also reposts
+## X post digests
+
+The X monitor keeps the configurable primary pipe and also subscribes
 `@thsottiaux` to Discord channel `1515569479541854218` and
 `@hololive_dreams` to channel `1290252977621176361`. Each additional pipe
 stores an isolated checkpoint beside `X_POST_STATE_FILE` and validates its
-destination guild independently. The `@hololive_dreams` pipe only forwards
+destination guild independently. The `@hololive_dreams` pipe only collects
 posts authored by that official account and ignores posts it retweets.
+
+By default, all three services collect posts every five minutes and send a
+Traditional Chinese digest at **21:00 Asia/Taipei**. Each digest covers posts
+published since the previous local 21:00 cutoff up to the current cutoff. Posts
+published at or after the cutoff belong to the next day's digest. Missing,
+invalid, or future publication dates use collection time. Late-discovered posts
+from older windows are delivered on subsequent polls with their window's date.
+An empty window sends nothing. Initial startup seeds the latest feed ID without
+replaying historical posts; existing checkpoints continue collecting newer posts.
+The scheduler checks digest deadlines once a minute; model processing and
+Discord delivery add their usual latency, while RSS polling stays at five minutes.
+
+- `X_POST_DELIVERY_MODE`: `daily_digest` (default) or `instant` for all services.
+- `X_POST_DIGEST_TIME`: daily local `HH:MM`, default `21:00`.
+- `X_POST_DIGEST_TIMEZONE`: IANA timezone, default `Asia/Taipei`.
+- `X_POST_DIGEST_SERVICES`: comma-separated service IDs, default
+  `x_posts_primary,x_posts_thsottiaux,x_posts_hololive_dreams`. Omitted services
+  retain instant delivery; an explicitly blank value makes all services instant.
+
+Summaries use the existing authenticated chat worker and
+`MINISAGO_CHATBOT_OWNER_USER_ID`; no separate model API key is required. The
+dedicated `x_post_digest` job has no Discord tools, media tools, or web search.
+Host and chat workers must be updated together to worker protocol version 37.
+Feed text is untrusted data. The worker returns a bounded Chinese summary per
+post; the host validates IDs and lengths, builds source links from the actual
+author (including retweets), splits messages below Discord's limit, and disables
+mentions and link previews. Each model call handles up to ten posts with up to
+4,000 text characters each; long posts are summarized from that excerpt. Larger
+windows drain in successive polling ticks, oldest first.
+
+Pending posts, generated messages, and each destination's confirmed message
+progress are saved in the existing X state files. Worker failures leave posts
+queued; destination failures reuse generated messages and skip confirmed sends.
+Saved digests can send even while the source feed is unavailable. Posts outside
+the feed's latest twenty items can still be missed during extended outages.
+An ambiguous Discord timeout or a crash between sending and checkpointing can
+repeat the affected message. Instant mode pauses any queued digest; restoring
+digest mode resumes it. Back up all X state files with the other durable state.
+Chat tools continue to manage service destinations; schedule and mode are
+operator environment settings and require restarting the hosted service.
 
 ## Threads posts and search
 
