@@ -83,9 +83,12 @@ stores an isolated checkpoint beside `X_POST_STATE_FILE` and validates its
 destination guild independently. The `@hololive_dreams` pipe only collects
 posts authored by that official account and ignores posts it retweets.
 
-By default, all three services collect posts every five minutes and send a
-Traditional Chinese digest at **21:00 Asia/Taipei**. Each digest covers posts
-published since the previous local 21:00 cutoff up to the current cutoff. Posts
+All services check for posts every five minutes and use instant reposts unless
+opted into daily digests. Only Holodori (`x_posts_hololive_dreams`) is opted in
+by default, sending a Traditional Chinese digest at **21:00 Asia/Taipei**.
+The primary and additional `@thsottiaux` services keep instant reposts.
+Each digest covers posts published since the previous local 21:00 cutoff up to
+the current cutoff. Posts
 published at or after the cutoff belong to the next day's digest. Missing,
 invalid, or future publication dates use collection time. Late-discovered posts
 from older windows are delivered on subsequent polls with their window's date.
@@ -94,12 +97,14 @@ replaying historical posts; existing checkpoints continue collecting newer posts
 The scheduler checks digest deadlines once a minute; model processing and
 Discord delivery add their usual latency, while RSS polling stays at five minutes.
 
-- `X_POST_DELIVERY_MODE`: `daily_digest` (default) or `instant` for all services.
+- `X_POST_DELIVERY_MODE`: `daily_digest` (default) enables digests for opted-in
+  services only; `instant` forces individual reposts for all services.
 - `X_POST_DIGEST_TIME`: daily local `HH:MM`, default `21:00`.
 - `X_POST_DIGEST_TIMEZONE`: IANA timezone, default `Asia/Taipei`.
 - `X_POST_DIGEST_SERVICES`: comma-separated service IDs, default
-  `x_posts_primary,x_posts_thsottiaux,x_posts_hololive_dreams`. Omitted services
-  retain instant delivery; an explicitly blank value makes all services instant.
+  `x_posts_hololive_dreams`. Add `x_posts_primary` or `x_posts_thsottiaux` to
+  opt them in. Services absent from this list retain instant delivery; an
+  explicitly blank value makes all services instant.
 
 Summaries use the existing authenticated chat worker and
 `MINISAGO_CHATBOT_OWNER_USER_ID`; no separate model API key is required. The
