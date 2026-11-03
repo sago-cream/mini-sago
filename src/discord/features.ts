@@ -317,6 +317,16 @@ export const FEATURE_DEFINITIONS = {
       tools: ["list_feature_availability", "configure_feature_availability"],
     },
   },
+  discord_commands: {
+    description:
+      "Owner-only Discord slash-command diagnostics: inspect global and target-guild registration, command permission overrides and install defaults. Sync /ask to one guild only when explicitly requested. Feature enablement alone does not prove command registration or visibility; report unavailable checks as unknown.",
+    access: "owner",
+    capability: {
+      id: "discord_commands",
+      category: "system",
+      tools: ["inspect_discord_commands", "sync_discord_commands"],
+    },
+  },
   managed_services: {
     description:
       "List background posting services and subscribe or unsubscribe exact Discord destination channels without a deployment. X services use instant reposts unless opted into daily Traditional Chinese digests at 21:00 Asia/Taipei; only Holodori (@hololive_dreams) is opted in by default. Digest selection, schedule, and delivery mode are operator settings.",

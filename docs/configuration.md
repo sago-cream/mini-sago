@@ -57,6 +57,16 @@ Custom status initially defaults to `mini.sagocream.com`. Once a status is saved
 it takes precedence over the environment default and survives restarts.
 See [Bot management](bot-management.md) for persistence and recovery.
 
+Owner-only `inspect_discord_commands` and `sync_discord_commands` reuse
+`DISCORD_APPLICATION_ID`, `DISCORD_BOT_TOKEN`, and
+`MINISAGO_CHATBOT_OWNER_USER_ID`; no new environment variables are required.
+An omitted tool `guildId` uses the current conversation's guild, not
+`DISCORD_GUILD_ID`. Manual `sync:install` registers `/ask` only in
+`DISCORD_GUILD_ID` when set and clears global commands; without it, it registers
+globally. Feature registration alone does not publish a command to Discord.
+The MCP repair tool updates only `/ask` in one explicitly targeted guild.
+See [slash-command diagnostics](bot-management.md#slash-command-diagnostics-and-repair).
+
 See `.env.production.example` for production state paths and the complete
 scheduled-monitor variable names.
 

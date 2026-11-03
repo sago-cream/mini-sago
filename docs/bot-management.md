@@ -1,7 +1,7 @@
 # Bot management
 
-The website groups three owner controls under **Bot 管理**: custom status,
-channel messaging, and feature access. Only the configured
+The website groups owner controls under **Bot 管理**: custom status,
+channel messaging, feature access, and slash-command diagnostics. Only the configured
 `MINISAGO_CHATBOT_OWNER_USER_ID` receives these host-bound MCP tools through Sago.
 
 ## Custom status
@@ -60,3 +60,46 @@ change registered feature coverage and role filters. These changes use the
 existing persistent feature policy store. See
 [feature registration and access](feature-registration.md) for scope and
 inheritance, and [configuration](configuration.md) for initial setup.
+
+## Slash-command diagnostics and repair
+
+Ask Sago to check why `/ask` is missing, or to resync it to a specific server.
+Only the configured owner receives `inspect_discord_commands` and
+`sync_discord_commands`. Both accept an optional exact `guildId`, defaulting to
+the conversation's guild; a DM requires an explicit guild ID. The host binds the
+bot credentials and application ID. The tools verify the token's application
+identity and bot access to the target guild before operating.
+
+`inspect_discord_commands` reads global and guild registrations, command default
+member permissions, guild command permission overrides (including application-wide
+entries), install defaults, and whether interactions use Gateway or an HTTP
+endpoint. Individual reads can return `unavailable` with an HTTP status; the
+result is then `partial`. An unavailable read is unknown, never evidence that
+there are no commands or restrictions. API error bodies and application secrets
+are not returned.
+
+Use `sync_discord_commands` only after an explicit request to register, sync, or
+repair `/ask`. It creates `/ask` in the target guild or patches its existing
+name, description, and prompt option from the shared install definition. It
+preserves the existing command ID, permission defaults and overrides, unrelated
+commands, global registrations, and other guilds. It does not run `sync:install`,
+change install grants or interaction delivery, or enable the chatbot feature.
+A fresh registration read confirms `synced`; `updated_unverified` means Discord
+accepted the write but read-back failed. Neither means the command is visible
+in every member's client. Permission inspection failures do not prevent reporting
+a successful registration.
+
+When diagnosing visibility, distinguish these separate checks:
+
+- MiniSago's `chatbot` feature policy and its role filters;
+- actual global and target-guild `/ask` registration;
+- command default permissions and **Server Settings → Integrations** overrides;
+- the affected member's **View Channel** and **Use Application Commands** permissions;
+- the existing guild's application authorization, client refresh, and interaction delivery.
+
+The tools do not compute effective permissions for a specific member/channel,
+modify Discord permissions, or prove the existing installation's OAuth grants.
+Install defaults only describe new installations. An HTTP interactions endpoint
+routes commands away from MiniSago's Gateway handler; the manual install sync
+clears it when that change is intended. See
+[Discord's application-command documentation](https://docs.discord.com/developers/interactions/application-commands).

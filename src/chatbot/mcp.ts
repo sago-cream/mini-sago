@@ -1,3 +1,4 @@
+import type { createDiscordCommandManagement } from "../discord/application-commands";
 import {
   LINK_READING_INSTRUCTIONS,
   THREADS_SEARCH_INSTRUCTIONS,
@@ -311,6 +312,7 @@ export type ChatbotGuildEmojiRenameInput = {
 };
 
 export type ChatbotMcpSessionHandlers = {
+  discordCommands?: ReturnType<typeof createDiscordCommandManagement>;
   mentionMembers?: (input: MemberMentionInput) => Promise<MemberMentionResult>;
   mediaRegistry?: ChatbotMediaRegistry;
   readGuildEmoji?: (input: {
@@ -573,6 +575,11 @@ function availableCapabilities(
       featureCapability("feature_availability", { availability: "available" }),
     );
   }
+  if (handlers.discordCommands) {
+    capabilities.push(
+      featureCapability("discord_commands", { availability: "available" }),
+    );
+  }
   if (handlers.listManagedServices && handlers.configureServiceSubscription) {
     capabilities.push(
       featureCapability("managed_services", { availability: "available" }),
@@ -725,6 +732,59 @@ function createServer(session: ChatbotMcpSession) {
     idempotentHint: true,
     openWorldHint: false,
   } as const;
+
+  if (session.handlers.discordCommands) {
+    const inputSchema = {
+      guildId: z
+        .string()
+        .regex(/^\d{17,20}$/u)
+        .optional()
+        .describe(
+          "Exact target guild ID. Defaults to the current guild; required in DMs.",
+        ),
+    };
+    registerFeatureTool(
+      "inspect_discord_commands",
+      {
+        description:
+          "Inspect MiniSago's actual Discord global and target-guild slash-command registration, default permissions, guild command overrides, install defaults and interaction delivery. Use when /ask is missing or the owner asks for diagnostics. Feature availability alone does not prove registration. Partial/unavailable checks are unknown, not empty; registration does not prove member visibility. Does not modify Discord.",
+        inputSchema,
+        annotations: readAnnotations,
+      },
+      async (input) => {
+        try {
+          return toolResult(
+            await session.handlers.discordCommands!.inspect(input),
+          );
+        } catch (error) {
+          return unavailable(error);
+        }
+      },
+    );
+    registerFeatureTool(
+      "sync_discord_commands",
+      {
+        description:
+          "Register or refresh the canonical /ask definition in one target guild, then read back its registration. Owner only; call only when explicitly asked to register, sync or repair /ask. Preserves existing command permission defaults and overrides, unrelated commands and global registration. Does not enable MiniSago feature policy or change Discord member/channel permissions, install grants or interaction delivery. synced confirms registration only; updated_unverified means Discord accepted the write but read-back failed.",
+        inputSchema,
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+      },
+      async (input) => {
+        try {
+          return toolResult(
+            await session.handlers.discordCommands!.sync(input),
+          );
+        } catch (error) {
+          return unavailable(error);
+        }
+      },
+    );
+  }
 
   if (
     session.handlers.listFeatureAvailability &&

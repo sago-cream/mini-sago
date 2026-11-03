@@ -130,6 +130,146 @@ async function connect(token: string) {
 }
 
 describe("MiniSago MCP server", () => {
+  test("exposes command diagnostics and repair only to the owner and validates guild IDs", async () => {
+    const calls: unknown[] = [];
+    const discordCommands = {
+      inspect: async (input: { guildId?: string }) => {
+        calls.push(["inspect", input]);
+        return { status: "partial", permissions: { status: "unavailable" } };
+      },
+      sync: async (input: { guildId?: string }) => {
+        calls.push(["sync", input]);
+        return { status: "synced" };
+      },
+    } as unknown as NonNullable<
+      Parameters<typeof registerChatbotMcpSession>[0]["discordCommands"]
+    >;
+    const session = registerChatbotMcpSession({
+      ...handlers(),
+      discordCommands,
+    });
+    const client = await connect(session.token);
+    expect(session.capabilities).toContainEqual(
+      expect.objectContaining({
+        id: "discord_commands",
+        tools: ["inspect_discord_commands", "sync_discord_commands"],
+      }),
+    );
+    const tools = (await client.listTools()).tools;
+    expect(
+      tools.find((tool) => tool.name === "inspect_discord_commands")
+        ?.annotations?.readOnlyHint,
+    ).toBe(true);
+    expect(
+      tools.find((tool) => tool.name === "sync_discord_commands")?.annotations
+        ?.readOnlyHint,
+    ).toBe(false);
+    expect(
+      (
+        await client.callTool({
+          name: "inspect_discord_commands",
+          arguments: {},
+        })
+      ).structuredContent,
+    ).toMatchObject({ status: "partial" });
+    expect(
+      (
+        await client.callTool({
+          name: "sync_discord_commands",
+          arguments: { guildId: "123456789012345678" },
+        })
+      ).structuredContent,
+    ).toMatchObject({ status: "synced" });
+    expect(
+      (
+        await client.callTool({
+          name: "sync_discord_commands",
+          arguments: { guildId: "bad-id" },
+        })
+      ).isError,
+    ).toBe(true);
+    expect(calls).toEqual([
+      ["inspect", {}],
+      ["sync", { guildId: "123456789012345678" }],
+    ]);
+    await client.close();
+    session.revoke();
+
+    const memberSession = registerChatbotMcpSession(
+      { ...handlers(), discordCommands },
+      {
+        featureAccess: (feature) =>
+          createFeatureAccess(feature, {
+            requesterId: "member",
+            ownerId: "owner",
+          }),
+      },
+    );
+    const memberClient = await connect(memberSession.token);
+    expect(
+      memberSession.capabilities.some(
+        (capability) => capability.id === "discord_commands",
+      ),
+    ).toBe(false);
+    expect(
+      (await memberClient.listTools()).tools.some(
+        (tool) =>
+          tool.name === "sync_discord_commands" ||
+          tool.name === "inspect_discord_commands",
+      ),
+    ).toBe(false);
+    for (const name of ["inspect_discord_commands", "sync_discord_commands"]) {
+      expect(
+        (await memberClient.callTool({ name, arguments: {} })).isError,
+      ).toBe(true);
+    }
+    expect(calls).toHaveLength(2);
+    await memberClient.close();
+    memberSession.revoke();
+  });
+
+  test("command tools recheck owner access and suppress raw Discord error bodies", async () => {
+    let allowed = true;
+    let calls = 0;
+    const session = registerChatbotMcpSession(
+      {
+        ...handlers(),
+        discordCommands: {
+          inspect: async () => {
+            throw new Error("403 secret response body");
+          },
+          sync: async () => {
+            calls++;
+            return { status: "synced" };
+          },
+        } as unknown as NonNullable<
+          Parameters<typeof registerChatbotMcpSession>[0]["discordCommands"]
+        >,
+      },
+      {
+        featureAccess: () => ({
+          available: () => true,
+          allowed: async () => allowed,
+        }),
+      },
+    );
+    const client = await connect(session.token);
+    const failed = await client.callTool({
+      name: "inspect_discord_commands",
+      arguments: {},
+    });
+    expect(failed.structuredContent).toMatchObject({ status: "unavailable" });
+    expect(JSON.stringify(failed)).not.toContain("secret response body");
+    allowed = false;
+    expect(
+      (await client.callTool({ name: "sync_discord_commands", arguments: {} }))
+        .structuredContent,
+    ).toMatchObject({ status: "forbidden" });
+    expect(calls).toBe(0);
+    await client.close();
+    session.revoke();
+  });
+
   test("exposes member notifications only in sessions with a bound handler", async () => {
     const calls: unknown[] = [];
     const session = registerChatbotMcpSession({

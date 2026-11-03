@@ -1,3 +1,9 @@
+import {
+  ASK_COMMAND,
+  createDiscordCommandManagement,
+} from "./application-commands";
+import type { DiscordRequest } from "./api/request";
+
 import { afterEach, expect, test } from "bun:test";
 import {
   BotManagement,
@@ -220,4 +226,215 @@ test("status validation fails before any disk or Gateway changes", async () => {
   ).rejects.toThrow("Invalid presence");
   expect(saved).toEqual([]);
   expect(sent).toEqual([]);
+});
+
+const applicationId = "123456789012345678";
+const guildId = "223456789012345678";
+const commandId = "323456789012345678";
+const path = `/applications/${applicationId}/guilds/${guildId}/commands`;
+
+function commandFixture({
+  existing = true,
+  failPermissions = false,
+  failGlobal = false,
+  failVerification = false,
+  wrongApplication = false,
+  inaccessibleGuild = false,
+} = {}) {
+  const calls: Array<{ path: string; options: Parameters<DiscordRequest>[1] }> =
+    [];
+  let written = false;
+  const command = {
+    ...ASK_COMMAND,
+    id: commandId,
+    default_member_permissions: "0",
+  };
+  const request: DiscordRequest = async <T>(
+    route: string,
+    options?: Parameters<DiscordRequest>[1],
+  ) => {
+    calls.push({ path: route, options });
+    if (route === "/applications/@me")
+      return {
+        id: wrongApplication ? "423456789012345678" : applicationId,
+        install_params: { scopes: ["bot"], permissions: "1024" },
+        interactions_endpoint_url: null,
+        verify_key: "must-not-leak",
+      } as T;
+    if (route === `/guilds/${guildId}`) {
+      if (inaccessibleGuild) throw new Error("403 private response");
+      return {
+        id: guildId,
+        name: "Test guild",
+        private_field: "must-not-leak",
+      } as T;
+    }
+    if (route === `/applications/${applicationId}/commands`) {
+      if (failGlobal) throw new Error("503 private response");
+      return [
+        { ...command, id: "global", contexts: [0], integration_types: [0] },
+      ] as T;
+    }
+    if (route === `${path}/permissions`) {
+      if (failPermissions) throw new Error("403 secret response body");
+      return [
+        {
+          id: applicationId,
+          permissions: [{ id: guildId, type: 1, permission: false }],
+        },
+      ] as T;
+    }
+    if (options?.method) {
+      written = true;
+      return command as T;
+    }
+    if (route === path) {
+      if (written && failVerification)
+        throw new Error("503 secret response body");
+      return [
+        ...(existing || written ? [command] : []),
+        { id: "other", name: "other", type: 1 },
+      ] as T;
+    }
+    throw new Error(`Unexpected route ${route}`);
+  };
+  return {
+    calls,
+    management: createDiscordCommandManagement({
+      discordRequest: request,
+      applicationId,
+      currentGuildId: guildId,
+    }),
+    request,
+  };
+}
+
+test("inspects both registration scopes and app-wide permission overrides without writes or secrets", async () => {
+  const { management, calls } = commandFixture();
+  const result = await management.inspect({});
+  expect(result).toMatchObject({
+    status: "complete",
+    guild: { id: guildId, name: "Test guild" },
+    globalCommands: {
+      status: "complete",
+      value: [expect.objectContaining({ contexts: [0] })],
+    },
+    guildCommands: {
+      status: "complete",
+      value: expect.arrayContaining([
+        expect.objectContaining({
+          id: commandId,
+          defaultMemberPermissions: "0",
+        }),
+      ]),
+    },
+    permissions: {
+      status: "complete",
+      value: [
+        {
+          id: applicationId,
+          permissions: [{ id: guildId, type: 1, permission: false }],
+        },
+      ],
+    },
+    interactionDelivery: "gateway",
+  });
+  expect(calls.every((call) => !call.options?.method)).toBe(true);
+  expect(JSON.stringify(result)).not.toContain("must-not-leak");
+});
+
+test("unavailable checks remain unknown while successful registration reads are retained", async () => {
+  const { management } = commandFixture({
+    failPermissions: true,
+    failGlobal: true,
+  });
+  const result = await management.inspect({});
+  expect(result).toMatchObject({
+    status: "partial",
+    globalCommands: { status: "unavailable", httpStatus: 503 },
+    guildCommands: { status: "complete" },
+    permissions: { status: "unavailable", httpStatus: 403 },
+  });
+  expect(result.permissions).not.toHaveProperty("value");
+  expect(JSON.stringify(result)).not.toContain("secret response");
+});
+
+test.each([true, false])(
+  "sync patches existing=%s and preserves every other command and scope",
+  async (existing) => {
+    const { management, calls } = commandFixture({ existing });
+    const result = await management.sync({ guildId });
+    expect(result).toMatchObject({
+      status: "synced",
+      verification: {
+        status: "complete",
+        value: { id: commandId, defaultMemberPermissions: "0" },
+      },
+    });
+    const writes = calls.filter((call) => call.options?.method);
+    expect(writes).toEqual([
+      {
+        path: existing ? `${path}/${commandId}` : path,
+        options: {
+          method: existing ? "PATCH" : "POST",
+          body: existing
+            ? {
+                name: ASK_COMMAND.name,
+                description: ASK_COMMAND.description,
+                options: ASK_COMMAND.options,
+              }
+            : ASK_COMMAND,
+        },
+      },
+    ]);
+    expect(writes[0]!.options!.body).not.toHaveProperty(
+      "default_member_permissions",
+    );
+    expect(calls.at(-1)?.path).toBe(path);
+  },
+);
+
+test("accepted writes with failed read-back are reported without claiming verified registration", async () => {
+  const { management } = commandFixture({ failVerification: true });
+  expect(await management.sync({})).toMatchObject({
+    status: "updated_unverified",
+    command: { id: commandId },
+    verification: { status: "unavailable", httpStatus: 503 },
+  });
+});
+
+test.each([{ wrongApplication: true }, { inaccessibleGuild: true }])(
+  "identity and target access checks fail closed: %j",
+  async (options) => {
+    const { management, calls } = commandFixture(options);
+    await expect(management.sync({})).rejects.toThrow();
+    expect(calls.some((call) => call.options?.method)).toBe(false);
+    expect(calls.some((call) => call.path === path)).toBe(false);
+  },
+);
+
+test("DMs require an explicit guild, IDs are validated before requests, and there is no configured-guild fallback", async () => {
+  const { request, calls } = commandFixture();
+  const management = createDiscordCommandManagement({
+    discordRequest: request,
+    applicationId,
+  });
+  await expect(management.inspect({})).rejects.toThrow(
+    "exact Discord guild ID",
+  );
+  await expect(management.sync({ guildId: "../commands" })).rejects.toThrow();
+  expect(calls).toHaveLength(0);
+  expect(await management.inspect({ guildId })).toMatchObject({
+    status: "complete",
+  });
+});
+
+test("missing application configuration fails before Discord access", async () => {
+  const { request, calls } = commandFixture();
+  const management = createDiscordCommandManagement({
+    discordRequest: request,
+    currentGuildId: guildId,
+  });
+  await expect(management.sync({})).rejects.toThrow("DISCORD_APPLICATION_ID");
+  expect(calls).toHaveLength(0);
 });

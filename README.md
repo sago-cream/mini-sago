@@ -39,6 +39,11 @@ unavailable workers or failed
 destinations retry on later polls. Operators can opt in other services or
 disable digests. See [X digest configuration](docs/configuration.md#x-post-digests).
 
+The owner can ask Sago to inspect Discord slash-command registration and command
+permissions, or explicitly resync `/ask` to one guild without replacing other
+commands. Chat feature enablement and Discord command registration are separate.
+See [slash-command diagnostics](docs/bot-management.md#slash-command-diagnostics-and-repair).
+
 ## Self-host mini sago
 
 You will need a Discord application, a VPS or some machine to throw her on , an agent worker (I used Codex here), and [Bun](https://bun.sh/).

@@ -287,6 +287,10 @@ describe("Discord chatbot", () => {
             tools: ["send_channel_message"],
           }),
           expect.objectContaining({
+            id: "discord_commands",
+            tools: ["inspect_discord_commands", "sync_discord_commands"],
+          }),
+          expect.objectContaining({
             id: "bot_status",
             tools: ["update_custom_status"],
           }),
@@ -1938,6 +1942,8 @@ describe("Discord chatbot", () => {
       expect(tools).toContain("rename_guild_emoji");
       expect(tools).not.toContain("configure_feature_availability");
       expect(tools).not.toContain("update_custom_status");
+      expect(tools).not.toContain("inspect_discord_commands");
+      expect(tools).not.toContain("sync_discord_commands");
       const renamed = await client.callTool({
         name: "rename_guild_emoji",
         arguments: { emoji: "wave", name: "hello" },

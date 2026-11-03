@@ -20,6 +20,12 @@ Configure workers separately using [Workers](workers.md).
    connection. Install with the `bot` scope. Application defaults affect new
    installs only; update existing bot roles and channel overrides manually.
 
+For an existing installation whose `/ask` is missing, the owner can ask Sago to
+inspect global/guild registration and command permissions, then explicitly
+resync `/ask` in the intended guild. Enabling the MiniSago `chatbot` feature does
+not register the command with Discord. See
+[diagnostics and repair](bot-management.md#slash-command-diagnostics-and-repair).
+
 ## Permissions
 
 The synchronized permission bitfield is `9124124388416`:

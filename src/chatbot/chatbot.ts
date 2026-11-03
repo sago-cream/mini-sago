@@ -4,6 +4,7 @@ import {
   DeveloperThreadStore,
   DEVELOPER_TASK_TTL_MS,
 } from "./developer-thread-store";
+import { createDiscordCommandManagement } from "../discord/application-commands";
 import { updateCustomStatus } from "../discord/bot-management";
 import {
   createFeatureAccess,
@@ -2023,6 +2024,11 @@ async function handleChatbotMentionRequest({
           : {}),
         ...(requesterUserId === accessConfig.ownerUserId
           ? {
+              discordCommands: createDiscordCommandManagement({
+                discordRequest,
+                applicationId: process.env.DISCORD_APPLICATION_ID?.trim(),
+                currentGuildId: message.guild_id,
+              }),
               updateCustomStatus,
               ...(message.guild_id
                 ? {

@@ -1,3 +1,4 @@
+import { ASK_COMMAND } from "../src/discord/application-commands.ts";
 import {
   DISCORD_GUILD_INSTALL,
   buildDiscordApplicationUpdate,
@@ -73,33 +74,18 @@ await discordApi("/applications/@me", {
   ),
 });
 
-const askCommand = {
-  name: "ask",
-  type: 1,
-  description: "Ask MiniSago privately in this channel",
-  options: [
-    {
-      name: "prompt",
-      type: 3,
-      description: "What you want to ask MiniSago",
-      required: true,
-      max_length: 2_000,
-    },
-  ],
-};
-
 const commandTargets = guildId
   ? [
       { path: `/applications/${applicationId}/commands`, commands: [] },
       {
         path: `/applications/${applicationId}/guilds/${guildId}/commands`,
-        commands: [askCommand],
+        commands: [ASK_COMMAND],
       },
     ]
   : [
       {
         path: `/applications/${applicationId}/commands`,
-        commands: [{ ...askCommand, contexts: [0], integration_types: [0] }],
+        commands: [{ ...ASK_COMMAND, contexts: [0], integration_types: [0] }],
       },
     ];
 
