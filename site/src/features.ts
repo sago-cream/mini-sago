@@ -983,6 +983,33 @@ export const FEATURES = [
         note: '僅限擁有者。頻道名稱須能明確對應，也可以直接提供頻道 ID。',
     },
     {
+        id: 'slash-commands',
+        section: 'management',
+        title: '斜線指令檢查與同步',
+        description:
+            '由擁有者檢查 Discord 指令註冊與指令權限，並指定伺服器重新同步 /ask。',
+        channel: '私人工作',
+        messages: [
+            {
+                author: 'user',
+                text: '@迷你西米露 已開啟聊天，但伺服器的指令列表看不到 /ask，幫我檢查。',
+            },
+            {
+                author: 'sago',
+                text: '已查詢 Discord：這個伺服器沒有註冊 /ask，全域也沒有。聊天開放設定和指令註冊是分開的。',
+            },
+            {
+                author: 'user',
+                text: '幫這個伺服器重新同步 /ask。',
+            },
+            {
+                author: 'sago',
+                text: 'Discord 已接受 /ask，重新讀取也確認已註冊。若特定成員仍看不到，還要檢查該成員的頻道與指令權限。',
+            },
+        ],
+        note: '僅限擁有者。同步只更新指定伺服器的 /ask；保留既有權限與其他指令。無法讀取的檢查會標示未知。',
+    },
+    {
         id: 'controls',
         section: 'management',
         title: '功能與權限設定',
