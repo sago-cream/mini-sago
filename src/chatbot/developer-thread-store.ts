@@ -9,6 +9,18 @@ export type SavedDeveloperThread = PreservedDeveloperTask & {
   guildId: string;
   requiresAddressing: boolean;
   expiresAt: number;
+  t3?: {
+    url: string;
+    threadId: string;
+    projectId: string;
+    link?: string;
+    cursor?: number;
+    seenMessageIds: string[];
+    pendingQuestion?: { requestId: string; questionId: string };
+    statusMessageId?: string;
+    statusText?: string;
+    relay?: { itemId: string; messageIds: string[]; text: string };
+  };
 };
 
 export function developerThreadStorePath(environment = process.env) {
@@ -64,6 +76,15 @@ export class DeveloperThreadStore {
     this.database
       .query("DELETE FROM developer_threads WHERE thread_id = ?")
       .run(threadId);
+  }
+
+  list(): SavedDeveloperThread[] {
+    return this.database
+      .query<{ task_json: string }, [number]>(
+        "SELECT task_json FROM developer_threads WHERE expires_at > ?",
+      )
+      .all(Date.now())
+      .map((row) => JSON.parse(row.task_json) as SavedDeveloperThread);
   }
 
   private prune() {

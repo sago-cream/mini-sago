@@ -4,10 +4,8 @@ import {
   configuredSkillbookRepository,
   deploySocketPath,
   macFileRoots,
-  parseGitHubRepositories,
   validateBridgeUrl,
   validateMcpUrl,
-  workspaceChild,
 } from "./config";
 
 describe("worker configuration", () => {
@@ -27,14 +25,6 @@ describe("worker configuration", () => {
     );
     expect(deploySocketPath(" ")).toBeUndefined();
     expect(() => deploySocketPath("deploy.sock")).toThrow("absolute path");
-  });
-
-  test("discovers every valid repository visible to the worker account", () => {
-    expect(
-      parseGitHubRepositories(
-        "Hsiii/mini-sago\nsago-cream/mini-sago\ninvalid\nHsiii/mini-sago\n",
-      ),
-    ).toEqual(["Hsiii/mini-sago", "sago-cream/mini-sago"]);
   });
 
   test("limits default Mac file access to common user folders", () => {
@@ -78,29 +68,5 @@ describe("worker configuration", () => {
     expect(() =>
       validateMcpUrl("http://bot.example.com/api/chatbot/mcp"),
     ).toThrow("must use https://");
-  });
-
-  test("keeps GitHub worktree roots inside the dev workspace", () => {
-    expect(
-      workspaceChild(
-        "/workspace",
-        "/workspace/worktrees",
-        "MINISAGO_GITHUB_WORKTREE_ROOT",
-      ),
-    ).toBe("/workspace/worktrees");
-    expect(() =>
-      workspaceChild(
-        "/workspace",
-        "/private/worktrees",
-        "MINISAGO_GITHUB_WORKTREE_ROOT",
-      ),
-    ).toThrow("must be a directory inside MINISAGO_WORKSPACE_ROOT");
-    expect(() =>
-      workspaceChild(
-        "/workspace",
-        "/workspace",
-        "MINISAGO_GITHUB_WORKTREE_ROOT",
-      ),
-    ).toThrow("must be a directory inside MINISAGO_WORKSPACE_ROOT");
   });
 });

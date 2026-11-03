@@ -10,12 +10,12 @@ Mention MiniSago or reply to her message to continue a conversation. Automatic
 90-second follow-ups are off in every guild by default; the owner can opt a guild
 in through [`automatic_followups` registration](docs/feature-registration.md).
 
-Owner development requests use replied-to messages, forwarded content, and
-screenshots to choose a starting repository. Development threads can work across
-accessible GitHub repositories in one conversation, keeping each task’s checkouts and progress for follow-ups across
-service restarts. The owner can say `end dev thread` to return a development
-thread to ordinary chat without merging a PR. See
-[development workers](docs/workers.md).
+Owner coding requests open a persistent T3 session in a registered project.
+Reply in the Discord thread or open its T3 link to continue the same work, with
+the project's normal model, skills, tools, and permission mode. Assistant updates
+appear in Discord, including work continued in T3. `stop`, `status`, and
+`end dev thread` control the connection without deleting the T3 workspace.
+See [T3 coding setup](docs/t3-coding.md).
 
 Ask Sago to generate an image or edit an attachment, avatar, or existing emoji.
 She sends the result back as a Discord attachment and can add an edited copy as
@@ -51,6 +51,7 @@ You will need a Discord application, a VPS or some machine to throw her on , an 
 Start with [Discord setup](docs/discord-setup.md) and
 [worker setup](docs/workers.md). And according to your need, see also:
 
+- [T3 coding setup](docs/t3-coding.md)
 - [Architecture](docs/architecture.md)
 - [Configuration](docs/configuration.md)
 - [Security](docs/security.md)

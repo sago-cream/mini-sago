@@ -2,7 +2,8 @@
 
 MiniSago separates Discord authority from model execution. The hosted service
 owns identity, permissions, context retrieval, and Discord actions. Authenticated
-workers connect outbound and run Codex.
+workers connect outbound and run Codex for chat and bounded Mac requests.
+Owner coding connects directly to an independently running T3 environment.
 
 ## Deployment topology
 
@@ -11,10 +12,12 @@ flowchart LR
     U["Discord user"] --> D["Discord Gateway / REST"]
     D --> H["Hosted service<br/>authorization, context, actions"]
     H --> W["Reserved outbound<br/>WebSocket workflow"]
-    W --> O["Oracle worker<br/>chat, dev"]
-    W -. "fallback or Mac-only" .-> M["Mac helper<br/>chat, dev, mac"]
+    W --> O["Oracle worker<br/>chat"]
+    W -. "fallback or Mac-only" .-> M["Mac helper<br/>chat, mac"]
     O --> C["Codex"]
     M --> C
+    H --> T["T3 environment<br/>coding sessions and workspaces"]
+    T <--> UI["T3 UI"]
     H --> S[("Monitor and webhook state")]
     O --> V[("Codex, GitHub, repository,<br/>and trace volumes")]
 ```
@@ -35,27 +38,32 @@ coordination, and persistent feature and subscription settings.
 
 Bridge secrets determine each worker's profile:
 
-| Profile | Capabilities         | Selection                               |
-| ------- | -------------------- | --------------------------------------- |
-| Oracle  | `chat`, `dev`        | Preferred when compatible and available |
-| Mac     | `chat`, `dev`, `mac` | Fallback or explicit Mac target         |
+| Profile | Capabilities  | Selection                               |
+| ------- | ------------- | --------------------------------------- |
+| Oracle  | `chat`        | Preferred when compatible and available |
+| Mac     | `chat`, `mac` | Fallback or explicit Mac target         |
 
-Workers advertise capacity, available repositories, and the repository that
-owns chatbot behavior. A workflow reserves one worker through routing and
-answering unless its required profile changes. Codex conversations have isolated
-configuration and request credentials. Linux chat can reuse an app-server process
-while creating and cleaning up a separate conversation and workspace per answer.
+Workers advertise capacity. A workflow reserves a worker through chat routing
+and answering. Codex conversations have isolated configuration and request
+credentials. Linux chat can reuse an app-server process while creating and
+cleaning up a separate conversation and workspace per answer.
+
+T3 owns coding sessions, providers, project defaults, worktrees, and history.
+The host's OAuth MCP client creates and messages ordinary T3 threads. A small
+Discord relay persists only associations and delivery checkpoints. Coding
+continuations reach T3 without acquiring a chat worker or running the router.
+See [T3 coding](t3-coding.md).
 
 ## Chat request lifecycle
 
 1. The Gateway recognizes a mention, reply, owner DM, or active continuation.
 2. The host authorizes the requester, gathers nearby messages, reserves a worker,
    and creates a short-lived MCP session.
-3. Saved development threads recover their task and session from the core state
-   store before routing. Other owner requests run a bounded router. It chooses `chat` for host-tool
-   actions and uncertain requests, `mac` for explicit Mac resources, or `oracle`
-   with a starting repository for development work. Development threads can clone
-   additional accessible repositories into the same isolated task workspace.
+3. Existing coding associations go directly to T3. Other owner requests run a
+   bounded router using active T3 projects. It chooses `chat`, bounded Mac file
+   access, or a T3 coding project (the internal route value remains `oracle`).
+   For coding, the host releases request credentials and its chat worker after
+   creating the T3 session. Replies and T3 UI work continue that session.
 4. The worker answers using the request, conversation, and supported attachments.
    It can fetch additional history, accessible guild search, member aliases,
    and metadata about a previous answer through `resolve_context`.
@@ -63,9 +71,9 @@ while creating and cleaning up a separate conversation and workspace per answer.
    MCP token and releases the worker.
 
 Community and owner chat use GPT-6.1 Sol with medium reasoning. Owner routing,
-voice, and social actions use GPT-6 Luna with low reasoning; development uses
-GPT-6.1 Sol with high reasoning. Ordinary stages time out after two minutes.
-Development runs until completion, cancellation, or worker disconnection.
+voice, and social actions use GPT-6 Luna with low reasoning; coding uses
+the T3 project defaults. Ordinary stages have bounded request deadlines. Coding
+continues independently of bot deployment and Discord connection lifetime.
 
 ## Context and MCP
 
@@ -146,8 +154,8 @@ snapshots on replies, and attachment preparation. Both receive image inputs and
 bounded extracted text. Jev classifies only the execution route for text-only
 context; the Codex router resolves the starting repository before thread creation.
 
-Development jobs read repository `AGENTS.md` and `AGENTS.override.md` guidance,
-up to 32 KiB combined. Other jobs disable implicit repository guidance.
+T3 coding follows its provider and project instruction discovery. Chat jobs
+disable implicit repository guidance.
 Permissions, MCP bindings, command wrappers, and output schemas enforce
 capabilities outside the prompt.
 

@@ -438,7 +438,7 @@ export type ChatbotMcpSessionHandlers = {
   };
   getCodexUsage?: () => Promise<CodexUsageSnapshot | null>;
   endDeveloperThread?: (threadId?: string) => Promise<{
-    status: "ended" | "not_found";
+    status: "ended" | "not_found" | "unavailable";
     threadId: string;
   }>;
   updateCustomStatus?: (

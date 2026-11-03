@@ -198,15 +198,14 @@ matched queries, and any per-query errors. It does not poll or repost.
 | `MINISAGO_DEPLOY_NOTIFICATION_STATE_FILE` | Core     | Delivery checkpoint for deployment results              |
 | `MINISAGO_SESSION_MONITOR_PATH`           | Mac      | Compiled macOS lock monitor                             |
 | `MINISAGO_TRACE_DATABASE_PATH`            | No       | Local response-trace database                           |
-| `MINISAGO_WORKSPACE_ROOT`                 | Dev      | Parent of disposable repository worktrees               |
+| `MINISAGO_WORKSPACE_ROOT`                 | No       | Worker runtime directory                                |
 | `MINISAGO_MAX_CONCURRENT_JOBS`            | No       | Capacity advertised to the bridge, from 1 to 16         |
 | `MINISAGO_SANDBOX_URL`                    | Linux    | Internal request-local computation broker URL           |
 | `MINISAGO_HEADLESS`                       | Linux    | Keep a worker connected without a session monitor       |
 | `MINISAGO_WORKER_ID`                      | No       | Stable worker identity                                  |
 | `MINISAGO_CHATBOT_REPOSITORY`             | No       | Repository that owns chatbot behavior                   |
 | `MINISAGO_CHATBOT_OWNER_USER_ID`          | Yes      | Same owner ID as the hosted service                     |
-| `MINISAGO_GITHUB_CONFIG_DIR`              | Dev      | Dedicated GitHub CLI state                              |
-| `MINISAGO_GITHUB_WORKTREE_ROOT`           | No       | Disposable per-job checkout root                        |
+| `MINISAGO_GITHUB_CONFIG_DIR`              | No       | GitHub state for optional worker Skillbook sync         |
 
 Worker URLs must use TLS outside local or container-local hosts. Bridge secrets
 must contain at least 32 bytes. The owner ID is validated as a Discord snowflake
@@ -223,13 +222,19 @@ request-local media IDs, and image options. See
 [image generation and emoji edits](workers.md#image-generation-and-emoji-edits)
 for formats, delivery, and limits.
 
-Workers discover repositories from their dedicated GitHub CLI login at startup.
-Set `MINISAGO_CHATBOT_REPOSITORY` when that login can access multiple repositories
-so requests to change MiniSago itself do not rely on name inference. This selects
-the starting checkout, not the set of repositories a development thread can use.
-Each development turn supplies `MINISAGO_REPOSITORIES_DIR` for persistent additional
-checkouts and `MINISAGO_GIT_BRANCH` for their feature branch. These values are
-generated per task; operators do not configure them.
+## T3 coding
+
+| Name                              | Purpose                                                                       |
+| --------------------------------- | ----------------------------------------------------------------------------- |
+| `MINISAGO_T3_URL`                 | T3 MCP endpoint reachable from core; HTTPS or localhost HTTP                  |
+| `MINISAGO_T3_WEB_URL`             | Optional HTTPS UI origin for links when MCP uses a private container hostname |
+| `MINISAGO_T3_CREDENTIALS_PATH`    | Private OAuth grant, default `/app/state/t3/oauth.json` in production         |
+| `MINISAGO_CHATBOT_REPOSITORY`     | Sago's own registered T3 repository, configured on core                       |
+| `MINISAGO_DEVELOPER_THREADS_PATH` | Persistent Discord/T3 associations and delivery checkpoints                   |
+
+Run `bun run t3:login` on the bot host to approve its separate grant. Projects,
+models, permission modes, skills, and workspaces are configured in T3. Coding is
+owner-only. See [T3 setup](t3-coding.md).
 
 ## Persistent state
 
@@ -272,14 +277,14 @@ and `.data/feature-availability.json` elsewhere. The first change saves a policy
 initialized from environment settings and built-in defaults; saved policy then
 takes precedence. Owners can list, enable, disable, or restore inherited coverage
 for an exact guild or channel. Channel rules override guild rules, then feature
-defaults. Calendar, CCXP, Drive, and developer steering require explicit guild
+defaults. Calendar, CCXP, and Drive require explicit guild
 registrations. The owner listing also describes request and owner-only access
 modes; those modes cannot be made public through registration. See
 [role filters](#feature-registrations-and-role-filters) below.
 
 `developer_thread_control` is owner-only and needs no additional configuration.
 The owner can end a current or specified development thread in the same server
-with `end dev thread` or `end_developer_thread`; this removes its saved association
+with `end dev thread` or `end_developer_thread`; this stops the T3 task, removes its saved association
 from `MINISAGO_DEVELOPER_THREADS_PATH` and returns it to normal chat rules. See
 [development workers](workers.md) for commands and pause behavior.
 
@@ -319,8 +324,7 @@ send empty arrays to remove filtering. Disable denies the whole scope; inherit
 removes that scope's rule. Filters are accepted only with enable.
 
 Channel rules take precedence over guild rules, including a filtered channel
-rule that denies a member. Automatic follow-ups, Calendar, CCXP, Drive, and
-developer steering require guild registrations and a disabled global default. Other features support both scopes.
+rule that denies a member. Automatic follow-ups, Calendar, CCXP, and Drive require guild registrations and a disabled global default. Other features support both scopes.
 Mail supports both guild and channel registration with a disabled global default.
 Register `mail` through `configure_feature_availability`; role filters control
 who may request mail, while responses are visible to everyone who can view the

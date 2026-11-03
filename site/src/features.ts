@@ -861,7 +861,7 @@ export const FEATURES = [
         section: 'developer',
         title: '程式開發',
         description:
-            '從回覆、轉發和截圖辨識專案並建立開發討論串；同一串能跨專案工作，重啟後也能接續進度。擁有者可指定結束開發討論串，回到一般聊天。',
+            '擁有者可從 Discord 開啟 T3 開發工作階段，沿用專案的模型、工具與技能；在 Discord 或 T3 接續同一份工作，進度會同步到討論串。支援附件、停止與結束開發。',
         channel: '程式開發',
         messages: [
             {
@@ -870,7 +870,7 @@ export const FEATURES = [
             },
             {
                 author: 'sago',
-                text: '會把進度放在這個開發討論串，先檢查列表和現有驗證。',
+                text: '已建立 T3 工作階段，會把進度同步到這個討論串。你也可以開啟 T3 查看程式差異並繼續工作。',
             },
             {
                 author: 'user',
@@ -891,7 +891,7 @@ export const FEATURES = [
             },
             {
                 author: 'sago',
-                text: '已結束開發模式，這串回到一般聊天；需要我時再標註或回覆我。工作檔案會保留。',
+                text: '已停止工作並結束 Discord 開發連線，這串回到一般聊天。T3 工作階段和檔案會保留。',
             },
         ],
         note: '',

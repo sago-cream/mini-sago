@@ -8,6 +8,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -57,7 +58,7 @@ async function connectMedia(
   );
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [new URL("./media-mcp.ts", import.meta.url).pathname],
+    args: [fileURLToPath(new URL("./media-mcp.ts", import.meta.url))],
     env: {
       ...getDefaultEnvironment(),
       MINISAGO_MEDIA_MANIFEST: manifestPath,

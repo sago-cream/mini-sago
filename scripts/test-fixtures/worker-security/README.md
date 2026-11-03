@@ -11,8 +11,7 @@ production MiniSago worker. Keep both repositories in sync when changing them.
   It allows namespace/mount setup while retaining the `/proc` and `/sys`
   restrictions. It requires AppArmor 4 for `userns` support.
 
-See [runtime checks](../../../docs/workers.md#development-runtime-checks) before running
-the Linux smoke test. The CI runner loads the AppArmor profile
-and runs the same sandbox as an unprivileged user.
+These profiles remain applicable to the restricted chat worker. T3 coding uses
+its own environment's provider configuration; see [T3 coding](../../../docs/t3-coding.md).
 
 Moby profiles are distributed under the [Apache 2.0 license](LICENSE.moby).

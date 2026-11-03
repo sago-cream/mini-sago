@@ -1,3 +1,4 @@
+import { startDeveloperThreadRelay } from "./chatbot/chatbot";
 import { startCcxpAuthNotificationMonitor } from "./discord/jobs/ccxp-auth-notifications";
 import { handleVoiceDebugRequest } from "./discord/voice/voice-debug/http";
 import { handleCalendarPage } from "./chatbot/calendar/calendar-pages";
@@ -49,6 +50,7 @@ function buildHealthResponse() {
         guildId: summary.hasGuildId,
         githubWebhook: isGithubWebhookConfigured(),
         macBridge: macAgentBridge.isConfigured(),
+        t3Coding: Boolean(process.env.MINISAGO_T3_URL?.trim()),
       },
       workers: macAgentBridge.getWorkerSummary(),
     });
@@ -121,6 +123,10 @@ const server = Bun.serve({
 const reminderBotToken = process.env.DISCORD_BOT_TOKEN?.trim();
 if (reminderBotToken) {
   const discordRequest = createDiscordRequest(reminderBotToken);
+  startDeveloperThreadRelay(
+    discordRequest,
+    getChatbotAccessConfig().ownerUserId,
+  );
   configureChatbotReminderScheduler(async (reminder: Reminder) => {
     if (await shouldSkipImageReminder(reminder, discordRequest)) return;
     await discordRequest(`/channels/${reminder.channelId}/messages`, {

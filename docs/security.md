@@ -96,12 +96,9 @@ restricted filesystem access, and have no general network permission outside
 Codex's own web search and MiniSago's MCP server. Image generation uses the
 bounded media MCP described below.
 
-Oracle development jobs can read the skills installed in their isolated Codex
-home. Oracle snapshots the linked skill commits only when the trusted Skillbook
-repository advances, rejects symbolic links, and replaces managed skill
-directories as one transaction. A linked skill is trusted developer guidance,
-so only reviewed Skillbook changes should advance the snapshot. The Mac helper
-does not sync or replace the Mac's local skills.
+Owner coding runs in a separate T3 environment under that account's normal
+provider and project permissions. Its skills, tools, and instruction discovery
+are configured in T3. The bot's separate OAuth grant is kept only on core.
 
 Kyushu itinerary access is exposed only when the host-bound Discord guild is
 `1282936453134815275`. Reads use the public planner endpoint; edits require a
@@ -182,55 +179,29 @@ directory for additional repositories, or the current turn's output folder, with
 matching image signatures. Paths and symlinks that escape those roots are rejected. The worker and host both enforce at most 10
 attachments and 8 MB combined; remote image URLs are never fetched for upload.
 
-## Owner development and GitHub
+## Owner coding and GitHub
 
-Development jobs receive a starting disposable repository checkout and a writable
-directory for additional repositories isolated to the same task. The owner can steer
-work across accessible repositories without opening another thread. Checkouts and
-uncommitted work persist across task continuations. GitHub uses a dedicated
-persistent `gh` login. Workers discover every repository that credential can access
-rather than maintaining a second application allowlist.
-Tokens must never be placed in Discord, tasks, environment files, shell
-arguments, or repository content.
+Only the configured owner may control linked T3 coding sessions, including
+continuations. Bot/webhook messages and other guild participants are excluded.
+Community chat keeps its existing host-bound access controls and restricted
+execution. The bot never forwards its Discord token or short-lived chat MCP
+credentials into the coding environment.
 
-The core persists development-thread task identity, owner, guild, starting
-repository, original request, session ID, and the post-merge addressing rule in
-its private state volume. Runtime MCP tokens, worker leases, and credentials are
-not saved. Recovery validates the configured owner and guild and checks current
-participant steering policy. Associations expire after three idle days; expiry
-removes recovery metadata without deleting worker files. Startup never replays
-interrupted work automatically.
+T3 owns the agent's shell, network, installed tools, project instructions, and
+credentials. Coding can use full access when allowed by the configured grant
+and project. Worktrees separate edits and do not restrict the agent's filesystem
+access. Keep the T3 service account separate from bot secrets and unrelated
+production credentials. GitHub rulesets independently protect branches.
 
-Only the configured owner can route work to Oracle. Every Oracle job uses a
-prepared feature branch, and per-job `gh` and `git` wrappers permit ordinary
-repository work without a second inferred authorization scope:
+The host stores only T3 associations and delivery state in its coding-thread
+store. On restart it reads existing T3 output without restarting work. A changed
+environment does not silently replace a saved session. Ambiguous message sends
+are never replayed automatically. See [T3 setup and recovery](t3-coding.md).
 
-- issue operations are allowed;
-- the prepared feature branch may be pushed and used to open a draft PR;
-- an explicit owner request may merge a pull request without administrative
-  bypass; and
-- PR edits, comments, reviews, ready-for-review, release management, workflow
-  management and Actions reruns are allowed within the owner's requested work;
-  protected-branch and force pushes are denied.
-
-GitHub rulesets must independently block direct and force pushes to protected
-branches. The credential should have repository contents, issues, and pull
-request access plus read access to checks. Release mutations require Contents
-write access; workflow mutations and Actions reruns require Actions write access.
-Never grant administration, secrets, environments, deployments, organization, or unrelated
-repository access. Credential and ruleset setup is tracked in
-[issue #12](https://github.com/sago-cream/mini-sago/issues/12).
-
-The production Oracle worker exposes `deploy_minisago` only to jobs for the
-configured MiniSago repository. A small MCP adapter calls the existing deployment
-socket outside the shell sandbox, so the socket is never a writable directory
-root. The tool accepts a full MiniSago commit SHA and fixes the originating
-Discord thread ID from the job. The host verifies the fixed
-request shape and deploys the matching immutable core and worker image tags.
-Codex receives no Docker socket, SSH credential, command argument, host path,
-or general deployment target through this channel. The bot reads the terminal
-status from a read-only mount and checkpoints its Discord notification in the
-existing persistent state volume.
+The bounded MiniSago deployment socket remains available for environments that
+can reach it. It accepts the immutable MiniSago commit and a fixed originating
+Discord channel through the deployment adapter; it exposes no general shell or
+Docker socket. Configure the adapter on the T3 environment when needed.
 
 ## Retention and privacy
 

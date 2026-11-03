@@ -132,6 +132,9 @@ function assertSnapshot(
       );
     }
   }
+  snapshot.features = Object.fromEntries(
+    REGISTERED_FEATURE_IDS.map((id) => [id, snapshot.features![id]]),
+  ) as FeatureAvailabilitySnapshot["features"];
   return snapshot as FeatureAvailabilitySnapshot;
 }
 
