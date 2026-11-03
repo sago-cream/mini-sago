@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "t3:login": "bun scripts/t3-login.ts",
     "dev": "bun --watch src/server.ts",
     "dev:site": "bun run --cwd site dev --port 3101",
     "deploy": "bun scripts/deploy.mjs",

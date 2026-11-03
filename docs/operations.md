@@ -50,15 +50,17 @@ ghcr.io/sago-cream/minisago-worker
 
 Oracle worker image builds resolve the latest stable Codex CLI release and
 install that exact version. Model-only PRs therefore refresh Codex on the next
-release without a separate version bump. PR CI runs the Linux sandbox smoke
-check with the latest stable CLI; set `CODEX_VERSION` when running
-`scripts/test-dev-sandbox.sh` to check a specific release. Published commit-tagged
+release without a separate version bump. PR CI checks T3 coding transport, delivery, access, and recovery. Published commit-tagged
 images retain their installed version for rollback.
 
 For a general self-host, run the core image with the hosted-service variables,
 persist `/app/state`, expose port `3000` through an HTTPS reverse proxy, and run
 at least one separately authenticated worker. Replace the
 `bot.hsichen.dev` examples with the deployment's public origin.
+
+T3 coding is configured separately from worker deployment. Keep its OAuth grant
+in core persistent storage and its provider state on the T3 host. Bot restarts
+resume the Discord relay without starting agent work. See [T3 setup](t3-coding.md).
 
 ## Sago Cloud deployment
 
@@ -101,7 +103,7 @@ persistent volumes:
 - bot monitor, reminder, custom-status, and webhook state;
 - worker Codex and GitHub CLI state;
 - worker traces; and
-- disposable repository/worktree storage.
+- preserved worker storage and the independent T3 environment state.
 
 ## Verification
 

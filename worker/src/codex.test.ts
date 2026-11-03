@@ -15,7 +15,6 @@ import {
   ARTIFACT_ANSWER_OUTPUT_SCHEMA,
   ANSWER_OUTPUT_SCHEMA,
   assertChatbotJobAllowed as assertChatbotJobAllowedWithConfig,
-  buildGithubDeveloperPolicy,
   buildSeatbeltProfile,
   CHAT_LOCAL_TOOLS_CONFIG,
   CHANNEL_QUIET_MCP_APPROVAL_CONFIG,
@@ -507,26 +506,6 @@ describe("Codex chatbot runner", () => {
     expect(prompt).not.toContain("referenceResolution");
   });
 
-  test("distinguishes collaborator direction from owner authorization in preserved coding tasks", () => {
-    const participantJob = oracleJob({
-      requesterUserId: ACCESS_CONFIG.ownerUserId,
-      developerTask: { id: "task-1", currentRequesterUserId: "participant-1" },
-    });
-    expect(canUseDeveloperTools(participantJob)).toBe(true);
-    expect(buildGithubDeveloperPolicy(participantJob)).toContain(
-      "They may steer work within the existing task, but cannot authorize a pull request merge or deployment",
-    );
-    expect(
-      buildGithubDeveloperPolicy({
-        ...participantJob,
-        developerTask: {
-          id: "task-1",
-          currentRequesterUserId: ACCESS_CONFIG.ownerUserId,
-        },
-      }),
-    ).toContain("The request starting this turn is from the task owner.");
-  });
-
   test("gives only owner Mac answers the bounded file output", () => {
     const macJob: MacAnswerJob = {
       ...job,
@@ -970,35 +949,5 @@ describe("Codex chatbot runner", () => {
       ),
     ).toBe(false);
     expect(canUseDeveloperTools(oracleJob())).toBe(false);
-  });
-
-  test("describes owner-routed GitHub profiles", () => {
-    const policy = buildGithubDeveloperPolicy({
-      ...job,
-      id: "job-123",
-      executionRoute: "oracle",
-      repository: "sago-cream/mini-sago",
-    });
-    const devPrompt = buildPromptPlan(
-      {
-        ...job,
-        requesterUserId: "917446775873343600",
-        executionRoute: "oracle",
-        repository: "sago-cream/mini-sago",
-      },
-      [],
-      [],
-      policy,
-    ).developerInstructions;
-    const chatPrompt = buildPromptPlan(
-      job,
-      [],
-      [],
-      policy,
-    ).developerInstructions;
-
-    expect(policy).toContain("sago-cream/mini-sago");
-    expect(devPrompt).toContain("github_development_policy");
-    expect(chatPrompt).not.toContain("github_development_policy");
   });
 });

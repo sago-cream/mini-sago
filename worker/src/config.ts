@@ -1,6 +1,6 @@
 import { homedir, hostname } from "node:os";
 import { isIP } from "node:net";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { resolveCodexPath } from "./codex-path";
 
 import {
@@ -15,10 +15,7 @@ export type MacAgentConfig = {
   codexPath: string;
   deploySocketPath?: string;
   githubConfigDir: string;
-  githubRepositories: string[];
-  chatbotRepository?: string;
   chatbotAccess: ChatbotAccessConfig;
-  githubWorktreeRoot: string;
   maxConcurrentJobs: number;
   macFileRoots: string[];
   mcpUrl: string;
@@ -77,50 +74,6 @@ export function configuredSkillbookRepository(
   return configured?.trim() || (headless ? "sago-cream/skills" : undefined);
 }
 
-export async function discoverGitHubRepositories(githubConfigDir: string) {
-  const child = Bun.spawn(
-    [
-      "gh",
-      "api",
-      "--paginate",
-      "user/repos?per_page=100&affiliation=owner,collaborator,organization_member",
-      "--jq",
-      ".[].full_name",
-    ],
-    {
-      stdout: "pipe",
-      stderr: "pipe",
-      env: {
-        ...process.env,
-        GH_CONFIG_DIR: githubConfigDir,
-        GH_HOST: "github.com",
-        GH_PROMPT_DISABLED: "1",
-      },
-    },
-  );
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
-  if (exitCode !== 0) {
-    throw new Error(
-      stderr.trim().split("\n").at(-1) || "GitHub repository discovery failed.",
-    );
-  }
-  return parseGitHubRepositories(stdout);
-}
-
-export function parseGitHubRepositories(stdout: string) {
-  const repositories = stdout
-    .split("\n")
-    .map((repository) => repository.trim())
-    .filter((repository) => /^[a-z0-9_.-]+\/[a-z0-9_.-]+$/iu.test(repository));
-  return [...new Set(repositories)].sort((left, right) =>
-    left.localeCompare(right, "en-US"),
-  );
-}
-
 export function validateBridgeUrl(value: string) {
   const url = new URL(value);
   const hostname = url.hostname.replace(/^\[|\]$/gu, "");
@@ -164,25 +117,7 @@ function defaultMcpUrl(bridgeUrl: string) {
   return url.toString();
 }
 
-export function workspaceChild(root: string, candidate: string, name: string) {
-  const absoluteRoot = resolve(root);
-  const absoluteCandidate = resolve(candidate);
-  const pathFromRoot = relative(absoluteRoot, absoluteCandidate);
-  if (
-    !pathFromRoot ||
-    pathFromRoot.startsWith("..") ||
-    isAbsolute(pathFromRoot)
-  ) {
-    throw new Error(
-      `${name} must be a directory inside MINISAGO_WORKSPACE_ROOT.`,
-    );
-  }
-  return absoluteCandidate;
-}
-
-export async function loadMacAgentConfig(
-  discoverRepositories = discoverGitHubRepositories,
-): Promise<MacAgentConfig> {
+export async function loadMacAgentConfig(): Promise<MacAgentConfig> {
   const chatbotAccess = getChatbotAccessConfig();
   const bridgeSecret = process.env.MINISAGO_MAC_BRIDGE_SECRET?.trim();
 
@@ -205,38 +140,8 @@ export async function loadMacAgentConfig(
   const githubConfigDir =
     process.env.MINISAGO_GITHUB_CONFIG_DIR?.trim() ||
     join(defaultApplicationSupport, "github");
-  const githubRepositories = await discoverRepositories(githubConfigDir);
-  if (githubRepositories.length === 0) {
-    throw new Error(
-      "The worker GitHub account has no accessible repositories.",
-    );
-  }
-  const configuredChatbotRepository =
-    process.env.MINISAGO_CHATBOT_REPOSITORY?.trim();
-  if (
-    configuredChatbotRepository &&
-    !githubRepositories.some(
-      (repository) =>
-        repository.toLocaleLowerCase("en-US") ===
-        configuredChatbotRepository.toLocaleLowerCase("en-US"),
-    )
-  ) {
-    throw new Error(
-      "MINISAGO_CHATBOT_REPOSITORY must name an accessible GitHub repository.",
-    );
-  }
-  const chatbotRepository =
-    configuredChatbotRepository ||
-    (githubRepositories.length === 1 ? githubRepositories[0] : undefined);
   const workspaceRoot =
     process.env.MINISAGO_WORKSPACE_ROOT?.trim() || join(homedir(), "Projects");
-  const githubWorktreeRoot = workspaceChild(
-    workspaceRoot,
-    process.env.MINISAGO_GITHUB_WORKTREE_ROOT?.trim() ||
-      join(workspaceRoot, "worktrees"),
-    "MINISAGO_GITHUB_WORKTREE_ROOT",
-  );
-
   const bridgeUrl = validateBridgeUrl(
     process.env.MINISAGO_BRIDGE_URL?.trim() ||
       "wss://bot.hsichen.dev/api/mac-agent/ws",
@@ -251,10 +156,7 @@ export async function loadMacAgentConfig(
     codexPath: await resolveCodexPath(),
     deploySocketPath: deploySocketPath(),
     githubConfigDir,
-    githubRepositories,
-    chatbotRepository,
     chatbotAccess,
-    githubWorktreeRoot,
     headless,
     maxConcurrentJobs: Math.max(
       1,

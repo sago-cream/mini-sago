@@ -69,7 +69,6 @@ describe("feature availability", () => {
       "trip_planner",
       "ccxp_meetings",
       "calendar",
-      "developer_steering",
       "mail",
       "drive",
     ]);
@@ -202,55 +201,23 @@ describe("feature availability", () => {
     ).toBe(false);
   });
 
-  test("registers coding steering only by guild and preserves revocation", async () => {
-    const { directory, store: availability } = await store({
-      MINISAGO_CHATBOT_GUILD_IDS: "917436845187563610",
-      MINISAGO_CHATBOT_CHANNEL_IDS: "1517766866964316201",
-    });
-    const guildId = "1521168712579682567";
-    expect(availability.isEnabled("developer_steering", { guildId })).toBe(
-      true,
-    );
-    expect(
-      availability.isEnabled("developer_steering", {
-        guildId: "917436845187563610",
-      }),
-    ).toBe(false);
-    expect(
-      availability.isEnabled("developer_steering", {
-        channelId: "1517766866964316201",
-      }),
-    ).toBe(false);
-    await expect(
-      availability.configure({
-        feature: "developer_steering",
-        scope: "channel",
-        targetId: guildId,
-        action: "enable",
-      }),
-    ).rejects.toThrow("guild scope");
-    await availability.configure({
-      feature: "developer_steering",
-      scope: "guild",
-      targetId: guildId,
-      action: "inherit",
-    });
-    expect(
-      new FeatureAvailabilityStore(
-        join(directory, "features.json"),
-        {},
-      ).isEnabled("developer_steering", { guildId }),
-    ).toBe(false);
-    const file = join(directory, "legacy.json");
-    const { developer_steering, ...legacyFeatures } =
-      defaultFeatureAvailability({}).features;
+  test("drops retired coding steering settings from persisted feature catalogues", async () => {
+    const { directory } = await store();
+    const file = join(directory, "legacy-steering.json");
+    const snapshot = defaultFeatureAvailability({});
     await writeFile(
       file,
-      JSON.stringify({ version: 1, features: legacyFeatures }),
+      JSON.stringify({
+        ...snapshot,
+        features: {
+          ...snapshot.features,
+          developer_steering: { defaultEnabled: false, rules: [] },
+        },
+      }),
     );
     expect(
-      new FeatureAvailabilityStore(file, {}).list().features.developer_steering,
-    ).toEqual(developer_steering);
+      new FeatureAvailabilityStore(file, {}).list().features,
+    ).not.toHaveProperty("developer_steering");
   });
 
   test("migrates existing feature files without replacing saved CCXP decisions", async () => {

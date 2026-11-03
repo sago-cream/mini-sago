@@ -206,22 +206,6 @@ export const FEATURE_DEFINITIONS = {
       ],
     },
   },
-  developer_steering: {
-    description:
-      "Let registered non-owner humans steer existing coding tasks; the owner can steer everywhere.",
-    access: "registered",
-    registration: {
-      scopes: ["guild"],
-      dm: "none",
-      voice: true,
-      allowDefaultEnabled: false,
-      ownerBypass: true,
-      initialPolicy: (environment: NodeJS.ProcessEnv): FeaturePolicy => ({
-        defaultEnabled: false,
-        rules: guildRules(["1521168712579682567"]),
-      }),
-    },
-  },
   mail: {
     description:
       "Read approved Gmail mailboxes in registered guilds or channels with role filters; replies are visible in the requesting conversation. The owner also has private text DM access.",
@@ -516,7 +500,7 @@ export const FEATURE_DEFINITIONS = {
   },
   repository_work: {
     description:
-      "Identify the starting repository from replied-to messages, forwarded content, and screenshots, then work across repositories visible to the dedicated GitHub account within one development thread, preserving checkouts and thread-to-task associations for follow-ups across service restarts, and handle debugging, tests, builds, code changes, commits, feature-branch pushes, issue work, draft pull requests, releases, GitHub workflows, and ordinary pull-request merges when explicitly requested.",
+      "Start an owner-only coding session in a registered T3 project, using replied-to messages, forwarded content, and screenshots to identify the work. Continue the same session from Discord or T3, using the project’s normal model, instructions, skills, tools, and permission mode. Discord relays assistant messages and plans and provides stop, status, and end controls. T3 handles code changes, checks, commits, pull requests, and authorized merges and deployment. Answer native approval requests in T3.",
     access: "owner",
     capability: { id: "repository_work", category: "development" },
   },

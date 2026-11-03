@@ -27,7 +27,6 @@ against Discord. Changes apply immediately and persist across restarts.
 | `trip_planner`        | Guild, channel   |
 | `ccxp_meetings`       | Guild            |
 | `calendar`            | Guild            |
-| `developer_steering`  | Guild            |
 | `mail`                | Guild, channel   |
 | `drive`               | Guild            |
 
@@ -36,9 +35,8 @@ nonempty `allowRoleIds` requires any matching role; `denyRoleIds` always wins.
 Unknown roles fail closed when a filter exists. Each enable replaces the previous
 filters. Omit filters or send empty arrays to clear them; inherit removes the rule.
 
-Automatic follow-ups, Calendar, CCXP, developer steering, Mail, and Drive require
-explicit registration with a disabled global default. The owner's chatbot and developer steering access
-continues everywhere. Mail also permits the owner's private text DM and excludes
+Automatic follow-ups, Calendar, CCXP, Mail, and Drive require
+explicit registration with a disabled global default. The owner's chatbot access continues everywhere. T3 coding control is owner-only. Mail also permits the owner's private text DM and excludes
 voice. Automatic follow-ups, Calendar, CCXP, and Drive exclude DMs. Automatic
 follow-ups also exclude voice and have no owner bypass.
 
