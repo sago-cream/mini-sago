@@ -396,17 +396,6 @@ export function assertChatbotJobAllowed(
   }
 }
 
-export function canUseDeveloperTools(
-  job: CodexJob,
-  accessConfig: ChatbotAccessConfig,
-): job is OracleAnswerJob {
-  return (
-    canUseChatbotCapability(job.requesterUserId, "dev", accessConfig) &&
-    job.purpose === "answer" &&
-    job.executionRoute === "oracle"
-  );
-}
-
 export function canUseMacFiles(
   job: CodexJob,
   accessConfig: ChatbotAccessConfig,
