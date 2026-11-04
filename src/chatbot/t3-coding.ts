@@ -76,8 +76,8 @@ const messageBody = (content: string) => ({
 /** Discord delivery state only. T3 owns sessions, execution, and workspaces. */
 export class DeveloperTaskRegistry {
   private queues = new Map<string, Promise<unknown>>();
-  private timer?: ReturnType<typeof setInterval>;
-  private polling = false;
+  private timer?: ReturnType<typeof setTimeout>;
+  private wakeRelay?: () => void;
   private nextPoll = new Map<string, number>();
   private client?: T3Connection;
   private repositories: string[] = [];
@@ -89,6 +89,7 @@ export class DeveloperTaskRegistry {
     client?: T3Connection,
     readonly store = new DeveloperThreadStore(":memory:"),
     private fetcher: typeof fetch = fetch,
+    private relayTimers = { schedule: setTimeout, cancel: clearTimeout },
   ) {
     this.client = client;
   }
@@ -227,7 +228,7 @@ export class DeveloperTaskRegistry {
       const initial = `${job.request}\n\nDiscord conversation: ${source}${recent ? `\n\nRecent Discord context (reference):\n${recent}` : ""}`;
       await this.send(task, message, initial, discord);
       await this.sync(task, discord);
-    });
+    }).finally(() => this.wakeRelay?.());
   }
 
   async handle(
@@ -292,7 +293,7 @@ export class DeveloperTaskRegistry {
         await this.post(task, this.failure(error), discord);
       }
       return true;
-    });
+    }).finally(() => this.wakeRelay?.());
   }
 
   async end(
@@ -325,6 +326,8 @@ export class DeveloperTaskRegistry {
       }
     }
     this.store.remove(threadId);
+    this.nextPoll.delete(threadId);
+    this.wakeRelay?.();
     await this.post(
       task,
       "Development thread ended. This is a normal Discord conversation again. The T3 session and workspace are preserved.",
@@ -701,19 +704,31 @@ export class DeveloperTaskRegistry {
   }
 
   startRelay(discord: DiscordRequest, ownerUserId: string) {
-    if (this.timer) return;
+    if (this.wakeRelay) return;
+    let polling = false;
+    let woken = false;
+    const schedule = (delay: number) => {
+      if (this.wakeRelay !== wake) return;
+      if (this.timer) this.relayTimers.cancel(this.timer);
+      this.timer = this.relayTimers.schedule(() => void poll(), delay);
+      this.timer.unref?.();
+    };
+    const wake = () => {
+      if (polling) woken = true;
+      else schedule(0);
+    };
     const poll = async () => {
-      if (this.polling) return;
-      this.polling = true;
+      this.timer = undefined;
+      polling = true;
+      let delay = 30_000;
       try {
+        const tasks = this.store
+          .list()
+          .filter((task) => task.t3 && task.requesterUserId === ownerUserId);
         await Promise.allSettled(
-          this.store
-            .list()
+          tasks
             .filter(
-              (task) =>
-                task.t3 &&
-                task.requesterUserId === ownerUserId &&
-                (this.nextPoll.get(task.threadId) ?? 0) <= Date.now(),
+              (task) => (this.nextPoll.get(task.threadId) ?? 0) <= Date.now(),
             )
             .map((task) =>
               this.recover(task.threadId, async () => {
@@ -724,16 +739,27 @@ export class DeveloperTaskRegistry {
               }),
             ),
         );
+        for (const task of tasks)
+          delay = Math.min(
+            delay,
+            Math.max(0, (this.nextPoll.get(task.threadId) ?? 0) - Date.now()),
+          );
+      } catch {
+        console.warn(
+          "T3 relay storage is unavailable; retrying in 30 seconds.",
+        );
       } finally {
-        this.polling = false;
+        polling = false;
+        schedule(woken ? 0 : delay);
+        woken = false;
       }
     };
-    this.timer = setInterval(() => void poll(), 3_000);
-    this.timer.unref?.();
+    this.wakeRelay = wake;
     void poll();
   }
   close() {
-    if (this.timer) clearInterval(this.timer);
+    this.wakeRelay = undefined;
+    if (this.timer) this.relayTimers.cancel(this.timer);
     this.timer = undefined;
   }
 }

@@ -81,6 +81,11 @@ Associations remain until explicitly ended. Undelivered output is retried;
 ambiguous outbound messages are reported for inspection rather than replayed.
 A different environment URL never starts a replacement task automatically.
 
+The Discord relay schedules the next due refresh: active sessions every three
+seconds, idle or finished sessions every 15 seconds, and failed reads after 30
+seconds. With no connected sessions, it checks storage every 30 seconds. New
+Discord requests wake the relay immediately.
+
 A T3 worktree avoids checkout conflicts; it is not a filesystem or credential
 sandbox. The agent runs with the T3 account's access and selected permission
 mode. Keep Discord bot credentials and unrelated production secrets outside
