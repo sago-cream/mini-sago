@@ -18,6 +18,10 @@ helpers through `MINISAGO_SKILLBOOK_REPOSITORY`.
 T3 coding uses its own installed skills and provider configuration. Worker
 repository discovery is not required for chat or T3 project selection.
 
+Skillbook synchronization runs in the background. Worker connection, Mac session
+monitoring, and chat availability do not wait for GitHub. Health and availability
+reports still include the current sync status and failures.
+
 ## Oracle worker
 
 Use an OCI Ampere A1 Compute VM rather than Container Instances because Codex

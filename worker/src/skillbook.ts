@@ -252,6 +252,7 @@ export class SkillbookSync {
   };
   private timer?: ReturnType<typeof setInterval>;
   private syncing?: Promise<boolean>;
+  private generation = 0;
 
   constructor(
     private readonly options: SkillbookSyncOptions,
@@ -263,10 +264,13 @@ export class SkillbookSync {
   }
 
   async start(onChange: () => void, onStatus: () => void) {
+    this.stop();
+    const generation = this.generation;
     const changed = await this.sync().catch((error) => {
       console.warn(`Skillbook sync failed: ${this.message(error)}`);
       return false;
     });
+    if (generation !== this.generation) return;
     if (changed) onChange();
     onStatus();
     const interval = Math.max(
@@ -276,10 +280,12 @@ export class SkillbookSync {
     this.timer = setInterval(() => {
       void this.sync()
         .then((updated) => {
+          if (generation !== this.generation) return;
           if (updated) onChange();
           onStatus();
         })
         .catch((error) => {
+          if (generation !== this.generation) return;
           console.warn(`Skillbook sync failed: ${this.message(error)}`);
           onStatus();
         });
@@ -288,6 +294,7 @@ export class SkillbookSync {
   }
 
   stop() {
+    this.generation++;
     if (this.timer) clearInterval(this.timer);
     this.timer = undefined;
   }

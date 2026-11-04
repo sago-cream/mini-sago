@@ -145,15 +145,13 @@ export class MacAgentClient {
   }
 
   start() {
-    void this.startAfterSkillSync();
-  }
-
-  private async startAfterSkillSync() {
-    await this.skillbook?.start(
-      () => this.markSkillsChanged(),
-      () => this.sendAvailability(),
-    );
     if (this.stopped) return;
+    void this.skillbook
+      ?.start(
+        () => this.markSkillsChanged(),
+        () => this.sendAvailability(),
+      )
+      .catch(() => console.warn("Skillbook background sync could not start."));
     if (this.config.headless) {
       this.unlocked = true;
       void prewarmChatRuntime({
