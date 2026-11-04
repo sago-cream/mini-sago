@@ -6,11 +6,15 @@ export function decodeEntities(value: string) {
     /&(#x[\da-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi,
     (entity, rawEntity: string) => {
       const normalized = rawEntity.toLowerCase();
-      if (normalized.startsWith("#x")) {
-        return String.fromCodePoint(Number.parseInt(normalized.slice(2), 16));
-      }
       if (normalized.startsWith("#")) {
-        return String.fromCodePoint(Number.parseInt(normalized.slice(1), 10));
+        const hexadecimal = normalized.startsWith("#x");
+        const codePoint = Number.parseInt(
+          normalized.slice(hexadecimal ? 2 : 1),
+          hexadecimal ? 16 : 10,
+        );
+        return Number.isInteger(codePoint) && codePoint <= 0x10ffff
+          ? String.fromCodePoint(codePoint)
+          : entity;
       }
       return (
         {
