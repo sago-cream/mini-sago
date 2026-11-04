@@ -44,6 +44,16 @@ describe("X post monitor", () => {
     });
   });
 
+  test("keeps a post with out-of-range numeric entities readable", () => {
+    const feed = sampleFeed.replace(
+      "Full post &amp; details.",
+      "Full post &#x110000; &#999999999999; details.",
+    );
+    expect(parseXPosts(feed)[0].text).toBe(
+      "Full post &#x110000; &#999999999999; details.\nSecond line.",
+    );
+  });
+
   test("identifies posts authored by the monitored account", () => {
     expect(
       isXPostAuthoredBy(
