@@ -154,6 +154,61 @@ function item(
   };
 }
 
+test("concurrent project discovery shares a lookup with coding startup", async () => {
+  const f = fixture();
+  try {
+    const repositories = await Promise.all([
+      f.registry.availableRepositories(),
+      f.registry.availableRepositories(),
+    ]);
+    expect(repositories).toEqual([["owner/repo"], ["owner/repo"]]);
+    await f.start();
+    expect(
+      f.calls.filter((call) => call.name === "t3_project_list"),
+    ).toHaveLength(1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test("failed project discovery can be retried when starting a task", async () => {
+  const f = fixture();
+  const call = f.client.call.bind(f.client);
+  let fail = true;
+  f.client.call = async (name, args) => {
+    if (name === "t3_project_list" && fail) throw new Error("offline");
+    return call(name, args);
+  };
+  try {
+    expect(await f.registry.availableRepositories()).toEqual([]);
+    fail = false;
+    await f.start();
+    expect(f.calls.some((call) => call.name === "t3_thread_send")).toBe(true);
+  } finally {
+    f.store.close();
+  }
+});
+
+test("coding startup refreshes expired project metadata before launching", async () => {
+  const f = fixture();
+  await f.registry.availableRepositories();
+  const now = spyOn(Date, "now").mockReturnValue(Date.now() + 60_001);
+  const call = f.client.call.bind(f.client);
+  f.client.call = async (name, args) =>
+    name === "t3_project_list"
+      ? { projects: [], nextCursor: null }
+      : call(name, args);
+  try {
+    await expect(f.start()).rejects.toThrow("Register one active T3 project");
+    expect(f.calls.some((call) => call.name === "t3_thread_launch")).toBe(
+      false,
+    );
+  } finally {
+    now.mockRestore();
+    f.store.close();
+  }
+});
+
 test("starts an ordinary T3 worktree with project defaults and sends the owner's unwrapped request", async () => {
   const f = fixture();
   await f.start();
@@ -615,59 +670,4 @@ test("includes forwarded requirements and nearby context when opening the coding
   expect(sent.args.message).toContain("The empty list needs an explanation.");
   expect(sent.args.message).toContain("Keep the current visual style.");
   f.store.close();
-});
-
-test("concurrent project discovery shares a lookup with coding startup", async () => {
-  const f = fixture();
-  try {
-    const repositories = await Promise.all([
-      f.registry.availableRepositories(),
-      f.registry.availableRepositories(),
-    ]);
-    expect(repositories).toEqual([["owner/repo"], ["owner/repo"]]);
-    await f.start();
-    expect(
-      f.calls.filter((call) => call.name === "t3_project_list"),
-    ).toHaveLength(1);
-  } finally {
-    f.store.close();
-  }
-});
-
-test("failed project discovery can be retried when starting a task", async () => {
-  const f = fixture();
-  const call = f.client.call.bind(f.client);
-  let fail = true;
-  f.client.call = async (name, args) => {
-    if (name === "t3_project_list" && fail) throw new Error("offline");
-    return call(name, args);
-  };
-  try {
-    expect(await f.registry.availableRepositories()).toEqual([]);
-    fail = false;
-    await f.start();
-    expect(f.calls.some((call) => call.name === "t3_thread_send")).toBe(true);
-  } finally {
-    f.store.close();
-  }
-});
-
-test("coding startup refreshes expired project metadata before launching", async () => {
-  const f = fixture();
-  await f.registry.availableRepositories();
-  const now = spyOn(Date, "now").mockReturnValue(Date.now() + 60_001);
-  const call = f.client.call.bind(f.client);
-  f.client.call = async (name, args) =>
-    name === "t3_project_list"
-      ? { projects: [], nextCursor: null }
-      : call(name, args);
-  try {
-    await expect(f.start()).rejects.toThrow("Register one active T3 project");
-    expect(f.calls.some((call) => call.name === "t3_thread_launch")).toBe(
-      false,
-    );
-  } finally {
-    now.mockRestore();
-    f.store.close();
-  }
 });
