@@ -22,7 +22,6 @@ import {
   MEMBER_MENTIONS_MCP_APPROVAL_CONFIG,
   canUseMacFiles as canUseMacFilesWithConfig,
   canUseMediaTools,
-  canUseDeveloperTools as canUseDeveloperToolsWithConfig,
   codexFailureMessage,
   codexEnvironment,
   codexProfileForJob as codexProfileForJobWithConfig,
@@ -38,9 +37,9 @@ import {
   NTHU_CAMPUS_MCP_URL,
   nthuCampusMcpConfig,
   outputSchemaForJob,
-  OWNER_CHATBOT_PROFILE,
   OWNER_ROUTER_PROFILE,
   parseFinalResponse,
+  runCodexJob,
   progressForCodexEvent,
   SOCIAL_ACTION_PROFILE,
   StreamingReplyParser,
@@ -60,8 +59,6 @@ const ACCESS_CONFIG: ChatbotAccessConfig = {
 };
 const assertChatbotJobAllowed = (job: CodexJob) =>
   assertChatbotJobAllowedWithConfig(job, ACCESS_CONFIG);
-const canUseDeveloperTools = (job: CodexJob) =>
-  canUseDeveloperToolsWithConfig(job, ACCESS_CONFIG);
 const canUseMacFiles = (job: CodexJob) =>
   canUseMacFilesWithConfig(job, ACCESS_CONFIG);
 const codexProfileForJob = (job: CodexJob) =>
@@ -377,13 +374,6 @@ describe("Codex chatbot runner", () => {
     );
     expect(
       codexProfileForJob(
-        oracleJob({
-          requesterUserId: "917446775873343600",
-        }),
-      ),
-    ).toBe(OWNER_CHATBOT_PROFILE);
-    expect(
-      codexProfileForJob(
         executionRouteJob({
           requesterUserId: "917446775873343600",
         }),
@@ -472,38 +462,6 @@ describe("Codex chatbot runner", () => {
 
     const voiceJob = { ...answerJob, streamReply: true };
     expect(outputSchemaForJob(voiceJob)).toBe(VOICE_ANSWER_OUTPUT_SCHEMA);
-  });
-
-  test("supplies request and nearby context for Discord coding threads", () => {
-    const developerJob: OracleAnswerJob = oracleJob({
-      requesterUserId: ACCESS_CONFIG.ownerUserId,
-      request: "Fix the Discord reply. English only.",
-      developerTask: { id: "task-1" },
-      messages: [
-        {
-          id: "nearby-message",
-          author: "Nearby member",
-          timestamp: "2026-09-02T00:00:00.000Z",
-          content: "請幫忙修好它",
-          attachments: [],
-        },
-      ],
-    });
-    const prompt = buildPromptPlan(
-      developerJob,
-      [],
-      [],
-      "Repository policy",
-    ).context;
-
-    expect(outputSchemaForJob(developerJob)).toBeUndefined();
-    expect(
-      buildPromptPlan(developerJob, [], [], "Repository policy")
-        .developerInstructions,
-    ).toContain("Repository policy");
-    expect(prompt).toContain("Fix the Discord reply. English only.");
-    expect(prompt).toContain("請幫忙修好它");
-    expect(prompt).not.toContain("referenceResolution");
   });
 
   test("gives only owner Mac answers the bounded file output", () => {
@@ -649,26 +607,6 @@ describe("Codex chatbot runner", () => {
         repository: "sago-cream/mini-sago",
       }),
     ).not.toThrow();
-  });
-
-  test("adds development authority only to owner dev jobs", () => {
-    const devPrompt = buildPromptPlan(
-      {
-        ...job,
-        requesterUserId: "917446775873343600",
-        executionRoute: "oracle",
-        repository: "sago-cream/mini-sago",
-        request: "review this PR",
-      },
-      [],
-      [],
-    ).developerInstructions;
-    const chatPrompt = buildPromptPlan(job, [], []).developerInstructions;
-
-    expect(devPrompt).toContain("owner-authorized development task");
-    expect(devPrompt).toContain("prepared feature branch");
-    expect(chatPrompt).not.toContain("owner-authorized development task");
-    expect(chatPrompt).not.toContain("prepared feature branch");
   });
 
   test("supplies nearby Discord context to an answer", () => {
@@ -911,43 +849,31 @@ describe("Codex chatbot runner", () => {
     expect(environment.TMPDIR).toBe("/tmp/minisago-chatbot-1/outputs");
   });
 
-  test("exposes no token and gives GitHub paths only to owner dev answers", () => {
-    const developerEnvironment = {
-      MINISAGO_GITHUB_CONFIG_DIR: "/tmp/github-config",
-    };
-    const chatEnvironment = codexEnvironment(
+  test("keeps worker chat isolated from developer credentials", () => {
+    const environment = codexEnvironment(
       "/tmp/codex-home",
       "/usr/local/bin/codex",
       false,
-      developerEnvironment,
-    );
-    const devEnvironment = codexEnvironment(
-      "/tmp/codex-home",
-      "/usr/local/bin/codex",
-      true,
-      developerEnvironment,
+      { MINISAGO_GITHUB_CONFIG_DIR: "/tmp/github-config", GH_TOKEN: "private" },
       { MINISAGO_MCP_TOKEN: "ephemeral-token" },
     );
-
-    expect(chatEnvironment.GH_TOKEN).toBeUndefined();
-    expect(chatEnvironment.MINISAGO_GITHUB_CONFIG_DIR).toBeUndefined();
-    expect(devEnvironment.GH_TOKEN).toBeUndefined();
-    expect(devEnvironment.MINISAGO_GITHUB_CONFIG_DIR).toBe(
-      "/tmp/github-config",
-    );
-    expect(devEnvironment.MINISAGO_MCP_TOKEN).toBe("ephemeral-token");
-    expect(
-      canUseDeveloperTools(
-        oracleJob({
-          requesterUserId: "917446775873343600",
-        }),
-      ),
-    ).toBe(true);
-    expect(
-      canUseDeveloperTools(
-        socialActionJob({ requesterUserId: "917446775873343600" }),
-      ),
-    ).toBe(false);
-    expect(canUseDeveloperTools(oracleJob())).toBe(false);
+    expect(environment.GH_TOKEN).toBeUndefined();
+    expect(environment.MINISAGO_GITHUB_CONFIG_DIR).toBeUndefined();
+    expect(environment.MINISAGO_MCP_TOKEN).toBe("ephemeral-token");
   });
+});
+
+test("rejects owner coding before preparing a worker workspace or launching Codex", async () => {
+  await expect(
+    runCodexJob(oracleJob({ requesterUserId: ACCESS_CONFIG.ownerUserId }), {
+      chatbotAccess: ACCESS_CONFIG,
+      codexHome: "/unused",
+      codexPath: "/unused",
+      githubConfigDir: "/unused",
+      macFileRoots: [],
+      mcpUrl: "http://unused",
+      sandboxUrl: "http://unused",
+      workspaceRoot: "/unused",
+    }),
+  ).rejects.toThrow("Coding sessions run in T3");
 });
