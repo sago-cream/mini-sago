@@ -12,6 +12,7 @@ import {
   t3ThreadRead,
   type T3Connection,
   type T3Attachment,
+  type T3Project,
 } from "./t3-client";
 import { ChatbotMediaRegistry } from "./media-assets";
 import {
@@ -81,6 +82,8 @@ export class DeveloperTaskRegistry {
   private client?: T3Connection;
   private repositories: string[] = [];
   private repositoriesCheckedAt = 0;
+  private projects?: { checkedAt: number; values: T3Project[] };
+  private projectLookup?: Promise<T3Project[]>;
 
   constructor(
     client?: T3Connection,
@@ -104,9 +107,7 @@ export class DeveloperTaskRegistry {
     try {
       this.repositories = [
         ...new Set(
-          (await t3Projects(this.connection())).map(
-            (project) => project.repository,
-          ),
+          (await this.availableProjects()).map((project) => project.repository),
         ),
       ];
     } catch {
@@ -114,6 +115,18 @@ export class DeveloperTaskRegistry {
     }
     this.repositoriesCheckedAt = Date.now();
     return this.repositories;
+  }
+  private availableProjects() {
+    if (this.projects && Date.now() - this.projects.checkedAt < 60_000)
+      return Promise.resolve(this.projects.values);
+    return (this.projectLookup ??= t3Projects(this.connection())
+      .then((values) => {
+        this.projects = { checkedAt: Date.now(), values };
+        return values;
+      })
+      .finally(() => {
+        this.projectLookup = undefined;
+      }));
   }
   has(threadId: string) {
     return Boolean(this.store.get(threadId));
@@ -158,7 +171,7 @@ export class DeveloperTaskRegistry {
     discordRequest: DiscordRequest;
   }) {
     const client = this.connection();
-    const candidates = (await t3Projects(client)).filter(
+    const candidates = (await this.availableProjects()).filter(
       (project) =>
         project.repository.toLowerCase() === job.repository.toLowerCase(),
     );
