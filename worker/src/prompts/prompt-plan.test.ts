@@ -222,3 +222,60 @@ describe("prompt plan", () => {
     expect(plan.context).toContain('"mediaId":"retry-image"');
   });
 });
+
+test("serializes the current request and identical reply target once", () => {
+  const target = {
+    id: "target",
+    author: "Member",
+    timestamp: "2026-08-02T00:00:00.000Z",
+    content: "target-context ".repeat(200),
+    attachments: [],
+  };
+  const plan = buildPromptPlan(
+    {
+      ...baseJob,
+      requestMessage: {
+        ...target,
+        id: "request",
+        author: "Requester",
+        content: baseJob.request,
+        referencedMessage: target,
+      },
+      messages: [target],
+    },
+    [],
+    [],
+  );
+  expect(plan.context.split(baseJob.request)).toHaveLength(2);
+  expect(plan.context.split(target.content)).toHaveLength(2);
+  expect(plan.context).toContain('"author":"Requester"');
+  expect(plan.context).toContain("<replied_to_message_json>");
+  expect(plan.context).not.toContain("context_omissions_json");
+});
+
+test("retains different raw request text and edited reply-target snapshots", () => {
+  const target = {
+    id: "target",
+    author: "Member",
+    timestamp: "2026-08-02T00:00:00.000Z",
+    content: "original text",
+    attachments: [],
+  };
+  const plan = buildPromptPlan(
+    {
+      ...baseJob,
+      requestMessage: {
+        ...target,
+        id: "request",
+        content: `<@bot> ${baseJob.request}`,
+        referencedMessage: target,
+      },
+      messages: [{ ...target, content: "edited text" }],
+    },
+    [],
+    [],
+  );
+  expect(plan.context).toContain(`<@bot> ${baseJob.request}`);
+  expect(plan.context).toContain("original text");
+  expect(plan.context).toContain("edited text");
+});
