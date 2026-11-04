@@ -162,6 +162,10 @@ traces and local-only tuning, and does not contact the live diagnostics API.
 
 ## Logs and traces
 
+Discord REST calls have a 30-second deadline covering response reads and any
+rate-limit waits. Rate-limit retries share that deadline; network failures and
+other HTTP errors are not automatically retried by the REST client.
+
 Core logs cover Gateway lifecycle, monitors, webhooks, worker connections, and
 request failures. Worker failures include job ID, last phase, repository,
 prepared branch, cause, and whether retrying is safe. Logs intentionally omit
