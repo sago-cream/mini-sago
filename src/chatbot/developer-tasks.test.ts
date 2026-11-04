@@ -39,7 +39,9 @@ const job: OracleAnswerJob = {
   messages: [],
   mcpAccessToken: "must-not-reach-t3",
 };
-function fixture() {
+function fixture(
+  relayTimers?: ConstructorParameters<typeof DeveloperTaskRegistry>[3],
+) {
   const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
   const posts: Array<{ path: string; method?: string; body: any }> = [];
   let items: T3ThreadRead["items"] = [];
@@ -104,7 +106,12 @@ function fixture() {
     posts.push({ path, method: init?.method, body: init?.body });
     return { type: 11, id: `discord-${posts.length}` };
   }) as DiscordRequest;
-  const registry = new DeveloperTaskRegistry(client, store);
+  const registry = new DeveloperTaskRegistry(
+    client,
+    store,
+    undefined,
+    relayTimers,
+  );
   return {
     calls,
     posts,
@@ -607,4 +614,130 @@ test("includes forwarded requirements and nearby context when opening the coding
   expect(sent.args.message).toContain("The empty list needs an explanation.");
   expect(sent.args.message).toContain("Keep the current visual style.");
   f.store.close();
+});
+
+function relayClock() {
+  let pending: { run: () => void; delay: number } | undefined;
+  const handle = { unref() {} } as ReturnType<typeof setTimeout>;
+  return {
+    timers: {
+      schedule: ((run: () => void, delay: number) => {
+        expect(pending).toBeUndefined();
+        pending = { run, delay };
+        return handle;
+      }) as typeof setTimeout,
+      cancel: (() => {
+        pending = undefined;
+      }) as typeof clearTimeout,
+    },
+    delay: () => pending?.delay,
+    async run() {
+      const next = pending!;
+      pending = undefined;
+      next.run();
+      await Bun.sleep(0);
+    },
+  };
+}
+
+test("relay sleeps until a refresh is due and wakes for new Discord work", async () => {
+  const clock = relayClock();
+  const f = fixture(clock.timers);
+  try {
+    f.registry.startRelay(f.discord, "owner");
+    await Bun.sleep(0);
+    expect(clock.delay()).toBe(30_000);
+    expect(f.calls).toHaveLength(0);
+    await f.start();
+    expect(clock.delay()).toBe(0);
+    await clock.run();
+    expect(clock.delay()).toBeGreaterThan(14_000);
+    expect(clock.delay()).toBeLessThanOrEqual(15_000);
+    f.setStatus("running");
+    await f.handle("Continue", "continue-running");
+    expect(clock.delay()).toBe(0);
+    await clock.run();
+    expect(clock.delay()).toBeGreaterThan(2_000);
+    expect(clock.delay()).toBeLessThanOrEqual(3_000);
+    await f.registry.end("discord-thread", "guild", "owner", f.discord);
+    await clock.run();
+    expect(clock.delay()).toBe(30_000);
+    f.registry.close();
+    expect(clock.delay()).toBeUndefined();
+  } finally {
+    f.registry.close();
+    f.store.close();
+  }
+});
+
+test("relay backs off failed reads without overlapping refreshes", async () => {
+  const clock = relayClock();
+  const f = fixture(clock.timers);
+  try {
+    await f.start();
+    let reads = 0;
+    const call = f.client.call.bind(f.client);
+    f.client.call = async (name, args) => {
+      if (name === "t3_thread_read") {
+        reads++;
+        throw new Error("offline");
+      }
+      return call(name, args);
+    };
+    // A fresh registry catches up persisted associations immediately.
+    const restored = new DeveloperTaskRegistry(
+      f.client,
+      f.store,
+      undefined,
+      clock.timers,
+    );
+    try {
+      restored.startRelay(f.discord, "owner");
+      restored.startRelay(f.discord, "owner");
+      await Bun.sleep(0);
+      expect(reads).toBe(1);
+      expect(clock.delay()).toBeGreaterThan(29_000);
+      expect(clock.delay()).toBeLessThanOrEqual(30_000);
+    } finally {
+      restored.close();
+    }
+  } finally {
+    f.store.close();
+  }
+});
+
+test("closing an in-flight relay prevents it from rearming a timer", async () => {
+  const clock = relayClock();
+  const f = fixture(clock.timers);
+  await f.start();
+  const call = f.client.call.bind(f.client);
+  let release!: () => void;
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  f.client.call = async (name, args) => {
+    if (name === "t3_thread_read") await blocked;
+    return call(name, args);
+  };
+  const restored = new DeveloperTaskRegistry(
+    f.client,
+    f.store,
+    undefined,
+    clock.timers,
+  );
+  try {
+    restored.startRelay(f.discord, "owner");
+    await Bun.sleep(0);
+    restored.close();
+    release();
+    await Bun.sleep(0);
+    expect(clock.delay()).toBeUndefined();
+    restored.startRelay(f.discord, "owner");
+    await Bun.sleep(0);
+    expect(clock.delay()).toBeGreaterThan(14_000);
+  } finally {
+    release();
+    restored.close();
+    f.store.close();
+  }
 });
