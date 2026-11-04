@@ -1,9 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import type { DiscordRequest } from "../api/request";
 
 import {
   buildToeflVocabMessagePayload,
   formatToeflVocabMessage,
   selectDailyToeflVocabEntry,
+  sendDailyToeflVocabIfDue,
   type ToeflVocabEntry,
 } from "./toefl-vocab";
 
@@ -23,16 +28,12 @@ const entries: ToeflVocabEntry[] = [
 ];
 
 describe("selectDailyToeflVocabEntry", () => {
-  test("selects the same entry for the same date", () => {
-    expect(selectDailyToeflVocabEntry(entries, "2026-06-27")).toEqual(
-      selectDailyToeflVocabEntry(entries, "2026-06-27"),
-    );
-  });
-
-  test("rotates entries by date", () => {
-    expect(selectDailyToeflVocabEntry(entries, "2026-06-27").word).not.toBe(
-      selectDailyToeflVocabEntry(entries, "2026-06-28").word,
-    );
+  test("rotates deterministically and wraps around the word list", () => {
+    expect(
+      ["2026-06-27", "2026-06-28", "2026-06-29"].map(
+        (date) => selectDailyToeflVocabEntry(entries, date).word,
+      ),
+    ).toEqual(["adapt", "abate", "adapt"]);
   });
 });
 
@@ -98,4 +99,106 @@ describe("formatToeflVocabMessage", () => {
       },
     ]);
   });
+});
+
+test("retries only failed vocabulary destinations using the saved daily payload", async () => {
+  const root = await mkdtemp(join(tmpdir(), "minisago-vocab-delivery-"));
+  const config = {
+    botToken: "test",
+    dailyTime: "08:00",
+    timezone: "Asia/Taipei",
+    stateFile: join(root, "state.json"),
+  };
+  const destinations = [
+    { guildId: "guild", channelId: "first" },
+    { guildId: "guild", channelId: "second" },
+  ];
+  const sends: Array<{ path: string; body: unknown }> = [];
+  let failed = true;
+  const discordRequest = (async (path, options) => {
+    if (options?.method !== "POST") return { guild_id: "guild" };
+    sends.push({ path, body: options.body });
+    if (path.includes("/second/") && failed) throw new Error("offline");
+    return { id: "message" };
+  }) as DiscordRequest;
+  const now = new Date("2026-11-04T01:00:00Z");
+  try {
+    await sendDailyToeflVocabIfDue(config, now, {
+      destinations,
+      discordRequest,
+    });
+    const partial = JSON.parse(await readFile(config.stateFile, "utf8"));
+    expect(partial.lastSentDate).toBeUndefined();
+    expect(partial.pendingDelivery.deliveredChannelIds).toEqual(["first"]);
+    const firstPayload = sends[0].body;
+    sends.length = 0;
+    failed = false;
+    await sendDailyToeflVocabIfDue(config, now, {
+      destinations,
+      discordRequest,
+    });
+    expect(sends).toEqual([
+      { path: "/channels/second/messages", body: firstPayload },
+    ]);
+    const complete = JSON.parse(await readFile(config.stateFile, "utf8"));
+    expect(complete.lastSentDate).toBe("2026-11-04");
+    expect(complete.pendingDelivery).toBeUndefined();
+    sends.length = 0;
+    await sendDailyToeflVocabIfDue(config, now, {
+      destinations,
+      discordRequest,
+    });
+    expect(sends).toEqual([]);
+    await sendDailyToeflVocabIfDue(config, new Date("2026-11-05T01:00:00Z"), {
+      destinations,
+      discordRequest,
+    });
+    expect(sends.map(({ path }) => path)).toEqual([
+      "/channels/first/messages",
+      "/channels/second/messages",
+    ]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("keeps completed legacy vocabulary state and leaves total failures due", async () => {
+  const root = await mkdtemp(join(tmpdir(), "minisago-vocab-failure-"));
+  const config = {
+    botToken: "test",
+    dailyTime: "08:00",
+    timezone: "Asia/Taipei",
+    stateFile: join(root, "state.json"),
+  };
+  const options = {
+    destinations: [{ guildId: "guild", channelId: "channel" }],
+    discordRequest: (async () => {
+      throw new Error("offline");
+    }) as DiscordRequest,
+  };
+  try {
+    await expect(
+      sendDailyToeflVocabIfDue(
+        config,
+        new Date("2026-11-04T01:00:00Z"),
+        options,
+      ),
+    ).rejects.toThrow("Every service destination failed");
+    await expect(readFile(config.stateFile)).rejects.toThrow();
+    await writeFile(
+      config.stateFile,
+      JSON.stringify({ lastSentDate: "2026-11-04", lastSentWord: "adapt" }),
+    );
+    await sendDailyToeflVocabIfDue(
+      config,
+      new Date("2026-11-04T01:00:00Z"),
+      options,
+    );
+    expect(JSON.parse(await readFile(config.stateFile, "utf8"))).toEqual({
+      lastSentDate: "2026-11-04",
+      lastSentWord: "adapt",
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
