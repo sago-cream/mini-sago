@@ -90,7 +90,7 @@ Oracle and Mac use independent random bridge secrets of at least 32 bytes. The
 secret selects a fixed server-owned profile; workers cannot raise their own
 capabilities or priority.
 
-Every Codex run ignores normal user configuration, memories, plugins, and
+Every worker Codex run ignores normal user configuration, memories, plugins, and
 user-configured MCP servers. Chat jobs cannot read installed skills, have
 restricted filesystem access, and have no general network permission outside
 Codex's own web search and MiniSago's MCP server. Image generation uses the
@@ -112,25 +112,25 @@ dedicated AppArmor profile. The worker process remains unprivileged.
 
 ## Attachments and Mac files
 
-Only answer jobs download attachments. Supported formats are images, short
-audio/video files, PDFs, and text files, with these limits:
+Chat answers and owner routing prepare supported images, short audio/video
+files, PDFs, and text files, with these limits:
 
 - at most 10 attachments;
 - at most 20 MB per attachment and 40 MB total; and
 - at most 100,000 extracted characters per file and 200,000 total.
 
-Downloads accept only Discord HTTPS CDN hosts and stop on cancellation. Coding
-task files remain with the retained workspace; other downloads are deleted after
-the response. Attachment URLs are stripped from observable tool results and
-sanitized in traces. After a CDN 403, 404, or 410, the host may fetch a registered
+Downloads accept only Discord HTTPS CDN hosts and stop on cancellation. Worker
+downloads are deleted after the response. Attachment URLs are stripped from
+observable tool results and sanitized in traces. After a CDN 403, 404, or 410,
+the host may fetch a registered
 attachment's original message through the bot API and retry once with the refreshed
 URL for that same attachment. It rejects missing attachments and non-CDN URLs.
 
-Owner-authorized Linux coding jobs also receive `download_attachment`. It accepts
-only a media ID registered to the task's bearer token and returns the original
-file's local path within the task's attachment folder, including attachments
-resolved after the task started. The caller cannot supply a URL or destination.
-Ordinary chat jobs do not receive this file-path tool.
+Coding attachments follow a separate path: the host uploads original Discord
+files through T3's native attachment API. Each message accepts up to eight files,
+20 MB each and 40 MB combined, including referenced attachments. The bot never
+passes its chat MCP token to T3. T3 owns the uploaded files and workspace
+retention; see [coding sessions](t3-coding.md#use).
 
 Generated media is request-local and may be returned only by an opaque artifact
 identifier from the job's dedicated output folder. The worker rejects path
@@ -172,12 +172,9 @@ Mac file requests are owner-only and read-only. Search is limited to configured
 roots, and the host revalidates the exact path before uploading at most one
 regular file of 8 MB or less. Symlinks and paths outside the roots are rejected.
 
-Coding evidence uploads are selected by local image references in the final
-answer, excluding code examples. The worker resolves each path and admits only
-regular PNG, JPEG, GIF, or WebP files inside the starting checkout, the task's
-directory for additional repositories, or the current turn's output folder, with
-matching image signatures. Paths and symlinks that escape those roots are rejected. The worker and host both enforce at most 10
-attachments and 8 MB combined; remote image URLs are never fetched for upload.
+Coding artifacts remain available in T3. The Discord relay sends assistant text
+and plans; it does not read local files from the T3 workspace or upload them as
+Discord evidence attachments.
 
 ## Owner coding and GitHub
 

@@ -2,7 +2,8 @@
 
 <img src="site/public/images/minisago3.png" alt="mini sago icon" width="160">
 
-An AI-powered Discord bot for... everything? From chatting, channel summary, moving emotes between server, to development. She can totally change how you use Discord.
+An AI-powered Discord bot for conversation, channel summaries, emoji management,
+and development through T3 coding sessions.
 
 Check out the full feature list on our [site](https://mini.sagocream.com/).
 
@@ -46,10 +47,11 @@ See [slash-command diagnostics](docs/bot-management.md#slash-command-diagnostics
 
 ## Self-host mini sago
 
-You will need a Discord application, a VPS or some machine to throw her on , an agent worker (I used Codex here), and [Bun](https://bun.sh/).
+You need a Discord application, a host for the bot, a Codex chat worker, and
+[Bun](https://bun.sh/). Owner coding also needs a separate T3 environment.
 
 Start with [Discord setup](docs/discord-setup.md) and
-[worker setup](docs/workers.md). And according to your need, see also:
+[worker setup](docs/workers.md). Use these guides for the rest of your setup:
 
 - [T3 coding setup](docs/t3-coding.md)
 - [Architecture](docs/architecture.md)
@@ -62,7 +64,24 @@ Start with [Discord setup](docs/discord-setup.md) and
 - [CCXP meeting retrieval and password rotation](docs/ccxp-meetings.md)
 - [Durable-state backup and restore](docs/operations.md#durable-state-backup-and-restore)
 
-(Slops, better let agents read it :skull:)
+For local bot development, install both dependency sets and configure
+`.env.local` using the Discord and worker guides:
+
+```bash
+bun install --frozen-lockfile
+bun install --cwd worker --frozen-lockfile
+cp .env.example .env.local
+bun run dev
+```
+
+Run only one Gateway connection per bot token. Set
+`DISCORD_GATEWAY_DISABLED=true` for a local HTTP-only instance when production
+uses the same token. `bun run dev` starts the bot; run the worker separately
+following [worker setup](docs/workers.md).
+
+Before submitting code, run `bun run build`, `bun run --cwd worker build`,
+`bun run format:check`, and the tests relevant to your change. See the
+[website README](site/README.md) for its independent setup and checks.
 
 ## Voice credits
 

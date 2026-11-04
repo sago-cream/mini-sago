@@ -9,18 +9,19 @@ Every worker needs:
 
 - a working Codex executable and isolated Codex home;
 - a bridge URL and 32-byte-or-longer profile secret;
-- the same `MINISAGO_CHATBOT_OWNER_USER_ID` as the hosted service;
-- a dedicated authenticated GitHub CLI login; and
+- the same `MINISAGO_CHATBOT_OWNER_USER_ID` as the hosted service; and
 - outbound HTTPS and WSS.
 
-The optional worker Skillbook synchronizer uses a dedicated GitHub CLI login.
+The optional worker Skillbook synchronizer also needs a dedicated authenticated
+GitHub CLI login. It is enabled by default on headless workers and opt-in on Mac
+helpers through `MINISAGO_SKILLBOOK_REPOSITORY`.
 T3 coding uses its own installed skills and provider configuration. Worker
 repository discovery is not required for chat or T3 project selection.
 
 ## Oracle worker
 
-Use an OCI Ampere A1 Compute VM rather than Container Instances because Codex,
-GitHub CLI, traces, repositories, and worktrees require persistent volumes.
+Use an OCI Ampere A1 Compute VM rather than Container Instances because Codex
+authentication, traces, and optional GitHub/Skillbook state need persistent storage.
 Confirm current OCI pricing, capacity, and reclamation policy in official
 sources.
 
@@ -48,7 +49,8 @@ Put the same secret in the worker's `MINISAGO_MAC_BRIDGE_SECRET` and the hosted
 service's `MINISAGO_WORKER_BRIDGE_SECRET`. Device authentication must write only
 to the persistent Codex volume.
 
-Authenticate the dedicated fine-grained GitHub login over standard input:
+If Skillbook sync is enabled, authenticate its dedicated fine-grained GitHub
+login over standard input:
 
 ```bash
 docker compose --project-directory . -f deploy/compose.worker.yaml run --rm \
@@ -70,10 +72,9 @@ Prerequisites are Bun, Xcode command-line tools including `swiftc`, an existing
 `~/.codex/auth.json`, and the Mac profile secret configured on both the helper
 and hosted service.
 
-Authenticate the helper's isolated GitHub login, then install it:
+Install the helper:
 
 ```bash
-GH_CONFIG_DIR="$HOME/Library/Application Support/MiniSago/github" gh auth login --hostname github.com --git-protocol https --with-token
 bun run mac-agent:install
 bun run mac-agent:status
 ```
@@ -84,6 +85,13 @@ the existing authentication file, and installs the per-user LaunchAgent
 It discovers the current or legacy app-bundled Codex executable and resolves
 npm installations to their native binary so the helper can run with its
 restricted PATH. Set `MINISAGO_CODEX_PATH` to select a particular installation.
+
+If you enable Skillbook sync on the Mac helper, authenticate its isolated GitHub
+login first:
+
+```bash
+GH_CONFIG_DIR="$HOME/Library/Application Support/MiniSago/github" gh auth login --hostname github.com --git-protocol https --with-token
+```
 
 The helper connects only while the user session is unlocked, disconnects
 before sleep or lock, and reconnects afterward. Display sleep without a session
