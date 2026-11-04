@@ -74,10 +74,14 @@ function requestMessageContext(job: CodexJob) {
   return {
     author: message.author,
     timestamp: message.timestamp,
-    content: truncateContextText(
-      message.content,
-      CHATBOT_CONTEXT_BUDGETS.messageCharacters,
-    ),
+    ...(message.content !== job.request
+      ? {
+          content: truncateContextText(
+            message.content,
+            CHATBOT_CONTEXT_BUDGETS.messageCharacters,
+          ),
+        }
+      : {}),
     ...(message.authorAliases?.length
       ? { authorAliases: message.authorAliases }
       : {}),
@@ -139,7 +143,18 @@ export function requestContext(
     );
   }
 
-  const budgeted = budgetMessages(job.messages);
+  // The reply target already has a dedicated block. Keep different snapshots
+  // (for example, an edited message) rather than deduplicating by ID alone.
+  const replyTarget = job.requestMessage?.referencedMessage;
+  const replyContext =
+    replyTarget && JSON.stringify(promptMessage(replyTarget));
+  const budgeted = budgetMessages(
+    job.messages.filter(
+      (message) =>
+        message.id !== replyTarget?.id ||
+        JSON.stringify(promptMessage(message)) !== replyContext,
+    ),
+  );
   if (budgeted.omission) omissions.push(budgeted.omission);
   sections.push(block(messageBlock, budgeted.messages.map(promptMessage)));
   if (omissions.length)
