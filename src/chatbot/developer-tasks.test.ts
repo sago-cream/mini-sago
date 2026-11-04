@@ -804,3 +804,67 @@ test("closing an in-flight relay prevents it from rearming a timer", async () =>
     f.store.close();
   }
 });
+
+test("streaming long replies edits only changed chunks and still repairs rewritten prefixes", async () => {
+  const f = fixture();
+  try {
+    await f.start();
+    const prefix = "a".repeat(3_800);
+    f.setItems([item(0, `${prefix}first tail`, "running")]);
+    await f.registry.sync(f.registry.saved("discord-thread")!, f.discord);
+    f.posts.length = 0;
+    f.setItems([item(0, `${prefix}first tail grows`, "running")]);
+    await f.registry.sync(f.registry.saved("discord-thread")!, f.discord);
+    expect(f.posts).toHaveLength(1);
+    expect(f.posts[0]).toMatchObject({
+      method: "PATCH",
+      body: { content: "first tail grows" },
+    });
+    f.posts.length = 0;
+    f.setItems([
+      item(
+        0,
+        `${"b".repeat(1_900)}${"a".repeat(1_900)}first tail grows`,
+        "running",
+      ),
+    ]);
+    await f.registry.sync(f.registry.saved("discord-thread")!, f.discord);
+    expect(f.posts).toHaveLength(1);
+    expect(f.posts[0].body.content).toBe("b".repeat(1_900));
+  } finally {
+    f.store.close();
+  }
+});
+
+test("an interrupted chunk rewrite is repaired after restart even if T3 reverts the text", async () => {
+  const f = fixture();
+  try {
+    await f.start();
+    const original = `${"a".repeat(1_900)}original tail`;
+    f.setItems([item(0, original, "running")]);
+    await f.registry.sync(f.registry.saved("discord-thread")!, f.discord);
+    f.setItems([item(0, `${"b".repeat(1_900)}changed tail`, "running")]);
+    const failTail = (async (path, init) => {
+      if ((init?.body as { content?: string })?.content === "changed tail")
+        throw new Error("network failure");
+      return f.discord(path, init);
+    }) as DiscordRequest;
+    await expect(
+      f.registry.sync(f.registry.saved("discord-thread")!, failTail),
+    ).rejects.toThrow("network failure");
+    f.posts.length = 0;
+    f.setItems([item(0, original, "running")]);
+    const restarted = new DeveloperTaskRegistry(f.client, f.store);
+    await restarted.sync(restarted.saved("discord-thread")!, f.discord);
+    expect(
+      f.posts
+        .filter((post) => post.method === "PATCH")
+        .map((post) => post.body.content),
+    ).toEqual(["a".repeat(1_900), "original tail"]);
+    expect(
+      restarted.saved("discord-thread")!.t3!.relay?.updating,
+    ).toBeUndefined();
+  } finally {
+    f.store.close();
+  }
+});
