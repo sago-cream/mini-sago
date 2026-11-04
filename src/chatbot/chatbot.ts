@@ -900,6 +900,12 @@ async function handleChatbotMentionRequest({
   let reactionCapabilities: DiscordReactionCapabilities | undefined;
   try {
     const execute = async () => {
+      const codingRepositoriesPromise =
+        requesterUserId === accessConfig.ownerUserId &&
+        !invocation?.chatOnly &&
+        !isChannelQuietRequest(request)
+          ? developerTaskRegistry.availableRepositories()
+          : Promise.resolve([]);
       const historyDone = clock.start("host.nearby_history");
       const requestMessage = toChatbotMessage(message, botUserId);
       let messages = invocation?.recentContext
@@ -1500,8 +1506,7 @@ async function handleChatbotMentionRequest({
         !invocation?.chatOnly &&
         !isChannelQuietRequest(request)
       ) {
-        codingRepositories =
-          await developerTaskRegistry.availableRepositories();
+        codingRepositories = await codingRepositoriesPromise;
         const routeJob: ChatbotJob = {
           id: randomUUID(),
           requesterUserId,
