@@ -19,7 +19,12 @@ export type SavedDeveloperThread = PreservedDeveloperTask & {
     pendingQuestion?: { requestId: string; questionId: string };
     statusMessageId?: string;
     statusText?: string;
-    relay?: { itemId: string; messageIds: string[]; text: string };
+    relay?: {
+      itemId: string;
+      messageIds: string[];
+      text: string;
+      updating?: boolean;
+    };
   };
 };
 

@@ -73,6 +73,17 @@ const messageBody = (content: string) => ({
   allowed_mentions: { parse: [] },
 });
 
+function relayChunks(text: string) {
+  const parts: string[] = [];
+  for (let offset = 0; offset < text.length; ) {
+    let end = Math.min(offset + 1900, text.length);
+    if (end < text.length && /[\uD800-\uDBFF]/u.test(text[end - 1]!)) end--;
+    parts.push(text.slice(offset, end));
+    offset = end;
+  }
+  return parts;
+}
+
 /** Discord delivery state only. T3 owns sessions, execution, and workspaces. */
 export class DeveloperTaskRegistry {
   private queues = new Map<string, Promise<unknown>>();
@@ -612,17 +623,17 @@ export class DeveloperTaskRegistry {
     if (state.relay?.itemId !== itemId)
       state.relay = { itemId, messageIds: [], text: "" };
     const relay = state.relay;
-    if (relay.text === text) return;
+    if (relay.text === text && !relay.updating) return;
     // Preserve all text, including long code blocks, instead of truncating at Discord's limit.
-    const parts: string[] = [];
-    for (let offset = 0; offset < text.length; ) {
-      let end = Math.min(offset + 1900, text.length);
-      if (end < text.length && /[\uD800-\uDBFF]/u.test(text[end - 1]!)) end--;
-      parts.push(text.slice(offset, end));
-      offset = end;
-    }
+    const parts = relayChunks(text);
+    const previousParts = relay.updating ? [] : relayChunks(relay.text);
+    // A failed edit can leave Discord with only part of the new text. Persist
+    // that uncertainty before sending so retries never trust stale chunks.
+    relay.updating = true;
+    this.store.save(task);
     for (const [index, content] of parts.entries()) {
       const id = relay.messageIds[index];
+      if (id && previousParts[index] === content) continue;
       const response = await this.deliver(
         task,
         id,
@@ -642,6 +653,7 @@ export class DeveloperTaskRegistry {
       this.store.save(task);
     }
     relay.text = text;
+    delete relay.updating;
     this.store.save(task);
   }
   private async deliver(
