@@ -1,8 +1,9 @@
 import vocabData from "./toefl-vocab.json";
-import { createDiscordRequest } from "../api/request";
+import { createDiscordRequest, type DiscordRequest } from "../api/request";
 import {
   deliverToServiceDestinations,
   getServiceSubscriptionStore,
+  type ServiceDestination,
 } from "../service-subscriptions";
 import { readJsonFile, writeJsonFile } from "./job-utils";
 
@@ -53,6 +54,12 @@ type ToeflVocabSchedulerConfig = {
 type ToeflVocabState = {
   lastSentDate?: string;
   lastSentWord?: string;
+  pendingDelivery?: {
+    dateKey: string;
+    word: string;
+    payload: ToeflVocabMessagePayload;
+    deliveredChannelIds: string[];
+  };
 };
 
 type DiscordTextDisplay = {
@@ -221,17 +228,16 @@ export function buildToeflVocabMessagePayload({
 }
 
 async function sendDiscordChannelMessage({
-  botToken,
+  discordRequest,
   channelId,
   guildId,
   payload,
 }: {
-  botToken: string;
+  discordRequest: DiscordRequest;
   channelId: string;
   guildId: string;
   payload: ToeflVocabMessagePayload;
 }) {
-  const discordRequest = createDiscordRequest(botToken);
   const channel = await discordRequest<DiscordChannel>(
     `/channels/${channelId}`,
   );
@@ -248,11 +254,16 @@ async function sendDiscordChannelMessage({
   });
 }
 
-async function sendDailyToeflVocabIfDue(
+export async function sendDailyToeflVocabIfDue(
   config: ToeflVocabSchedulerConfig,
   now = new Date(),
+  options: {
+    destinations?: ServiceDestination[];
+    discordRequest?: DiscordRequest;
+  } = {},
 ) {
   const destinations =
+    options.destinations ??
     getServiceSubscriptionStore().destinations("toefl_vocab");
   if (destinations.length === 0) return;
 
@@ -274,34 +285,63 @@ async function sendDailyToeflVocabIfDue(
 
   const dataset = getDataset();
   const entry = selectDailyToeflVocabEntry(dataset.entries, timeParts.dateKey);
-  const payload = buildToeflVocabMessagePayload({
-    entry,
-    attribution: dataset.attribution,
-    wordBank: dataset.wordBank,
-  });
-
-  const delivery = await deliverToServiceDestinations(
-    destinations,
-    ({ channelId, guildId }) =>
-      sendDiscordChannelMessage({
-        botToken: config.botToken,
-        channelId,
-        guildId,
-        payload,
-      }),
+  const pending =
+    state.pendingDelivery?.dateKey === timeParts.dateKey
+      ? state.pendingDelivery
+      : {
+          dateKey: timeParts.dateKey,
+          word: entry.word,
+          payload: buildToeflVocabMessagePayload({
+            entry,
+            attribution: dataset.attribution,
+            wordBank: dataset.wordBank,
+          }),
+          deliveredChannelIds: [],
+        };
+  const remaining = destinations.filter(
+    ({ channelId }) => !pending.deliveredChannelIds.includes(channelId),
   );
+  const discordRequest =
+    options.discordRequest ?? createDiscordRequest(config.botToken);
+
+  const delivery = remaining.length
+    ? await deliverToServiceDestinations(remaining, ({ channelId, guildId }) =>
+        sendDiscordChannelMessage({
+          discordRequest,
+          channelId,
+          guildId,
+          payload: pending.payload,
+        }),
+      )
+    : { delivered: 0, failedChannelIds: [] };
+  pending.deliveredChannelIds = [
+    ...new Set([
+      ...pending.deliveredChannelIds,
+      ...remaining
+        .filter(
+          ({ channelId }) => !delivery.failedChannelIds.includes(channelId),
+        )
+        .map(({ channelId }) => channelId),
+    ]),
+  ];
   if (delivery.failedChannelIds.length) {
     console.warn(
       `TOEFL vocab delivery failed for channels ${delivery.failedChannelIds.join(", ")}.`,
     );
   }
   await writeJsonFile(config.stateFile, {
-    lastSentDate: timeParts.dateKey,
-    lastSentWord: entry.word,
+    ...state,
+    ...(delivery.failedChannelIds.length
+      ? { pendingDelivery: pending }
+      : {
+          lastSentDate: timeParts.dateKey,
+          lastSentWord: pending.word,
+          pendingDelivery: undefined,
+        }),
   });
 
   console.log(
-    `Sent TOEFL vocab word for ${timeParts.dateKey} to ${delivery.delivered} Discord channel(s): ${entry.word}.`,
+    `Sent TOEFL vocab word for ${timeParts.dateKey} to ${delivery.delivered} Discord channel(s): ${pending.word}.`,
   );
 }
 
@@ -312,11 +352,16 @@ export function startToeflVocabScheduler() {
     return null;
   }
 
+  let running = false;
   const tick = async () => {
+    if (running) return;
+    running = true;
     try {
       await sendDailyToeflVocabIfDue(config);
     } catch (error) {
       console.error("Failed to send daily TOEFL vocab word:", error);
+    } finally {
+      running = false;
     }
   };
 

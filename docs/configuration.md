@@ -294,6 +294,12 @@ list takes precedence. Owners can list destinations and subscribe or unsubscribe
 an exact channel through chat. Jobs read the list on every check; no deployment
 or restart is needed.
 
+TOEFL vocabulary checkpoints the daily payload and successful destinations in
+`TOEFL_VOCAB_STATE_FILE`. Failed destinations retry on later checks that day
+without repeating confirmed deliveries. A new day selects a new word. An
+ambiguous timeout or a crash between sending and checkpointing can still repeat
+an affected delivery.
+
 ## Current deployment-specific defaults
 
 The repository still contains these Hsi-specific defaults:
