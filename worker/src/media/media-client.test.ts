@@ -46,3 +46,22 @@ describe("host media client", () => {
     ).toBe(true);
   });
 });
+
+test("rejects oversized host media before buffering its body", async () => {
+  let cancelled = false;
+  const response = new Response(
+    new ReadableStream({
+      cancel() {
+        cancelled = true;
+      },
+    }),
+    { headers: { "content-length": String(20 * 1024 * 1024 + 1) } },
+  );
+  const client = httpMediaClient(
+    "https://sago.test/api/chatbot/mcp",
+    "token",
+    Object.assign(async () => response, { preconnect: fetch.preconnect }),
+  );
+  await expect(client.read("attachment")).rejects.toThrow("20 MB");
+  expect(cancelled).toBe(true);
+});

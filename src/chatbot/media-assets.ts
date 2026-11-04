@@ -1,3 +1,4 @@
+import { readBoundedResponseBytes } from "../../contracts/bounded-response";
 import { randomUUID } from "node:crypto";
 
 import type {
@@ -43,29 +44,11 @@ export async function readBoundedMediaBytes(
   response: Response,
   maximum: number,
 ) {
-  const declared = Number(response.headers.get("content-length") ?? 0);
-  if (declared > maximum) throw new Error("Media exceeds the size limit.");
-  const reader = response.body?.getReader();
-  if (!reader) return new Uint8Array();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > maximum) {
-      await reader.cancel();
-      throw new Error("Media exceeds the size limit.");
-    }
-    chunks.push(value);
-  }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes;
+  return readBoundedResponseBytes(
+    response,
+    maximum,
+    "Media exceeds the size limit.",
+  );
 }
 
 export class ChatbotMediaRegistry {
@@ -184,7 +167,10 @@ export class ChatbotMediaRegistry {
       signal.throwIfAborted();
       response = await download();
     }
-    if (!response.ok) throw new Error("Discord could not download the media.");
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => {});
+      throw new Error("Discord could not download the media.");
+    }
     return {
       ...this.reference(asset),
       contentType:

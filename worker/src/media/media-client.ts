@@ -1,3 +1,7 @@
+import { readBoundedResponseBytes } from "../../../contracts/bounded-response";
+
+const MAX_MEDIA_BYTES = 20 * 1024 * 1024;
+
 export type RemoteMedia = {
   mediaId: string;
   filename: string;
@@ -28,15 +32,21 @@ export function httpMediaClient(
           ? AbortSignal.any([signal, AbortSignal.timeout(20_000)])
           : AbortSignal.timeout(20_000),
       });
-      if (!response.ok)
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => {});
         throw new Error("Media is unavailable for this request.");
+      }
       return {
         mediaId,
         filename: decodeURIComponent(
           response.headers.get("x-minisago-filename") ?? mediaId,
         ),
         contentType: response.headers.get("content-type") ?? undefined,
-        bytes: new Uint8Array(await response.arrayBuffer()),
+        bytes: await readBoundedResponseBytes(
+          response,
+          MAX_MEDIA_BYTES,
+          "Media exceeds 20 MB.",
+        ),
       };
     },
     async write(media) {
@@ -50,6 +60,7 @@ export function httpMediaClient(
         body: media.bytes,
         signal: AbortSignal.timeout(20_000),
       });
+      await response.body?.cancel().catch(() => {});
       if (!response.ok) throw new Error("Could not publish generated media.");
     },
   };
