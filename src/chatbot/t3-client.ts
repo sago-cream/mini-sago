@@ -85,26 +85,30 @@ export class T3Client implements T3Connection {
     })());
   }
   async call(name: string, args: Record<string, unknown>): Promise<unknown> {
+    const connection = this.connect();
     let client: Client | undefined;
+    let result: Awaited<ReturnType<Client["callTool"]>>;
     try {
-      client = await this.connect();
-      const result = await client.callTool({ name, arguments: args });
-      if (result.isError)
-        throw new Error(
-          `T3 ${name} failed. Check the T3 session and connection permissions.`,
-        );
-      if (result.structuredContent) return result.structuredContent;
-      const text = (
-        result.content as Array<{ type: string; text?: string }>
-      ).find((part) => part.type === "text")?.text;
-      if (!text) throw new Error(`T3 ${name} returned no result.`);
-      return JSON.parse(text);
+      client = await connection;
+      result = await client.callTool({ name, arguments: args });
     } catch (error) {
-      this.connection = undefined;
+      if (this.connection === connection) this.connection = undefined;
       await client?.close().catch(() => {});
       // Mutations are never automatically retried: attachment sends have no retry key.
       throw error;
     }
+    // A rejected tool call is an application response, not a broken transport.
+    // Closing the shared client here would abort unrelated in-flight sessions.
+    if (result.isError)
+      throw new Error(
+        `T3 ${name} failed. Check the T3 session and connection permissions.`,
+      );
+    if (result.structuredContent) return result.structuredContent;
+    const text = (
+      result.content as Array<{ type: string; text?: string }>
+    ).find((part) => part.type === "text")?.text;
+    if (!text) throw new Error(`T3 ${name} returned no result.`);
+    return JSON.parse(text);
   }
   async close() {
     const connection = this.connection;

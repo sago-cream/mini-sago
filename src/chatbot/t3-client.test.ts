@@ -11,11 +11,30 @@ import { T3OAuthProvider, t3Config } from "./t3-auth";
 async function mcpFixture() {
   const root = await mkdtemp(join(tmpdir(), "minisago-t3-"));
   let fail = false;
+  let initializations = 0;
+  let releaseWait!: () => void;
+  let beginWait!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    releaseWait = resolve;
+  });
+  const waitStarted = new Promise<void>((resolve) => {
+    beginWait = resolve;
+  });
   const server = Bun.serve({
     port: 0,
     hostname: "127.0.0.1",
     async fetch(request) {
+      const body = await request
+        .clone()
+        .json()
+        .catch(() => undefined);
+      if (body?.method === "initialize") initializations++;
       const mcp = new McpServer({ name: "t3-test", version: "1" });
+      mcp.registerTool("t3_wait", { inputSchema: {} }, async () => {
+        beginWait();
+        await waiting;
+        return { content: [{ type: "text" as const, text: '{"done":true}' }] };
+      });
       mcp.registerTool(
         "t3_project_list",
         {
@@ -93,10 +112,14 @@ async function mcpFixture() {
   });
   return {
     client,
-    fail() {
-      fail = true;
+    fail(value = true) {
+      fail = value;
     },
+    initializations: () => initializations,
+    waitStarted,
+    releaseWait: () => releaseWait(),
     async close() {
+      releaseWait();
       await client.close();
       server.stop(true);
       await rm(root, { recursive: true, force: true });
@@ -186,5 +209,27 @@ test("keeps a separate, private OAuth grant bound to the selected environment", 
     );
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a tool rejection preserves other calls and reuses the healthy connection", async () => {
+  const f = await mcpFixture();
+  try {
+    const waiting = f.client.call("t3_wait", {}).then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    );
+    await f.waitStarted;
+    f.fail();
+    await expect(f.client.call("t3_project_list", {})).rejects.toThrow(
+      "Check the T3 session and connection permissions",
+    );
+    f.releaseWait();
+    expect(await waiting).toEqual({ value: { done: true } });
+    f.fail(false);
+    expect(await t3Projects(f.client)).toHaveLength(2);
+    expect(f.initializations()).toBe(1);
+  } finally {
+    await f.close();
   }
 });
