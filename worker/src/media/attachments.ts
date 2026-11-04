@@ -1,3 +1,4 @@
+import { readBoundedResponseBytes } from "../../../contracts/bounded-response";
 import { messageContextEntries } from "../../../contracts/message-context";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -165,45 +166,15 @@ async function download(url: string, signal?: AbortSignal) {
   if (response.url) validateAttachmentUrl(response.url);
 
   if (!response.ok) {
+    await response.body?.cancel().catch(() => {});
     throw new Error(`download returned ${response.status}`);
   }
 
-  const declaredSize = Number(response.headers.get("content-length") ?? 0);
-  if (declaredSize > MAX_ATTACHMENT_BYTES) {
-    throw new Error("attachment exceeds 20 MB");
-  }
-
-  const reader = response.body?.getReader();
-  if (!reader) {
-    return new Uint8Array();
-  }
-
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-
-    size += value.byteLength;
-    if (size > MAX_ATTACHMENT_BYTES) {
-      await reader.cancel();
-      throw new Error("attachment exceeds 20 MB");
-    }
-
-    chunks.push(value);
-  }
-
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-
-  return bytes;
+  return readBoundedResponseBytes(
+    response,
+    MAX_ATTACHMENT_BYTES,
+    "attachment exceeds 20 MB",
+  );
 }
 
 function truncate(value: string, maximum = MAX_EXTRACTED_CHARACTERS) {
