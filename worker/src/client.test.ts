@@ -85,3 +85,34 @@ test.each([false, true])(
     expect(currentJobs.has("active-answer")).toBe(true);
   },
 );
+
+test("worker session monitoring starts while the initial Skillbook sync is pending", async () => {
+  const { MacAgentClient } = await import("./client");
+  const events: string[] = [];
+  let finish!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const client = Object.assign(Object.create(MacAgentClient.prototype), {
+    config: { headless: false },
+    stopped: false,
+    skillbook: {
+      start() {
+        events.push("sync");
+        return pending;
+      },
+    },
+    sessionMonitor: {
+      start() {
+        events.push("session");
+      },
+    },
+  }) as InstanceType<typeof MacAgentClient>;
+  try {
+    client.start();
+    expect(events).toEqual(["sync", "session"]);
+  } finally {
+    finish();
+    await pending;
+  }
+});

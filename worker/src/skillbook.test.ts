@@ -164,3 +164,36 @@ describe("Skillbook sync", () => {
     expect(sync.status()).toMatchObject({ ok: true, skills: 1 });
   });
 });
+
+test("stopping during initial sync prevents callbacks and timer installation", async () => {
+  const { spyOn } = await import("bun:test");
+  const root = await temporaryRoot();
+  const sync = new SkillbookSync({
+    codexHome: root,
+    githubConfigDir: join(root, "github"),
+    repository: "owner/skillbook",
+  });
+  let finish!: (value: boolean) => void;
+  const pending = new Promise<boolean>((resolve) => {
+    finish = resolve;
+  });
+  const run = spyOn(sync, "sync").mockReturnValue(pending);
+  const timer = spyOn(globalThis, "setInterval");
+  const events: string[] = [];
+  try {
+    const started = sync.start(
+      () => events.push("changed"),
+      () => events.push("status"),
+    );
+    sync.stop();
+    finish(true);
+    await started;
+    expect(events).toEqual([]);
+    expect(timer).not.toHaveBeenCalled();
+  } finally {
+    finish(false);
+    sync.stop();
+    run.mockRestore();
+    timer.mockRestore();
+  }
+});
