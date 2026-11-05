@@ -1,6 +1,6 @@
 import { demoReply } from './demo-reply';
 import type { DemoMessage } from './features';
-import { FEATURES, LANDING_CONVERSATION } from './features';
+import { LANDING_CONVERSATION } from './features';
 
 interface Showcase {
     readonly id: string;
@@ -10,16 +10,6 @@ interface Showcase {
 }
 
 export const SHOWCASES = [
-    {
-        id: 'chat',
-        title: '聊天與吐槽',
-        channel: '日常聊天',
-        messages:
-            FEATURES.find((feature) => feature.id === 'chat')?.messages.slice(
-                0,
-                2
-            ) ?? [],
-    },
     {
         id: 'discussion',
         title: '整理對話懶人包',

@@ -2,7 +2,7 @@
 
 A Next.js landing page and an interactive feature guide, scaffolded with
 `npm create rail`. The landing page introduces natural-language use with
-four animated Discord examples covering playful chat, emoji management, discussion
+three animated Discord examples covering emoji management, discussion
 summaries, and spreadsheet processing. `/features/` groups detailed capabilities in a sidebar;
 each selection plays a sample conversation. Examples play once when visible,
 disable replay during playback, and show the conversation without animation for
