@@ -1,4 +1,5 @@
 import { demoReply } from './demo-reply';
+import type { DiscordTextBlock } from './discord-lists';
 
 export interface DemoFile {
     readonly name: string;
@@ -13,6 +14,7 @@ export interface DemoMessage {
     readonly author: 'user' | 'sago' | 'notice';
     readonly userName?: string;
     readonly text: string;
+    readonly blocks?: readonly DiscordTextBlock[];
     readonly file?: DemoFile;
     readonly replyTo?: string;
     readonly replyUserName?: string;

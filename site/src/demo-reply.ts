@@ -1,4 +1,5 @@
 import replies from './demo-replies.json';
+import { discordTextBlocks } from './discord-lists';
 import type { DemoMessage } from './features';
 
 export type DemoReplyId = keyof typeof replies;
@@ -6,7 +7,7 @@ export type DemoReplyId = keyof typeof replies;
 /** Adapt generated Discord text to the demo's existing text/code/link blocks. */
 export function demoReply(
     id: DemoReplyId
-): Pick<DemoMessage, 'text' | 'code' | 'links'> {
+): Pick<DemoMessage, 'text' | 'blocks' | 'code' | 'links'> {
     let text = replies[id];
     let code: string | undefined;
     text = text.replace(
@@ -43,6 +44,7 @@ export function demoReply(
         .trim();
     return {
         text,
+        blocks: discordTextBlocks(text),
         ...(code !== undefined && code !== '' ? { code } : {}),
         ...(links.length > 0 ? { links } : {}),
     };

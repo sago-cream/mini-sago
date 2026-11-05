@@ -2,6 +2,7 @@ import type { JSX } from 'react';
 import { Mic } from 'lucide-react';
 import Image from 'next/image';
 
+import type { DiscordTextBlock } from '@/discord-lists';
 import type { DemoMessage } from '@/features';
 import { DiscordAttachment } from './DiscordAttachment';
 
@@ -27,6 +28,47 @@ function MentionText({ text }: { readonly text: string }): JSX.Element {
                     <span key={index}>{part}</span>
                 )
             )}
+        </>
+    );
+}
+
+function MessageBlocks({
+    blocks,
+}: {
+    readonly blocks: readonly DiscordTextBlock[];
+}): JSX.Element {
+    return (
+        <>
+            {blocks.map((block, index) => {
+                if (block.type === 'paragraph') {
+                    return (
+                        <p key={index}>
+                            <MentionText text={block.text} />
+                        </p>
+                    );
+                }
+                const items = block.items.map((item, itemIndex) => (
+                    <li key={itemIndex}>
+                        <MentionText text={item.text} />
+                        {item.children.length > 0 && (
+                            <MessageBlocks blocks={item.children} />
+                        )}
+                    </li>
+                ));
+                return block.ordered ? (
+                    <ol
+                        className='discord-message-list'
+                        key={index}
+                        start={block.start}
+                    >
+                        {items}
+                    </ol>
+                ) : (
+                    <ul className='discord-message-list' key={index}>
+                        {items}
+                    </ul>
+                );
+            })}
         </>
     );
 }
@@ -126,10 +168,14 @@ export function DiscordMessage({
                                 {message.heading}
                             </h3>
                         )}
-                        {message.text !== '' && (
-                            <p>
-                                <MentionText text={message.text} />
-                            </p>
+                        {message.blocks === undefined ? (
+                            message.text !== '' && (
+                                <p>
+                                    <MentionText text={message.text} />
+                                </p>
+                            )
+                        ) : (
+                            <MessageBlocks blocks={message.blocks} />
                         )}
                         {message.code !== undefined && (
                             <pre className='discord-code'>
