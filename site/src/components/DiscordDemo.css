@@ -259,6 +259,10 @@
     margin: 4px 0;
     padding-left: 20px;
 }
+.discord-message-list li {
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
 .discord-message-links a {
     display: block;
     color: oklab(0.743571 -0.0318744 -0.115154);
