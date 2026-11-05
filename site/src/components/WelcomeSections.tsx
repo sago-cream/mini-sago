@@ -17,7 +17,7 @@ export function NaturalLanguage(): JSX.Element {
             <div className='natural-copy'>
                 <h2 id='natural-title'>以自然語言取代成堆指令</h2>
                 <p>
-                    標記迷你西米露並直接告訴她你想做什麼。她能自主思考並調用工具完成你的需求。
+                    想聊天就找她聊，有事就直接交代。她會看對話、查資料，也會用工具動手做；遇到缺資料的地方，會跟你說清楚。
                 </p>
                 <Link className='text-link' href='/features/'>
                     探索所有工具 <ArrowRight aria-hidden='true' size={20} />

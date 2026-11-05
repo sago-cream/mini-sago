@@ -1,3 +1,5 @@
+import { demoReply } from './demo-reply';
+
 export interface DemoFile {
     readonly name: string;
     readonly detail: string;
@@ -64,7 +66,7 @@ export const FEATURE_SECTIONS = [
 export const LANDING_CONVERSATION = [
     {
         author: 'user',
-        text: '@迷你西米露 幫我整理這份範例報名表：算出總人數和各組人數，做成長條圖 PNG，並把整理後的 CSV 一起傳給我。',
+        text: '@迷你西米露 幫我整理這份範例報名表 算出總人數和各組人數 做成長條圖 PNG 並把整理後的 CSV 一起傳給我 用 ZIP 打包 簡短回覆就好',
         file: {
             name: '活動報名.csv',
             detail: '1 KB',
@@ -74,23 +76,14 @@ export const LANDING_CONVERSATION = [
         },
     },
     {
+        ...demoReply('documents'),
         author: 'sago',
-        text: '我算好了 總共 48 人',
         file: {
             name: 'python-539d1000-5711-4473-b722-73a64b3a80ad.zip',
             detail: '19.50 KB',
             kind: 'document',
             src: '/demos/python-539d1000-5711-4473-b722-73a64b3a80ad.zip',
         },
-    },
-    {
-        author: 'sago',
-        text: '',
-        list: ['A 組 18 人', 'B 組 14 人', 'C 組 16 人'],
-    },
-    {
-        author: 'sago',
-        text: '已附上 ZIP 內含長條圖 PNG 和加入總計列的 CSV\n圖表使用英文標籤 CSV 保留中文組名',
     },
 ] as const satisfies readonly DemoMessage[];
 export const FEATURES = [
@@ -103,38 +96,25 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 我想辦 20 人的桌遊聚會，預算 3,000 元，有人第一次玩。幫我想一下怎麼安排。',
+                text: '@迷你西米露 我把報告放枕頭下面睡一晚 可以用滲透壓吸收知識嗎',
             },
-            {
-                author: 'sago',
-                text: '你想偏輕鬆聊天，還是大家一起玩需要動腦的遊戲？',
-            },
+            { author: 'sago', ...demoReply('chat-banter') },
+
             {
                 author: 'user',
-                text: '@迷你西米露 輕鬆一點，晚上七點開始，而且有兩個人吃素。',
+                text: '@迷你西米露 好啦 認真問 我想辦 20 人的桌遊聚會 預算 3000 元 有人第一次玩 先給我三個安排重點就好',
             },
-            {
-                author: 'sago',
-                text: '可以分成四桌，每桌五人，先用短局遊戲暖場。',
-                list: [
-                    '19:00–19:15 報到、說明規則',
-                    '19:15–20:00 第一輪，安排熟手帶新手',
-                    '20:00–20:15 吃點心、自由換桌',
-                    '20:15–21:00 第二輪',
-                ],
-            },
-            {
-                author: 'sago',
-                text: '預算可以抓場地 1,000、點心 1,200、遊戲租借 300，剩下 500 當備用。點心把素食分開標示，報名表也加上飲食需求。',
-            },
+            { ...demoReply('chat-plan'), author: 'sago' },
             {
                 author: 'user',
-                text: '@迷你西米露 那報名表要問什麼？',
+                text: '@迷你西米露 輕鬆聊天那種 晚上七點開始 兩個人吃素 幫我排三小時流程 簡短一點',
             },
+            { ...demoReply('chat-schedule'), author: 'sago' },
             {
-                author: 'sago',
-                text: '姓名、聯絡方式、桌遊經驗、飲食需求，再加一欄「想和誰同桌」。不需要收跟活動無關的個資。',
+                author: 'user',
+                text: '@迷你西米露 那報名表要問什麼 五個欄位就好',
             },
+            { ...demoReply('chat-signup'), author: 'sago' },
         ],
         note: '自動接續預設在所有伺服器關閉；Bot 擁有者可為個別伺服器啟用 90 秒內的下一則訊息接續。未啟用時，請再次標記她、回覆並通知她，或使用 /ask。',
     },
@@ -169,34 +149,14 @@ export const FEATURES = [
             },
             {
                 author: 'user',
-                text: '@迷你西米露 幫我找上週的活動討論，整理成懶人包：決議、待辦和還沒決定的事。',
+                text: '@迷你西米露 幫我找上週的活動討論 整理成懶人包 決議 待辦 還沒決定的事都要 簡短就好',
             },
-            {
-                author: 'sago',
-                text: '上週討論的決議：本週五 19:00，活動中心集合，每組五人。',
-                list: [
-                    '小安：確認能否提早進場',
-                    '小晴：公布報名表（當時預計隔天）',
-                ],
-            },
-            {
-                author: 'sago',
-                text: '當時還沒決定：餐點預算、雨天備案。這段討論裡還沒有待辦完成的更新。',
-                links: [
-                    {
-                        label: '查看原始活動討論（示範訊息）',
-                        href: '/demos/activity-discussion.txt',
-                    },
-                ],
-            },
+            { ...demoReply('summary'), author: 'sago' },
             {
                 author: 'user',
-                text: '幫我縮成一段可以貼公告的版本。',
+                text: '幫我縮成一段可以貼公告的版本',
             },
-            {
-                author: 'sago',
-                text: '本週五晚上 7 點在活動中心集合，每組 5 人。報名資訊、餐點與雨天備案待確認後補充。',
-            },
+            { ...demoReply('summary-announcement'), author: 'sago' },
         ],
         note: '',
     },
@@ -208,14 +168,13 @@ export const FEATURES = [
         channel: '日常聊天',
         messages: [
             {
+                ...demoReply('ask'),
                 author: 'sago',
-                text: 'users 是空陣列時，users[0] 就是 undefined，接著讀取 .name 才會報錯。先處理沒有第一筆資料的情況：',
                 command: {
                     name: 'ask',
-                    prompt: 'users[0].name 出現 undefined，users 有時是空陣列，要怎麼改？',
+                    prompt: 'users[0].name 出現 undefined，users 有時是空陣列，要怎麼改？簡短說明，給一個例子就好。',
                 },
                 ephemeral: true,
-                code: "const user = users[0];\nconst name = user?.name ?? '尚無使用者';\n\n// 或先判斷沒有資料時要顯示的內容\nif (!user) return '目前沒有使用者';",
             },
         ],
         note: '',
@@ -265,32 +224,23 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 我們這裡說的「會辦」就是學生會辦公室，記住一下。',
+                text: '@迷你西米露 我們這裡說的「會辦」就是學生會辦公室 記住一下',
             },
-            {
-                author: 'sago',
-                text: '記住了，在這個伺服器裡，「會辦」是學生會辦公室。',
-            },
+            { ...demoReply('memory-save'), author: 'sago' },
             {
                 author: 'notice',
                 text: '隔天・新的對話',
             },
             {
                 author: 'user',
-                text: '@迷你西米露 我要去會辦開會，幫我列一下要帶的東西。',
+                text: '@迷你西米露 我要去會辦開會 幫我列一下要帶的東西 簡短就好',
             },
-            {
-                author: 'sago',
-                text: '去學生會辦公室開會，可以帶筆電、充電器、議程和要討論的文件。需要展示資料的話，再確認轉接頭。',
-            },
+            { ...demoReply('memory-use'), author: 'sago' },
             {
                 author: 'user',
-                text: '我們現在不叫會辦了，請忘記這個說法。',
+                text: '我們現在不叫會辦了 請忘記這個說法',
             },
-            {
-                author: 'sago',
-                text: '已移除這個記憶項目，之後不再把「會辦」當成固定用語。',
-            },
+            { ...demoReply('memory-remove'), author: 'sago' },
         ],
         note: '',
     },
@@ -303,34 +253,24 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 加入我的語音頻道。',
+                text: '@迷你西米露 加入我的語音頻道',
             },
-            {
-                author: 'sago',
-                text: '已加入你的語音頻道，可以開始說話。',
-            },
+            { ...demoReply('voice-join'), author: 'sago' },
             {
                 author: 'notice',
                 text: '語音頻道・以下以逐字稿示範',
             },
             {
                 author: 'user',
-                text: '明天考試，但我只有一小時能複習，怎麼分配？',
+                text: '明日試験なのに、復習できるのはあと一時間だけ。どう使えばいい？',
                 spoken: true,
             },
-            {
-                author: 'sago',
-                text: '単語を二十分、読解を二十分、復習を二十分に分けましょう。苦手なところから始めるといいですよ。',
-                spoken: true,
-            },
+            { ...demoReply('voice-spoken'), author: 'sago', spoken: true },
             {
                 author: 'user',
-                text: '@迷你西米露 先離開語音。',
+                text: '@迷你西米露 先離開語音',
             },
-            {
-                author: 'sago',
-                text: '已離開語音頻道。',
-            },
+            { ...demoReply('voice-leave'), author: 'sago' },
         ],
         note: '語音部分以逐字稿示範；目前回覆語音為日文，辨識與輪流說話仍在開發中。',
     },
@@ -343,12 +283,11 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 幫我找 Discord 官方的 Markdown 說明，公告想用粗體和條列，要怎麼寫？',
+                text: '@迷你西米露 幫我找 Discord 官方的 Markdown 說明 公告想用粗體和條列 要怎麼寫 簡短給範例就好',
             },
             {
+                ...demoReply('search'),
                 author: 'sago',
-                text: '找到 Discord 官方的 Markdown 說明了。粗體用兩個星號包住文字；條列在每行開頭加上減號和空格。',
-                code: '**活動公告**\n- 週五晚上 7 點集合\n- 記得帶水壺',
                 links: [
                     {
                         label: 'Discord 官方 · Markdown Text 101',
@@ -368,17 +307,11 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 找迎新企劃，整理活動流程和誰負責什麼。',
+                text: '@迷你西米露 找迎新企劃 整理活動流程和誰負責什麼 簡短就好',
             },
             {
+                ...demoReply('drive'),
                 author: 'sago',
-                text: '迎新流程',
-                list: [
-                    '13:00 報到與分組',
-                    '13:30 開場與暖身',
-                    '14:00 分組活動',
-                    '16:00 收尾',
-                ],
                 links: [
                     {
                         label: '迎新企劃（示範文件）',
@@ -387,18 +320,10 @@ export const FEATURES = [
                 ],
             },
             {
-                author: 'sago',
-                text: '分工：小安負責場地，小晴負責報到，你負責器材。',
-            },
-            {
                 author: 'user',
-                text: '@迷你西米露 我只想確認器材要提前多久準備。',
+                text: '@迷你西米露 我只想確認器材要提前多久準備',
             },
-            {
-                author: 'sago',
-                text: '企劃的器材欄寫 12:30 到場測試，比報到時間提早半小時。建議先確認投影與音響都能使用。',
-                quote: '器材負責人：12:30 完成投影與音響測試。',
-            },
+            { ...demoReply('drive-equipment'), author: 'sago' },
         ],
         note: '',
     },
@@ -411,11 +336,11 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 我在清大校本部，想搭校車去南大，要去哪裡搭？',
+                text: '@迷你西米露 我在清大校本部 想搭校車去南大 要去哪裡搭 簡短就好',
             },
             {
+                ...demoReply('campus'),
                 author: 'sago',
-                text: '可以搭兩校區區間車，校本部上車點包含北校門口、綜二館等站點。不同路線還會經過不同的校內站點，先看班表上那一班的路線。',
                 links: [
                     {
                         label: '清大兩校區區間車時刻表',
@@ -425,12 +350,9 @@ export const FEATURES = [
             },
             {
                 author: 'user',
-                text: '假日也一樣嗎？',
+                text: '假日也一樣嗎',
             },
-            {
-                author: 'sago',
-                text: '要確認當期公告的假日班表與停駛日期，不能直接沿用平日班次。剛剛的校方頁面會列出適用期間與最新公告。',
-            },
+            { ...demoReply('campus-weekend'), author: 'sago' },
         ],
         note: '',
     },
@@ -443,12 +365,11 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 找校務會議裡討論跨領域課程的紀錄，告訴我最後決定了什麼。',
+                text: '@迷你西米露 找校務會議裡討論跨領域課程的紀錄 告訴我最後決定了什麼 簡短就好',
             },
             {
+                ...demoReply('ccxp'),
                 author: 'sago',
-                text: '這份示範紀錄提到先彙整各系意見，再送下一次會議討論；這一頁沒有通過正式方案的決議。',
-                quote: '請教務處彙整各系意見，於下次會議提出跨領域課程規劃。',
                 links: [
                     {
                         label: '示範校務會議紀錄 · 第 2 頁',
@@ -460,10 +381,7 @@ export const FEATURES = [
                 author: 'user',
                 text: '所以還不能說下學期確定會開？',
             },
-            {
-                author: 'sago',
-                text: '對。這段紀錄只能支持「正在規劃、待後續討論」，不能當作已核定的開課公告。',
-            },
+            { ...demoReply('ccxp-followup'), author: 'sago' },
         ],
         note: '',
     },
@@ -476,11 +394,11 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 海巡脆，找清大宿舍入住前要準備什麼。',
+                text: '@迷你西米露 海巡脆 找清大宿舍入住前要準備什麼 簡短整理',
             },
             {
+                ...demoReply('threads'),
                 author: 'sago',
-                text: '這兩則是示範貼文：一則提醒先確認床墊尺寸，另一則整理網路線、延長線與清潔用品。',
                 links: [
                     {
                         label: '示範貼文摘錄與來源標記',
@@ -490,12 +408,9 @@ export const FEATURES = [
             },
             {
                 author: 'user',
-                text: '整理成打包清單，哪些要先問宿舍？',
+                text: '整理成打包清單 哪些要先問宿舍',
             },
-            {
-                author: 'sago',
-                text: '打包：寢具、網路線、清潔用品、換洗衣物。\n先確認：床墊尺寸、插座與用電規定、入住時間。網友的經驗可以參考，規定要以你住的宿舍公告為準。',
-            },
+            { ...demoReply('threads-packing'), author: 'sago' },
         ],
         note: '海巡搜尋需要明確要求；對話中相關的分享連結則會先讀取再回答。',
     },
@@ -507,11 +422,8 @@ export const FEATURES = [
         channel: '檔案處理',
         messages: [
             ...LANDING_CONVERSATION,
-            { author: 'user', text: '哪些組超過平均人數？' },
-            {
-                author: 'sago',
-                text: '平均每組 16 人。A 組 18 人，超過平均；C 組剛好 16 人，B 組 14 人低於平均。',
-            },
+            { author: 'user', text: '哪些組超過平均人數' },
+            { ...demoReply('documents-average'), author: 'sago' },
         ],
         note: '',
     },
@@ -524,7 +436,7 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 我要拿這張圖當表情，把它縮成 128 × 128 的 PNG，保留透明背景，直接傳回圖片檔。',
+                text: '@迷你西米露 我要拿這張圖當表情 把它縮成 128 × 128 的 PNG 保留透明背景 直接傳回圖片檔',
                 file: {
                     name: 'minisago3.png',
                     detail: '圖片附件',
@@ -535,8 +447,8 @@ export const FEATURES = [
                 },
             },
             {
+                ...demoReply('media'),
                 author: 'sago',
-                text: '我已縮成 128 × 128 PNG 並保留透明背景',
                 file: {
                     name: 'media-f111ee3f-f470-4496-aa80-3d66da2a585e.png',
                     detail: '128 × 128',
@@ -558,19 +470,16 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 找 Mac 上的活動報名.csv，傳給我。',
+                text: '@迷你西米露 找 Mac 上的活動報名.csv 傳給我',
             },
-            {
-                author: 'sago',
-                text: '找到兩份同名檔：活動資料夾裡的匯出檔，和下載資料夾裡的舊版本。你要哪份？',
-            },
+            { ...demoReply('mac-choose'), author: 'sago' },
             {
                 author: 'user',
-                text: '活動資料夾的最新版。',
+                text: '活動資料夾的最新版',
             },
             {
+                ...demoReply('mac-send'),
                 author: 'sago',
-                text: '這份是活動資料夾中的匯出檔。',
                 file: {
                     name: '活動報名.csv',
                     detail: '1 KB',
@@ -590,11 +499,7 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 下週三下午三點開一小時的迎新籌備會，幫我確認會辦空檔，邀請小安和小晴。',
-            },
-            {
-                author: 'sago',
-                text: '該時段目前沒有衝突。這是活動與邀請的預覽，請確認後再建立。',
+                text: '@迷你西米露 下週三下午三點開一小時的迎新籌備會 幫我確認會辦空檔 邀請小安和小晴',
             },
             {
                 author: 'sago',
@@ -615,7 +520,7 @@ export const FEATURES = [
             {
                 author: 'sago',
                 text: '',
-                replaces: 2,
+                replaces: 1,
                 embed: {
                     author: '已建立 · 會辦待回覆',
                     title: '迎新籌備會',
@@ -637,22 +542,22 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 每週五台北時間晚上六點，提醒我交週報。',
+                text: '@迷你西米露 每週五台北時間晚上六點 提醒我交週報',
                 time: '今天 下午3:24',
             },
             {
+                ...demoReply('reminder-create'),
                 author: 'sago',
-                text: '已設定每週五 18:00（台北時間），在這個頻道提醒你交週報。',
                 time: '今天 下午3:25',
             },
             {
                 author: 'user',
-                text: '改成五點半好了。',
+                text: '改成五點半好了',
                 time: '今天 下午3:26',
             },
             {
+                ...demoReply('reminder-edit'),
                 author: 'sago',
-                text: '已改成每週五 17:30。',
                 time: '今天 下午3:27',
             },
             {
@@ -666,12 +571,12 @@ export const FEATURES = [
             },
             {
                 author: 'user',
-                text: '收到！下週開始不用提醒了，幫我取消。',
+                text: '收到 下週開始不用提醒了 幫我取消',
                 time: '週五 下午5:31',
             },
             {
+                ...demoReply('reminder-cancel'),
                 author: 'sago',
-                text: '已取消這個每週提醒，下週不會再發送。',
                 time: '週五 下午5:32',
             },
         ],
@@ -687,7 +592,7 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 把這個藍色表符改成紅色，再戴上耳機，背景透明。傳圖片給我，也新增成 mascot_headphones。',
+                text: '@迷你西米露 把這個藍色表符改成紅色 再戴上耳機 背景透明 傳圖片給我 也新增成 mascot_headphones',
                 file: {
                     name: 'mascot.png',
                     detail: '原始表符',
@@ -698,8 +603,8 @@ export const FEATURES = [
                 },
             },
             {
+                ...demoReply('image-edit'),
                 author: 'sago',
-                text: '已改成紅色、加上耳機，並新增 mascot_headphones。原本的表符保留；這張透明 PNG 也可以直接下載。',
                 file: {
                     name: 'mascot_headphones.png',
                     detail: '128 × 128 · 透明 PNG',
@@ -721,13 +626,16 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 幫我統計這則投票各表情有誰按，並對照報名名單。',
+                userName: '主辦人',
+                text: '報名名單：小明、小安、小晴、小雨\n21:00 用拇指表情投票 22:00 用勾勾表情投票',
+            },
+
+            {
+                author: 'user',
+                text: '@迷你西米露 幫我統計這則投票各表情有誰按 並對照報名名單 簡短就好',
                 replyTo: '行前說明會時段投票',
             },
-            {
-                author: 'sago',
-                text: '我會讀取投票訊息的反應名單，以帳號去除重複，並用伺服器暱稱對照。無法確認的姓名會另外列出。',
-            },
+            { ...demoReply('reaction-voters'), author: 'sago' },
         ],
         note: '回覆投票訊息即可查詢，不需要上傳截圖；明確要求通知時才會標記成員。',
     },
@@ -741,7 +649,7 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 把這張圖片新增成這個伺服器的 emoji，叫做 sago_site_demo。完成後傳一次給我看。',
+                text: '@迷你西米露 把這張圖片新增成這個伺服器的 emoji 叫做 sago_site_demo 完成後傳一次給我看',
                 file: {
                     name: 'minisago3.png',
                     detail: '圖片附件',
@@ -760,18 +668,18 @@ export const FEATURES = [
                 },
             },
             {
+                ...demoReply('expression-add'),
                 author: 'sago',
-                text: '我已新增 sago_site_demo 也傳了一次給你看',
                 replyTo:
                     '把這張圖片新增成這個伺服器的 emoji，叫做 sago_site_demo。',
             },
             {
                 author: 'user',
-                text: '再幫我改名成 sago_wave，複製到我們都加入的 Sago Lab。',
+                text: '再幫我改名成 sago_wave 複製到我們都加入的 Sago Lab',
             },
             {
+                ...demoReply('expression-copy'),
                 author: 'sago',
-                text: '已改名，也複製到 Sago Lab。',
                 emoji: {
                     name: 'sago_wave',
                     src: '/demos/sago-site-demo.webp',
@@ -789,12 +697,9 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 請標記小明，提醒他確認分工。',
+                text: '@迷你西米露 請標記小明 提醒他確認分工',
             },
-            {
-                author: 'sago',
-                text: '已找到伺服器暱稱「工作組_小明」對應的帳號，並送出提醒。',
-            },
+            { ...demoReply('member-names'), author: 'sago' },
         ],
         note: '以目前頻道的帳號與伺服器成員資料核對，無法確認或同名時會請你補充；明確要求通知才會標記。',
     },
@@ -987,17 +892,11 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 把自訂狀態改成「mini.sagocream.com」，保持在線。',
+                text: '@迷你西米露 把自訂狀態改成「mini.sagocream.com」保持在線',
             },
-            {
-                author: 'sago',
-                text: '已儲存並送出狀態更新：mini.sagocream.com；在線狀態為在線。',
-            },
-            { author: 'user', text: '改成閒置，狀態文字不變。' },
-            {
-                author: 'sago',
-                text: '已儲存並送出狀態更新：mini.sagocream.com；在線狀態為閒置。',
-            },
+            { ...demoReply('status-online'), author: 'sago' },
+            { author: 'user', text: '改成閒置 狀態文字不變' },
+            { ...demoReply('status-idle'), author: 'sago' },
         ],
         note: '僅限擁有者。狀態會持續保存，重新連線或程式重啟後自動套用。',
     },
@@ -1012,10 +911,7 @@ export const FEATURES = [
                 author: 'user',
                 text: '@迷你西米露 在 Sago Lab 的 #公告 傳送「明天晚上七點開會，請帶上活動企劃。」',
             },
-            {
-                author: 'sago',
-                text: '已傳送到 Sago Lab 的 #公告：明天晚上七點開會，請帶上活動企劃。',
-            },
+            { ...demoReply('channel-message'), author: 'sago' },
         ],
         note: '僅限擁有者。頻道名稱須能明確對應，也可以直接提供頻道 ID。',
     },
@@ -1029,20 +925,14 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 已開啟聊天，但伺服器的指令列表看不到 /ask，幫我檢查。',
+                text: '@迷你西米露 已開啟聊天 但伺服器的指令列表看不到 /ask 幫我檢查',
             },
-            {
-                author: 'sago',
-                text: '已查詢 Discord：這個伺服器沒有註冊 /ask，全域也沒有。聊天開放設定和指令註冊是分開的。',
-            },
+            { ...demoReply('commands-inspect'), author: 'sago' },
             {
                 author: 'user',
-                text: '幫這個伺服器重新同步 /ask。',
+                text: '幫這個伺服器重新同步 /ask',
             },
-            {
-                author: 'sago',
-                text: 'Discord 已接受 /ask，重新讀取也確認已註冊。若特定成員仍看不到，還要檢查該成員的頻道與指令權限。',
-            },
+            { ...demoReply('commands-sync'), author: 'sago' },
         ],
         note: '僅限擁有者。同步只更新指定伺服器的 /ask；保留既有權限與其他指令。無法讀取的檢查會標示未知。',
     },
@@ -1055,28 +945,19 @@ export const FEATURES = [
         messages: [
             {
                 author: 'user',
-                text: '@迷你西米露 查這個伺服器目前開放的功能。',
+                text: '@迷你西米露 查這個伺服器目前開放的功能',
             },
-            {
-                author: 'sago',
-                text: '目前開放：聊天、提醒、表情管理。Calendar 尚未開放；每日單字已訂閱到 #每日單字。',
-            },
+            { ...demoReply('controls-list'), author: 'sago' },
             {
                 author: 'user',
-                text: '開啟 Calendar，只讓「工作人員」身分組使用。',
+                text: '開啟 Calendar 只讓「工作人員」身分組使用',
             },
-            {
-                author: 'sago',
-                text: '已保存：Calendar 開放給「工作人員」，其他成員仍不能使用。',
-            },
+            { ...demoReply('controls-enable'), author: 'sago' },
             {
                 author: 'user',
-                text: '再幫我確認一次設定。',
+                text: '再幫我確認一次設定',
             },
-            {
-                author: 'sago',
-                text: 'Calendar：已開啟\n使用對象：工作人員\n每日單字：#每日單字（未變更）',
-            },
+            { ...demoReply('controls-check'), author: 'sago' },
         ],
         note: '',
     },

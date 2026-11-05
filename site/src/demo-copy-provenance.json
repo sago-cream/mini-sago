@@ -1,0 +1,402 @@
+{
+    "generatedAt": "2026-11-05T06:30:45.247Z",
+    "sourceCommit": "a77cf5bd69d2a39d7659603429d8938d160d4053",
+    "promptVersion": 71,
+    "promptPlanVersions": {
+        "policy": 21,
+        "task": 4,
+        "context": 12
+    },
+    "mode": "Production prompt compilation and model profiles, with local integration fixtures",
+    "fixtureSource": "scripts/fixtures/site-demo-copy.ts",
+    "responses": [
+        {
+            "id": "chat-banter",
+            "request": "我把報告放枕頭下面睡一晚 可以用滲透壓吸收知識嗎",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "9b66218d822986e8ccf6b555f914c0333c5f34fc2369ba4de69330b9bd00f433",
+            "tools": []
+        },
+        {
+            "id": "chat-plan",
+            "request": "好啦 認真問 我想辦 20 人的桌遊聚會 預算 3000 元 有人第一次玩 先給我三個安排重點就好",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "5e8f6d89a48cf9efd46241998fb4fbd7c3abfa255ef2d0cc7c78f84d48e77be0",
+            "tools": []
+        },
+        {
+            "id": "chat-schedule",
+            "request": "輕鬆聊天那種 晚上七點開始 兩個人吃素 幫我排三小時流程 簡短一點",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "b21877a5cc752852d72d88e1857c18e6e55023e92f08285bbafffd5bc8088030",
+            "tools": []
+        },
+        {
+            "id": "chat-signup",
+            "request": "那報名表要問什麼 五個欄位就好",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "f32ae9ae6baf3ba804a86ef95f87d8f9d8041ee73053b2cc06a7429b52ee95c0",
+            "tools": []
+        },
+        {
+            "id": "summary",
+            "request": "幫我找上週的活動討論 整理成懶人包 決議 待辦 還沒決定的事都要 簡短就好",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "213889d2370a321ddf2c2af3c229b71588923f3aaa2de22a6c600519ff2a4cfb",
+            "tools": ["resolve_context"]
+        },
+        {
+            "id": "summary-announcement",
+            "request": "幫我縮成一段可以貼公告的版本",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "947e105e23a2afec618eabbcf5a6fd97277663a57c54ea3806fc083217bc69bc",
+            "tools": []
+        },
+        {
+            "id": "ask",
+            "request": "users[0].name 出現 undefined，users 有時是空陣列，要怎麼改？簡短說明，給一個例子就好。",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "de3bb9d34d504aaacda2cbd65d8fe437beaf12c78fc2da9c359c0f52eeccf57d",
+            "tools": []
+        },
+        {
+            "id": "memory-save",
+            "request": "我們這裡說的「會辦」就是學生會辦公室 記住一下",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "a12c0cc407e60eb9deafffef6a095eaf104ad2f958c0e24dee1ad336579f6f8a",
+            "tools": ["manage_server_memory"]
+        },
+        {
+            "id": "memory-use",
+            "request": "我要去會辦開會 幫我列一下要帶的東西 簡短就好",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "06c4f671ec10ded39a3b1d2df0baa1a9551d50323c34743e4458f10cb827f875",
+            "tools": []
+        },
+        {
+            "id": "memory-remove",
+            "request": "我們現在不叫會辦了 請忘記這個說法",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "656f9e146557e88ed7ede51c4e3e8d024ada049f19a781b7b2f0ff3327e0c1dc",
+            "tools": ["manage_server_memory"]
+        },
+        {
+            "id": "voice-join",
+            "request": "加入我的語音頻道",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "09ec7562672fe0e84c4b46a5a52f24bd576e750cb9383f3895d3dfa9b3787ae5",
+            "tools": ["join_voice_channel"]
+        },
+        {
+            "id": "voice-spoken",
+            "request": "明日試験なのに、復習できるのはあと一時間だけ。どう使えばいい？",
+            "model": "gpt-6-luna",
+            "reasoningEffort": "low",
+            "promptSha256": "68e43fcbf8f62fdf68694080686bd5edf5b3f759bfd38ad701d8295962571ee3",
+            "tools": []
+        },
+        {
+            "id": "voice-leave",
+            "request": "先離開語音",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "2a792127cde133aa5e4c64d79504f432bf787577decbed0b714c2b037c8b36c9",
+            "tools": ["leave_voice_channel"]
+        },
+        {
+            "id": "search",
+            "request": "幫我找 Discord 官方的 Markdown 說明 公告想用粗體和條列 要怎麼寫 簡短給範例就好",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "8ac8ed1a64bc8bd5ad884af9741b1cce89540ba43d145ba558ace774a8132373",
+            "tools": ["read_link"]
+        },
+        {
+            "id": "drive",
+            "request": "找迎新企劃 整理活動流程和誰負責什麼 簡短就好",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "26ed99aa8a3be5f0614535e403eb31dc272b78e073cc92bdb010fa5e03ee59e0",
+            "tools": [
+                "list_shared_drives",
+                "search_drive_files",
+                "read_drive_file"
+            ]
+        },
+        {
+            "id": "drive-equipment",
+            "request": "我只想確認器材要提前多久準備",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "222d6d81eb87ceb2629c69cfe589951e0c76c5d65b165399120d440b31b39524",
+            "tools": ["read_link"]
+        },
+        {
+            "id": "ccxp",
+            "request": "找校務會議裡討論跨領域課程的紀錄 告訴我最後決定了什麼 簡短就好",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "416f6191e513173e82b2c500794a8331705a7eca5040ad8a9339e5c143bb9b33",
+            "tools": ["search_ccxp_meetings", "read_ccxp_meeting"]
+        },
+        {
+            "id": "ccxp-followup",
+            "request": "所以還不能說下學期確定會開？",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "7b8bbbbe1756d386e90aa41f16f07560cca64015f21a74cdb43d000c65973cb9",
+            "tools": ["search_ccxp_meetings", "read_ccxp_meeting"]
+        },
+        {
+            "id": "threads",
+            "request": "海巡脆 找清大宿舍入住前要準備什麼 簡短整理",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "7f1d50d7b79355115903372fd3244b8cf1650347a0fb66344cea70332bcad20b",
+            "tools": ["search_threads"]
+        },
+        {
+            "id": "threads-packing",
+            "request": "整理成打包清單 哪些要先問宿舍",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "abb348806607ca53274130bcfb4b209aada46f36d0cf7ec41c157acd34b1a565",
+            "tools": []
+        },
+        {
+            "id": "documents",
+            "request": "幫我整理這份範例報名表 算出總人數和各組人數 做成長條圖 PNG 並把整理後的 CSV 一起傳給我 用 ZIP 打包 簡短回覆就好",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "a6d9f573b6797c0442de1836d4a13be8cbe7efe804de89349afbb95253bafe7f",
+            "tools": ["run_python"]
+        },
+        {
+            "id": "documents-average",
+            "request": "哪些組超過平均人數",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "073f74b72982c0b8c8c263211c46d126c86caf216b5582734f24e8c7249a5fea",
+            "tools": []
+        },
+        {
+            "id": "media",
+            "request": "我要拿這張圖當表情 把它縮成 128 × 128 的 PNG 保留透明背景 直接傳回圖片檔",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "9524ae36578f67b6541453c381eab31972a7d4ac5c2254aca08ed8c22a47cf78",
+            "tools": ["transform_image"]
+        },
+        {
+            "id": "mac-choose",
+            "request": "找 Mac 上的活動報名.csv 傳給我",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "5e4f5d4f5a3f268ceca9e6f0c0f88ceba61c4c404dc9dc4fd283b8aba102cac5",
+            "tools": ["search_files"]
+        },
+        {
+            "id": "mac-send",
+            "request": "活動資料夾的最新版",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "da46b430ec09786ecb1b96c601b7585ecadb899a1696facff89b160b56d733b2",
+            "tools": ["search_files"]
+        },
+        {
+            "id": "reminder-create",
+            "request": "每週五台北時間晚上六點 提醒我交週報",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "9722d396fa2a79808025383017d88f322147b1034d255919ef7d417a77951e67",
+            "tools": ["create_reminder"]
+        },
+        {
+            "id": "reminder-edit",
+            "request": "改成五點半好了",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "948f80c6e534f859475dc1da19c7e2fed4941a6be27936a3bc670cea1a823c06",
+            "tools": ["list_reminders", "edit_reminder"]
+        },
+        {
+            "id": "reminder-cancel",
+            "request": "收到 下週開始不用提醒了 幫我取消",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "c495738565bad77781704b760cb0c490c693ead807fff330e4fc4fcdff0023da",
+            "tools": ["list_reminders", "cancel_reminder"]
+        },
+        {
+            "id": "image-edit",
+            "request": "把這個藍色表符改成紅色 再戴上耳機 背景透明 傳圖片給我 也新增成 mascot_headphones",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "2eaf94305c849722df8a47956a81c025289d5863841fd20cd6c37f04838d0212",
+            "tools": ["generate_image", "add_guild_expression"]
+        },
+        {
+            "id": "expression-add",
+            "request": "把這張圖片新增成這個伺服器的 emoji 叫做 sago_site_demo 完成後傳一次給我看",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "4e1dd34e9185539a6985ebffec89c4fcd6e2f6c823dd3eb6d411edda2d16d812",
+            "tools": ["add_guild_expression"]
+        },
+        {
+            "id": "expression-copy",
+            "request": "再幫我改名成 sago_wave 複製到我們都加入的 Sago Lab",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "1bd3564517c79688b93d35f6278bac4f8afcdfc83deb547f836bff221a54eff1",
+            "tools": [
+                "list_shared_guilds",
+                "rename_guild_emoji",
+                "add_guild_expression"
+            ]
+        },
+        {
+            "id": "member-names",
+            "request": "請標記小明 提醒他確認分工",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "9961ff8fa1502fb51bd2e3a4f0ecf6039c8c8a5b591e69e006b32302b51eaf28",
+            "tools": ["mention_members"]
+        },
+        {
+            "id": "status-online",
+            "request": "把自訂狀態改成「mini.sagocream.com」保持在線",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "baa776b3e9cadcc92e3e19fbc50c4ae30577cb947590f967f093340c99f1c713",
+            "tools": ["update_custom_status"]
+        },
+        {
+            "id": "status-idle",
+            "request": "改成閒置 狀態文字不變",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "402d6fbdf8aa8bd6eb1b5db6442b2aa313204a0165204428d8a83e200dd3c4ab",
+            "tools": ["update_custom_status"]
+        },
+        {
+            "id": "channel-message",
+            "request": "在 Sago Lab 的 #公告 傳送「明天晚上七點開會，請帶上活動企劃。」",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "9f03673d331404254a3b999b7388f80de31a523b5df8e8b1d3bd05650b460de5",
+            "tools": ["send_channel_message"]
+        },
+        {
+            "id": "commands-inspect",
+            "request": "已開啟聊天 但伺服器的指令列表看不到 /ask 幫我檢查",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "a343420daea3069bd72fda73ce0874df28c3181c0dda6da17d4201bdedc07caf",
+            "tools": ["inspect_discord_commands"]
+        },
+        {
+            "id": "commands-sync",
+            "request": "幫這個伺服器重新同步 /ask",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "cb3a0157b39c79a8406dc8a00bdb92779366e3f30e28618510f22abc98375f03",
+            "tools": ["sync_discord_commands"]
+        },
+        {
+            "id": "controls-list",
+            "request": "查這個伺服器目前開放的功能",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "836ca1c6f4f6b88a6bbf556c82573c738dbf59983836a870c2c22e55986abc1f",
+            "tools": ["list_feature_availability", "list_managed_services"]
+        },
+        {
+            "id": "controls-enable",
+            "request": "開啟 Calendar 只讓「工作人員」身分組使用",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "768c58af9006481888608713af8c143fa153a0661c9e295e380df260985c88f8",
+            "tools": [
+                "list_feature_availability",
+                "configure_feature_availability"
+            ]
+        },
+        {
+            "id": "controls-check",
+            "request": "再幫我確認一次設定",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "b09eac2208cf62dd0f3692d7d3888166de569793e1abdf286aec72e203f1d51d",
+            "tools": ["list_feature_availability"]
+        },
+        {
+            "id": "showcase-discussion",
+            "request": "剛剛訊息好多 幫我整理決議 誰要做什麼 還有沒決定的事 簡短就好",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "f65d707ea4f9c69d9bfcb92ffa11fe26fdd422e22611501aacd79ab71e6210ca",
+            "tools": []
+        },
+        {
+            "id": "showcase-emote-add",
+            "request": "把這張圖片新增成這裡的 emoji 叫做 sago_site_demo 傳一次給我看",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "1e200ba519cef1b55846d265ca0c80995af01e63707c840e1019e08d34992cee",
+            "tools": ["add_guild_expression"]
+        },
+        {
+            "id": "showcase-emote-copy",
+            "request": "順便丟到另一個群組 Sago Lab",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "2c02a50dacb6cc24a07f132c67dbfb0f39f087e0b31073971f1a2985c6f5303f",
+            "tools": ["list_shared_guilds", "add_guild_expression"]
+        },
+        {
+            "id": "reaction-voters",
+            "request": "幫我統計這則投票各表情有誰按 並對照報名名單 簡短就好",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "00c940811eb205e213a2699b213e43b241841410c49df559af27d8310b64b385",
+            "tools": ["read_message_reactions"]
+        },
+        {
+            "id": "calendar",
+            "request": "下週三下午三點開一小時的迎新籌備會 幫我確認會辦空檔 邀請小安和小晴",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "5a1a703d6b170c507351eb9920e82b692e67a5267fed1c9fdc08f4b356e74789",
+            "tools": ["list_calendar_events", "create_calendar_event"],
+            "replyDeliveredByHost": true
+        },
+        {
+            "id": "campus",
+            "request": "我在清大校本部 想搭校車去南大 要去哪裡搭 簡短就好",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "8e248e5fd728849354707881ef61bc16a13e353aa4582a5342fa7424b9563131",
+            "tools": ["get_bus_stops"]
+        },
+        {
+            "id": "campus-weekend",
+            "request": "假日也一樣嗎",
+            "model": "gpt-6.1-sol",
+            "reasoningEffort": "medium",
+            "promptSha256": "58451efd7abfacef6a62d6afbc1dc141171be192afc5da8b9416e9374ad07839",
+            "tools": ["get_bus_stops"]
+        }
+    ]
+}

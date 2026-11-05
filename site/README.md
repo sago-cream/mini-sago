@@ -2,8 +2,8 @@
 
 A Next.js landing page and an interactive feature guide, scaffolded with
 `npm create rail`. The landing page introduces natural-language use with
-three animated Discord examples, each focused on emoji management, discussion
-summaries, or spreadsheet processing. `/features/` groups detailed capabilities in a sidebar;
+four animated Discord examples covering playful chat, emoji management, discussion
+summaries, and spreadsheet processing. `/features/` groups detailed capabilities in a sidebar;
 each selection plays a sample conversation. Examples play once when visible,
 disable replay during playback, and show the conversation without animation for
 reduced motion. Calendar examples wait for confirmation or cancellation; their
@@ -59,3 +59,36 @@ Keep the asset unchanged.
 
 The GitHub logo is from [SVGL](https://svgl.app/); its license is in
 `public/logos/SVGL-LICENSE.txt`.
+
+## Demo reply sources
+
+The conversational replies in `src/demo-replies.json` are sampled model outputs,
+not independently written marketing dialogue. `src/demo-copy-provenance.json`
+records each request, model/effort, compiled-prompt hash and successful fixture
+tools. `src/demo-reply.ts` adapts Markdown, fixture mentions and custom emoji to
+the existing presentation blocks without rewriting the words.
+
+Generate fresh candidates from the repository root:
+
+```sh
+bun scripts/generate-site-replies.ts --output /tmp/site-replies.json
+# One whole conversation, preserving earlier generated replies:
+bun scripts/generate-site-replies.ts --conversation memory --output /tmp/memory-replies.json
+```
+
+The runner uses the production `buildPromptPlan`, output schemas and community
+chat profile; spoken samples use the production voice profile. Core tool schemas
+come from the real MCP registrations. Integration results are local fixtures in
+`scripts/fixtures/site-demo-copy.ts`; media, Mac and campus tools have local
+fixture schemas. No Discord, Google, file-upload or image-generation action runs.
+The Codex CLI needs an existing ChatGPT sign-in; `--codex`, `--codex-home`,
+`MINISAGO_CODEX_PATH` and `MINISAGO_CODEX_HOME` select the local runtime.
+
+Review candidate facts and successful tool calls before replacing the selected
+reply text and provenance. Sampling is nondeterministic. Keep fixture account IDs
+consistent across turns and keep user prompts aligned with the shown replies.
+Do not add a separate personality prompt, copy an old demo answer into model
+context, or force jokes into ordinary task results. Automated reminders, webhook
+notices, Calendar confirmation cards and T3/Codex updates use their own delivery
+formats; the calendar example has no extra chat acknowledgement when the tool
+already delivered its card. All sample data stays labelled as illustrative.

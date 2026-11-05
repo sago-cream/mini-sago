@@ -25,17 +25,19 @@ export function Hero(): JSX.Element {
                         <span>Discord 機器人</span>
                     </h1>
                     <p className='hero-description'>
-                        <span>迷你西米露是你在 Discord 裡的 AI 小幫手。</span>
+                        <span>
+                            迷你西米露會接話、會吐槽，也會幫你把事情做好。
+                        </span>
                         <span>
                             聊天、查資料、
                             <span className='hero-description-phrase'>
                                 整理對話懶人包，
                             </span>
                             <span className='hero-description-phrase'>
-                                還有其他奇奇怪怪的任務，
+                                還有那些奇奇怪怪的問題，
                             </span>
                             <span className='hero-description-phrase'>
-                                通通都能交給她。
+                                標記她，直接說就好。
                             </span>
                         </span>
                     </p>
