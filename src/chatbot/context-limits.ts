@@ -13,6 +13,8 @@ export const CHATBOT_CONTEXT_LIMITS = {
   maximumMemberLookups: 20,
   maximumMemberQueryCharacters: 64,
   memberSearchResults: 10,
+  memberContextPages: 5,
+  memberContextAccounts: 200,
   searchResultsPerQuery: 10,
   maximumSearchResults: 25,
   maximumSearchChannels: 500,

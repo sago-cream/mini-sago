@@ -1280,7 +1280,7 @@ function createServer(session: ChatbotMcpSession) {
     "resolve_context",
     {
       description:
-        "Read more current-channel history, search older accessible messages, resolve member IDs, mention syntax, aliases and avatar references, and optionally inspect the previous answer trace in one parallel batch. Use only the fields needed for the request. To notify members, use mention_members; ordinary replies suppress notifications.",
+        "Read more current-channel history, search older accessible messages, resolve member IDs, mention syntax, role-prefixed server nicknames, aliases and avatar references, and optionally inspect the previous answer trace in one parallel batch. Use only the fields needed for the request. To notify members, use mention_members; ordinary replies suppress notifications.",
       inputSchema: {
         historyCount: z
           .number()
@@ -1326,7 +1326,7 @@ function createServer(session: ChatbotMcpSession) {
       "mention_members",
       {
         description:
-          "Mention and notify members in the current channel only when the requester explicitly asks to tag, ping, 標記 or notify them. Supply the whole requested list of server nicknames, usernames, user IDs or <@id> mentions; there is no member-count cap. The host resolves each query in the current guild and splits unambiguous matches into Discord-sized messages. Include the requested notice in content when needed. Report unresolvedQueries and ask for clarification without guessing; a needs_clarification result posts nothing. A complete result already posted the resolved mentions; do not repeat them or claim unresolved people were notified. A partial result confirms only memberIds; delivery to unconfirmedMemberIds is uncertain. Do not retry automatically after partial delivery. The guild, channel and reply target are host-bound. Repeated calls return the same delivery result.",
+          "Mention and notify members in the current channel only when the requester explicitly asks to tag, ping, 標記 or notify them. Supply the whole requested list of names, server nicknames, usernames, user IDs or <@id> mentions; there is no member-count cap. The host resolves each query in the current guild, including name components after role prefixes using verified channel participants, and splits unambiguous matches into Discord-sized messages. Include the requested notice in content when needed. Report unresolvedQueries and ask for clarification without guessing; a needs_clarification result posts nothing. A complete result already posted the resolved mentions; do not repeat them or claim unresolved people were notified. A partial result confirms only memberIds; delivery to unconfirmedMemberIds is uncertain. Do not retry automatically after partial delivery. The guild, channel and reply target are host-bound. Repeated calls return the same delivery result.",
         inputSchema: {
           queries: z
             .array(

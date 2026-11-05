@@ -311,6 +311,26 @@ Feature coverage and scheduled feed destinations no longer need source changes.
 Feed sources, schedules, and checkpoint settings remain deployment
 configuration. The PR review mapping remains deployment-specific code.
 
+## Discord member lookup
+
+Member lookup, message-search author filters, and explicit `mention_members`
+requests share a request-local resolver. Exact names, account IDs and mentions
+use Discord's member endpoints. When prefix search cannot find a name such as
+`小明` inside `工作組_小明`, MiniSago checks the current channel's authors and
+mentioned accounts against their current guild member records. A unique,
+separator-delimited name component can resolve that account; arbitrary
+substrings and ambiguous names cannot. No nickname-to-account list is hardcoded.
+
+This fallback reads at most five history pages (500 messages) before the request
+and 200 distinct accounts, caching lookups within that request. Clipped history,
+failed membership reads and ambiguous matches remain unresolved; use a full
+server nickname or direct mention in those cases. It needs View Channel and
+Read Message History, with no new environment variables, registrations, or
+privileged Gateway intents. It does not search inaccessible channels or infer
+identities from message text. History includes verified author account IDs;
+webhook authors are not member identity evidence. Lookup is read-only, and
+notifications still require an explicit requester instruction.
+
 ## Discord calendar and contact directory
 
 The Calendar integration is shared by the MiniSago trial and the future NTHUSA

@@ -150,6 +150,7 @@ export type ChatbotMessage = {
   id: string;
   role?: "user" | "assistant";
   author: string;
+  authorId?: string;
   authorAliases?: string[];
   timestamp: string;
   content: string;
@@ -308,6 +309,7 @@ function isMessage(value: unknown): value is ChatbotMessage {
     (value.role === undefined ||
       ["user", "assistant"].includes(String(value.role))) &&
     typeof value.author === "string" &&
+    (value.authorId === undefined || typeof value.authorId === "string") &&
     (value.authorAliases === undefined || isStringArray(value.authorAliases)) &&
     typeof value.timestamp === "string" &&
     typeof value.content === "string" &&

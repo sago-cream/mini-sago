@@ -762,6 +762,24 @@ export const FEATURES = [
         note: '',
     },
     {
+        id: 'member-names',
+        section: 'discord',
+        title: '成員姓名與標記',
+        description: '從伺服器暱稱對照帳號，按要求通知成員。',
+        channel: '活動籌備',
+        messages: [
+            {
+                author: 'user',
+                text: '@迷你西米露 請標記小明，提醒他確認分工。',
+            },
+            {
+                author: 'sago',
+                text: '已找到伺服器暱稱「工作組_小明」對應的帳號，並送出提醒。',
+            },
+        ],
+        note: '以目前頻道的帳號與伺服器成員資料核對，無法確認或同名時會請你補充；明確要求通知才會標記。',
+    },
+    {
         id: 'social',
         section: 'discord',
         title: '讀取分享連結',

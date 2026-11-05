@@ -50,6 +50,7 @@ function promptMessage(message: ChatbotMessage): Record<string, unknown> {
   return {
     ...(message.role ? { role: message.role } : {}),
     author: message.role === "assistant" ? "self" : message.author,
+    ...(message.authorId ? { authorId: message.authorId } : {}),
     ...(message.role !== "assistant" && message.authorAliases?.length
       ? { authorAliases: message.authorAliases }
       : {}),
@@ -73,6 +74,7 @@ function requestMessageContext(job: CodexJob) {
 
   return {
     author: message.author,
+    ...(message.authorId ? { authorId: message.authorId } : {}),
     timestamp: message.timestamp,
     ...(message.content !== job.request
       ? {

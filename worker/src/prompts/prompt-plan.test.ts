@@ -20,6 +20,28 @@ const baseJob: ChatAnswerJob = {
   messages: [],
 };
 
+test("keeps stable account identity in current, history and replied-to prompt context", () => {
+  const message = {
+    id: "message",
+    authorId: "account-123",
+    author: "Alias",
+    timestamp: "2026-11-04T00:00:00Z",
+    content: "hello",
+    attachments: [],
+  };
+  const plan = buildPromptPlan(
+    {
+      ...baseJob,
+      requestMessage: { ...message, referencedMessage: message },
+      messages: [{ ...message, id: "history" }],
+    },
+    [],
+    [],
+  );
+  expect(plan.context.match(/"authorId":"account-123"/gu)).toHaveLength(3);
+  expect(plan.developerInstructions).toContain("a name after a role prefix");
+});
+
 describe("prompt plan", () => {
   test("requires relevant shared link reads separately from explicit searches", () => {
     const plan = buildPromptPlan(baseJob, [], []);

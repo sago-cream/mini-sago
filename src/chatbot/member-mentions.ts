@@ -1,4 +1,9 @@
-import { lookupGuildMembers, type DiscordRequest } from "./chatbot-context";
+import {
+  lookupGuildMembers,
+  createGuildMemberResolver,
+  type GuildMemberResolver,
+  type DiscordRequest,
+} from "./chatbot-context";
 import { CHATBOT_CONTEXT_LIMITS } from "./context-limits";
 
 export type MemberMentionInput = { queries: string[]; content?: string };
@@ -17,11 +22,18 @@ export function createMemberMentionHandler({
   channelId,
   requestMessageId,
   discordRequest,
+  resolveMember = createGuildMemberResolver({
+    guildId,
+    channelId,
+    requestMessageId,
+    discordRequest,
+  }),
 }: {
   guildId: string;
   channelId: string;
   requestMessageId: string;
   discordRequest: DiscordRequest;
+  resolveMember?: GuildMemberResolver;
 }) {
   // A repeated call must not notify the same people again, including after a
   // network failure where Discord may already have accepted the message.
@@ -50,6 +62,7 @@ export function createMemberMentionHandler({
     const members = await lookupGuildMembers({
       guildId,
       queries: uniqueQueries,
+      resolveMember,
       discordRequest,
     });
     const resolvedQueries = new Set(members.map((member) => member.query));

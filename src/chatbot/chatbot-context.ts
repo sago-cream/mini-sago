@@ -61,7 +61,7 @@ export type DiscordMessage = {
   referenced_message?: DiscordMessage | null;
 };
 
-type DiscordGuildMember = {
+export type DiscordGuildMember = {
   nick?: string | null;
   avatar?: string | null;
   user?: {
@@ -70,6 +70,7 @@ type DiscordGuildMember = {
     global_name?: string | null;
     avatar?: string | null;
     discriminator?: string;
+    bot?: boolean;
   };
 };
 
@@ -228,6 +229,9 @@ function contextMessage(
       !message.webhook_id && message.author?.id === botUserId
         ? "assistant"
         : "user",
+    ...(!message.webhook_id && message.author?.id
+      ? { authorId: message.author.id }
+      : {}),
     author: message.webhook_id
       ? `${authorName(message)} (webhook)`
       : authorName(message),
@@ -290,19 +294,22 @@ async function resolveGuildMember({
   guildId,
   memberQuery,
   discordRequest,
+  channelMembers,
 }: {
   guildId: string;
   memberQuery: string;
   discordRequest: DiscordRequest;
+  channelMembers?: () => Promise<DiscordGuildMember[]>;
 }) {
   const mentionedUserId =
     memberQuery.match(USER_MENTION_PATTERN)?.[1] ??
     (/^\d{17,20}$/u.test(memberQuery) ? memberQuery : undefined);
   if (mentionedUserId) {
     try {
-      return await discordRequest<DiscordGuildMember>(
+      const member = await discordRequest<DiscordGuildMember>(
         `/guilds/${guildId}/members/${mentionedUserId}`,
       );
+      return member.user?.id === mentionedUserId ? member : undefined;
     } catch (error) {
       if (error instanceof Error && /^404\b/u.test(error.message))
         return undefined;
@@ -317,38 +324,145 @@ async function resolveGuildMember({
   const members = await discordRequest<DiscordGuildMember[]>(
     `/guilds/${guildId}/members/search?${query}`,
   );
-  const normalizedQuery = memberQuery.toLocaleLowerCase();
+  if (members.length >= CHATBOT_CONTEXT_LIMITS.memberSearchResults)
+    return undefined;
+  const normalizedQuery = normalizeMemberName(memberQuery);
   const exactMatches = members.filter((member) =>
     memberNames(member).some(
-      (name) => name.toLocaleLowerCase() === normalizedQuery,
+      (name) => normalizeMemberName(name) === normalizedQuery,
     ),
   );
-  const match =
-    exactMatches.length === 1
-      ? exactMatches[0]
-      : members.length === 1
-        ? members[0]
-        : undefined;
+  if (exactMatches.length > 1) return undefined;
+  if (exactMatches.length === 1) return exactMatches[0];
+  if (!channelMembers) return members.length === 1 ? members[0] : undefined;
 
-  return match;
+  const candidates = new Map<string, DiscordGuildMember>();
+  for (const member of [...members, ...(await channelMembers())]) {
+    if (member.user?.id) candidates.set(member.user.id, member);
+  }
+  const matches = [...candidates.values()].filter((member) =>
+    memberNames(member).some(
+      (name) =>
+        normalizeMemberName(name) === normalizedQuery ||
+        (!member.user?.bot &&
+          normalizeMemberName(name)
+            .split(/[\s_＿\-—|｜:：/／()（）\[\]【】・·]+/u)
+            .includes(normalizedQuery)),
+    ),
+  );
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+function normalizeMemberName(value: string) {
+  return value.normalize("NFKC").trim().toLocaleLowerCase();
+}
+
+export type GuildMemberResolver = (
+  query: string,
+) => Promise<DiscordGuildMember | undefined>;
+
+// REST message history does not include server nicknames. Discover accounts in
+// the host-bound channel, then verify their current guild member records.
+export function createGuildMemberResolver({
+  guildId,
+  channelId,
+  requestMessageId,
+  discordRequest,
+}: {
+  guildId: string;
+  channelId?: string;
+  requestMessageId?: string;
+  discordRequest: DiscordRequest;
+}): GuildMemberResolver {
+  const lookups = new Map<string, Promise<DiscordGuildMember | undefined>>();
+  let channelMembers: Promise<DiscordGuildMember[]> | undefined;
+  const loadChannelMembers = async () => {
+    if (!channelId) return [];
+    const ids = new Set<string>();
+    let before = requestMessageId;
+    let complete = false;
+    for (
+      let page = 0;
+      page < CHATBOT_CONTEXT_LIMITS.memberContextPages;
+      page += 1
+    ) {
+      const params = new URLSearchParams({
+        limit: "100",
+        ...(before ? { before } : {}),
+      });
+      const messages = await discordRequest<DiscordMessage[]>(
+        `/channels/${channelId}/messages?${params}`,
+      );
+      for (const message of messages) {
+        if (
+          !message.webhook_id &&
+          /^\d{17,20}$/u.test(message.author?.id ?? "")
+        )
+          ids.add(message.author!.id!);
+        for (const mention of message.mentions ?? [])
+          if (/^\d{17,20}$/u.test(mention.id ?? "")) ids.add(mention.id!);
+      }
+      if (messages.length < 100) {
+        complete = true;
+        break;
+      }
+      const oldest = messages.at(-1)?.id;
+      if (!oldest || oldest === before) break;
+      before = oldest;
+    }
+    // A clipped candidate set cannot establish an unambiguous name match.
+    if (!complete || ids.size > CHATBOT_CONTEXT_LIMITS.memberContextAccounts)
+      return [];
+    const members: DiscordGuildMember[] = [];
+    const accounts = [...ids];
+    for (let offset = 0; offset < accounts.length; offset += 5) {
+      const batch = await Promise.all(
+        accounts.slice(offset, offset + 5).map(resolve),
+      );
+      members.push(
+        ...batch.filter(
+          (member): member is DiscordGuildMember => member !== undefined,
+        ),
+      );
+    }
+    return members;
+  };
+  const resolve: GuildMemberResolver = (query) => {
+    const key = normalizeMemberName(query);
+    let pending = lookups.get(key);
+    if (!pending) {
+      pending = resolveGuildMember({
+        guildId,
+        memberQuery: query.trim(),
+        discordRequest,
+        ...(channelId
+          ? {
+              channelMembers: () =>
+                (channelMembers ??= loadChannelMembers().catch(() => [])),
+            }
+          : {}),
+      });
+      lookups.set(key, pending);
+    }
+    return pending;
+  };
+  return resolve;
 }
 
 export async function lookupGuildMembers({
   guildId,
   queries,
   discordRequest,
+  resolveMember = createGuildMemberResolver({ guildId, discordRequest }),
 }: {
   guildId: string;
   queries: string[];
   discordRequest: DiscordRequest;
+  resolveMember?: GuildMemberResolver;
 }) {
   const results = [];
   for (const query of queries) {
-    const member = await resolveGuildMember({
-      guildId,
-      memberQuery: query,
-      discordRequest,
-    });
+    const member = await resolveMember(query);
     if (!member?.user?.id) continue;
     const names = memberNames(member);
     if (names.length === 0) continue;
@@ -492,6 +606,12 @@ export async function searchGuildMessages({
   queries,
   knownMembers = [],
   discordRequest,
+  resolveMember = createGuildMemberResolver({
+    guildId,
+    channelId: currentChannelId,
+    requestMessageId,
+    discordRequest,
+  }),
 }: {
   guildId: string;
   requesterUserId: string;
@@ -501,6 +621,7 @@ export async function searchGuildMessages({
   queries: DiscordSearchQuery[];
   knownMembers?: DiscordGuildMember[];
   discordRequest: DiscordRequest;
+  resolveMember?: GuildMemberResolver;
 }) {
   const searchableChannels = await requesterSearchChannels({
     guildId,
@@ -512,7 +633,13 @@ export async function searchGuildMessages({
   const memberIds = new Map<string, string | undefined>();
   for (const member of knownMembers) {
     for (const name of memberNames(member)) {
-      memberIds.set(name.toLocaleLowerCase(), member.user?.id);
+      const key = normalizeMemberName(name);
+      memberIds.set(
+        key,
+        memberIds.has(key) && memberIds.get(key) !== member.user?.id
+          ? undefined
+          : member.user?.id,
+      );
     }
   }
   const matches = new Map<string, DiscordMessage>();
@@ -522,16 +649,12 @@ export async function searchGuildMessages({
     CHATBOT_CONTEXT_LIMITS.maximumSearchQueries,
   )) {
     const resolveMemberId = async (memberQuery: string) => {
-      const normalizedMember = memberQuery.toLocaleLowerCase();
+      const normalizedMember = normalizeMemberName(memberQuery);
       let memberId = SELF_AUTHOR_PATTERN.test(memberQuery)
         ? requesterUserId
         : memberIds.get(normalizedMember);
       if (!memberId && !memberIds.has(normalizedMember)) {
-        const member = await resolveGuildMember({
-          guildId,
-          memberQuery,
-          discordRequest,
-        });
+        const member = await resolveMember(memberQuery);
         memberId = member?.user?.id;
         memberIds.set(normalizedMember, memberId);
       }
