@@ -13,10 +13,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 Use sampled replies from the production prompt builder (`worker/src/prompts`) and
 model profiles (`worker/src/codex.ts`). Run
 `bun scripts/generate-site-replies.ts --conversation memory --output /tmp/replies.json`
-from the repo root; its local fixtures perform no real service actions. See
-[demo reply sources](README.md#demo-reply-sources) for the full workflow.
+from the repo root; its local fixtures perform no real service actions.
 
-Keep reviewed wording in `src/demo-replies.json` with matching requests and
-provenance. Adapt presentation without inventing a separate personality prompt
+Keep reviewed wording in `src/demo-replies.json` and record matching requests,
+model settings, prompt hashes and successful tools in `src/demo-copy-provenance.json`. Adapt presentation without inventing a separate personality prompt
 or rewriting her voice. Host cards, scheduled notices and T3/Codex updates follow
 their own delivery code. Verify the shown facts and tool outcomes before publishing.
