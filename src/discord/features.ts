@@ -281,6 +281,16 @@ export const FEATURE_DEFINITIONS = {
       tools: ["get_codex_usage"],
     },
   },
+  reaction_lookup: {
+    description:
+      "Read reaction counts and paginated voter accounts on a message in the current channel, including server nicknames and separate normal/burst reactions. Compare rosters by account ID; finish all pages before reporting non-voters.",
+    access: "request",
+    capability: {
+      id: "reaction_lookup",
+      category: "discord",
+      tools: ["read_message_reactions"],
+    },
+  },
   member_mentions: {
     description:
       "Resolve and notify named members in the current server channel when explicitly requested, splitting large lists into Discord-sized messages. Report missing or ambiguous names without notifying uncertain matches.",

@@ -38,9 +38,9 @@ export { EXECUTION_ROUTE_OUTPUT_SCHEMA } from "./execution-route";
 export { SOCIAL_ACTION_OUTPUT_SCHEMA } from "./social-action";
 
 export const PROMPT_PLAN_VERSIONS = {
-  policy: 20,
+  policy: 21,
   task: 4,
-  context: 11,
+  context: 12,
 } as const;
 
 export type PromptPlan = {

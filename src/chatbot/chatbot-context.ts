@@ -45,6 +45,7 @@ export type DiscordMessage = {
   sticker_items?: Array<{ name?: string }>;
   reactions?: Array<{
     count: number;
+    count_details?: { normal: number; burst: number };
     me?: boolean;
     emoji: {
       id?: string | null;

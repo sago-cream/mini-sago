@@ -713,6 +713,25 @@ export const FEATURES = [
         note: '動態來源會以靜態圖片改圖；新增表符或貼圖需明確提出，並受 Discord 權限與大小限制。',
     },
     {
+        id: 'reaction-voters',
+        section: 'discord',
+        title: '投票反應統計',
+        description: '讀取表情反應的人數與成員名單。',
+        channel: '活動籌備',
+        messages: [
+            {
+                author: 'user',
+                text: '@迷你西米露 幫我統計這則投票各表情有誰按，並對照報名名單。',
+                replyTo: '行前說明會時段投票',
+            },
+            {
+                author: 'sago',
+                text: '我會讀取投票訊息的反應名單，以帳號去除重複，並用伺服器暱稱對照。無法確認的姓名會另外列出。',
+            },
+        ],
+        note: '回覆投票訊息即可查詢，不需要上傳截圖；明確要求通知時才會標記成員。',
+    },
+    {
         id: 'expressions',
         section: 'discord',
         title: '表符管理',

@@ -720,7 +720,7 @@ describe("Codex chatbot runner", () => {
     expect(prompt).toContain('"filename":"notes.txt"');
     expect(prompt).toContain('"author":"Daniel"');
     expect(prompt).toContain('"reactions":[{"emoji":"😂","count":4}]');
-    expect(prompt).not.toContain('"id":"message-1"');
+    expect(prompt).toContain('"id":"message-1"');
     expect(prompt).not.toContain("cdn.discordapp.com");
     expect(prompt).toContain("Attachment: notes.txt");
     expect(prompt).toContain("archive.zip: unsupported");
