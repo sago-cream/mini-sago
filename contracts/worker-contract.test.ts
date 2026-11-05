@@ -184,3 +184,19 @@ describe("chatbot job protocol", () => {
     ).toBeNull();
   });
 });
+
+test("author account IDs cross the worker boundary only as optional strings", () => {
+  const message = {
+    id: "message",
+    author: "Alias",
+    authorId: "123456789012345678",
+    timestamp: "2026-11-04T00:00:00Z",
+    content: "hello",
+    attachments: [],
+  };
+  const job = { ...common, purpose: "trace_lookup", messages: [message] };
+  expect(parseChatbotJob(job)?.messages[0]?.authorId).toBe(message.authorId);
+  expect(
+    parseChatbotJob({ ...job, messages: [{ ...message, authorId: 123 }] }),
+  ).toBeNull();
+});

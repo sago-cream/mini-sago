@@ -93,6 +93,7 @@ import {
 import {
   getNearbyHumanMessages,
   getRecentHumanMessages,
+  createGuildMemberResolver,
   lookupGuildMembers,
   searchGuildMessages,
   toChatbotMessage,
@@ -1009,6 +1010,14 @@ async function handleChatbotMentionRequest({
         }
       }
 
+      const resolveMember = message.guild_id
+        ? createGuildMemberResolver({
+            guildId: message.guild_id,
+            channelId: message.channel_id,
+            requestMessageId: message.id,
+            discordRequest,
+          })
+        : undefined;
       const recentMessages = async (historyCount: number) => {
         const resolved = await (historyCount === 0
           ? Promise.resolve([])
@@ -1033,6 +1042,7 @@ async function handleChatbotMentionRequest({
               currentChannelId: contextChannelId,
               requestMessageId: contextRequestMessageId,
               queries,
+              resolveMember,
               discordRequest,
             });
             mediaRegistry.registerMessages(resolved);
@@ -1044,6 +1054,7 @@ async function handleChatbotMentionRequest({
             const resolved = await lookupGuildMembers({
               guildId: message.guild_id!,
               queries,
+              resolveMember,
               discordRequest,
             });
             return resolved.map(({ avatarUrl, ...result }) => {
@@ -1147,6 +1158,7 @@ async function handleChatbotMentionRequest({
                 channelId: message.channel_id,
                 requestMessageId: message.id,
                 discordRequest,
+                resolveMember,
               }),
             }
           : {}),

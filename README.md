@@ -11,6 +11,10 @@ Mention MiniSago or reply to her message to continue a conversation. Automatic
 90-second follow-ups are off in every guild by default; the owner can opt a guild
 in through [`automatic_followups` registration](docs/feature-registration.md).
 
+Sago resolves names inside server nicknames such as `工作組_小明` when matching
+channel participants or explicitly requested mentions. Ambiguous names stay
+unresolved. See [member lookup](docs/configuration.md#discord-member-lookup).
+
 Owner coding requests open a persistent T3 session in a registered project.
 Reply in the Discord thread or open its T3 link to continue the same work, with
 the project's normal model, skills, tools, and permission mode. Assistant updates

@@ -263,7 +263,7 @@ export const FEATURE_DEFINITIONS = {
   },
   discord_context: {
     description:
-      "Read more current-channel history and, when the request is in a server, search accessible messages or resolve member aliases. Inspect bounded metadata about the previous answer when explicitly asked how it was produced.",
+      "Read more current-channel history and, when the request is in a server, search accessible messages or resolve member aliases, including name components in role-prefixed server nicknames from verified channel accounts. History authorId values can be resolved to current server names. Inspect bounded metadata about the previous answer when explicitly asked how it was produced.",
     access: "request",
     capability: {
       id: "discord_context",
@@ -293,7 +293,7 @@ export const FEATURE_DEFINITIONS = {
   },
   member_mentions: {
     description:
-      "Resolve and notify named members in the current server channel when explicitly requested, splitting large lists into Discord-sized messages. Report missing or ambiguous names without notifying uncertain matches.",
+      "Resolve and notify named members, including names after role prefixes in verified server nicknames, in the current server channel when explicitly requested, splitting large lists into Discord-sized messages. Report missing or ambiguous names without notifying uncertain matches.",
     access: "request",
     capability: {
       id: "member_mentions",

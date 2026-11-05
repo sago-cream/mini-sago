@@ -1960,6 +1960,7 @@ describe("Discord chatbot", () => {
       channelId: "channel-1",
       role: "user",
       author: "Hsi",
+      authorId: "user-1",
       timestamp: "2026-07-20T11:00:00.000Z",
       content: "see this",
       attachments: [
@@ -1980,6 +1981,7 @@ describe("Discord chatbot", () => {
         channelId: "channel-1",
         role: "user",
         author: "Daniel",
+        authorId: "user-2",
         timestamp: "2026-07-18T11:00:00.000Z",
         content: "older context",
         attachments: [],
