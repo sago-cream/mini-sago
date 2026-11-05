@@ -554,3 +554,20 @@ Rotate by backing up a replacement key in Vaultwarden, testing restoration,
 installing it on the host, and verifying a search/read before revoking the old
 key. Keep the project's inherited key-creation restriction enforced outside an
 approved rotation window. The obsolete admin OAuth client/grant is not used.
+
+## Discord reaction lookup
+
+`read_message_reactions` is available to chat requests in server channels and
+threads, with no extra environment variables or feature registration. It reads
+only the current channel; reply to the poll or provide a message ID from that
+channel. The bot needs View Channel and Read Message History there.
+
+An initial call returns live counts for every emoji, separated into normal and
+burst reactions. Select an emoji to read a page of up to 100 voter accounts,
+including server nicknames when available. Follow `nextAfter` until null and
+read both types when present. Deduplicate account IDs when counting people
+across emojis or comparing a roster; reaction totals can include the same
+person more than once. Unresolved identities or unfinished pages cannot prove
+someone has not voted. Results reflect a live poll and may change between calls.
+This read-only tool does not send notifications; explicit notification requests
+use `mention_members`.

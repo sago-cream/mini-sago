@@ -1,3 +1,7 @@
+import type {
+  MessageReactionInput,
+  MessageReactionResult,
+} from "./message-reactions";
 import type { createDiscordCommandManagement } from "../discord/application-commands";
 import {
   LINK_READING_INSTRUCTIONS,
@@ -312,6 +316,9 @@ export type ChatbotGuildEmojiRenameInput = {
 };
 
 export type ChatbotMcpSessionHandlers = {
+  readMessageReactions?: (
+    input: MessageReactionInput,
+  ) => Promise<MessageReactionResult>;
   discordCommands?: ReturnType<typeof createDiscordCommandManagement>;
   mentionMembers?: (input: MemberMentionInput) => Promise<MemberMentionResult>;
   mediaRegistry?: ChatbotMediaRegistry;
@@ -560,6 +567,11 @@ function availableCapabilities(
   if (handlers.getCodexUsage) {
     capabilities.push(
       featureCapability("codex_usage", { availability: "available" }),
+    );
+  }
+  if (handlers.readMessageReactions) {
+    capabilities.push(
+      featureCapability("reaction_lookup", { availability: "available" }),
     );
   }
   if (handlers.mentionMembers) {
@@ -1320,6 +1332,38 @@ function createServer(session: ChatbotMcpSession) {
       }
     },
   );
+
+  if (session.handlers.readMessageReactions) {
+    registerFeatureTool(
+      "read_message_reactions",
+      {
+        description:
+          "Read current-channel message reaction counts and voter accounts. Omit messageId for the replied-to message, or supply an ID found in history/search. First omit emoji for all counts; then pass an exact returned emoji to read up to 100 participants of reactionType normal or burst. Follow nextAfter until null for each type with votes. Deduplicate participant IDs across types and emojis when counting people; reaction totals are not unique people. Use server nicknames and account IDs for roster comparisons. Never label someone a non-voter from an unfinished page or an unresolved name. Discord search omits reactions; use this tool instead of requesting screenshots. Channel and guild are host-bound; this tool never notifies anyone.",
+        inputSchema: {
+          messageId: z
+            .string()
+            .regex(/^\d{17,20}$/u)
+            .optional(),
+          emoji: z.string().trim().min(1).max(100).optional(),
+          reactionType: z.enum(["normal", "burst"]).default("normal"),
+          after: z
+            .string()
+            .regex(/^\d{17,20}$/u)
+            .optional(),
+        },
+        annotations: readAnnotations,
+      },
+      async (input) => {
+        try {
+          return toolResult(
+            await session.handlers.readMessageReactions!(input),
+          );
+        } catch (error) {
+          return unavailable(error);
+        }
+      },
+    );
+  }
 
   if (session.handlers.mentionMembers) {
     registerFeatureTool(

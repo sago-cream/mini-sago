@@ -24,6 +24,10 @@ an emoji or sticker when requested. Image generation uses the Linux worker's
 ChatGPT sign-in; no separate API key is needed. See
 [image generation and emoji edits](docs/workers.md#image-generation-and-emoji-edits).
 
+Reply to a poll message and ask who reacted. Sago reads live reaction counts and
+voter accounts, including server nicknames, without screenshots. See
+[reaction lookup](docs/configuration.md#discord-reaction-lookup).
+
 When shared public links are relevant to an answer, Sago reads the pages before
 making claims about their contents and cites the sources. Websites and original
 or fixed-preview Threads, X/Twitter, and Instagram links use one reader. Failed

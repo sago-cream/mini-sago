@@ -279,3 +279,27 @@ test("retains different raw request text and edited reply-target snapshots", () 
   expect(plan.context).toContain("original text");
   expect(plan.context).toContain("edited text");
 });
+
+test("preserves message IDs so reaction lookup can target history and reply messages", () => {
+  const message = {
+    id: "poll-message",
+    channelId: "current-channel",
+    author: "Member",
+    timestamp: "2026-11-04T00:00:00.000Z",
+    content: "Vote here",
+    attachments: [],
+  };
+  const plan = buildPromptPlan(
+    {
+      ...baseJob,
+      requestMessage: { ...message, id: "request", referencedMessage: message },
+      messages: [{ ...message, id: "history-poll" }],
+    },
+    [],
+    [],
+  );
+  expect(plan.context).toContain('"id":"poll-message"');
+  expect(plan.context).toContain('"id":"history-poll"');
+  expect(plan.context).toContain('"channelId":"current-channel"');
+  expect(plan.developerInstructions).toContain("read_message_reactions");
+});

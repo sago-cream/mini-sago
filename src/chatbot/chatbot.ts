@@ -1,3 +1,4 @@
+import { createMessageReactionReader } from "./message-reactions";
 import { endDeveloperThreadTarget } from "./developer-thread-control";
 import { readGuildEmojiMedia } from "./emoji-media";
 import { DeveloperThreadStore } from "./developer-thread-store";
@@ -1135,6 +1136,12 @@ async function handleChatbotMentionRequest({
       const requestMcpHandlers: ChatbotMcpSessionHandlers = {
         ...(message.guild_id
           ? {
+              readMessageReactions: createMessageReactionReader({
+                guildId: message.guild_id,
+                channelId: message.channel_id,
+                defaultMessageId: message.referenced_message?.id ?? message.id,
+                discordRequest,
+              }),
               mentionMembers: createMemberMentionHandler({
                 guildId: message.guild_id,
                 channelId: message.channel_id,

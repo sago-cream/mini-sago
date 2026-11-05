@@ -1979,3 +1979,47 @@ test("status tools reject non-owners and recheck bound identity on execution", a
   await memberClient.close();
   memberSession.revoke();
 });
+
+test("reaction lookup is a read-only host-bound capability with validated paging", async () => {
+  const inputs: unknown[] = [];
+  const session = registerChatbotMcpSession({
+    ...handlers(),
+    readMessageReactions: async (input) => {
+      inputs.push(input);
+      return {
+        status: "complete",
+        channelId: "bound-channel",
+        messageId: "123456789012345678",
+        jumpUrl: "https://discord.com/channels/guild/channel/message",
+        reactions: [],
+      };
+    },
+  });
+  const client = await connect(session.token);
+  expect(session.capabilities).toContainEqual(
+    expect.objectContaining({
+      id: "reaction_lookup",
+      tools: ["read_message_reactions"],
+    }),
+  );
+  const tool = (await client.listTools()).tools.find(
+    (tool) => tool.name === "read_message_reactions",
+  )!;
+  expect(tool.annotations?.readOnlyHint).toBe(true);
+  expect(tool.inputSchema.properties).not.toHaveProperty("channelId");
+  expect(
+    (await client.callTool({ name: "read_message_reactions", arguments: {} }))
+      .structuredContent,
+  ).toMatchObject({ status: "complete", channelId: "bound-channel" });
+  expect(
+    (
+      await client.callTool({
+        name: "read_message_reactions",
+        arguments: { messageId: "bad" },
+      })
+    ).isError,
+  ).toBe(true);
+  expect(inputs).toHaveLength(1);
+  await client.close();
+  session.revoke();
+});
