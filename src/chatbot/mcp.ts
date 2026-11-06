@@ -168,7 +168,7 @@ export function normalizeReminderEdit(input: {
   return {
     reminderId: input.reminderId,
     ...(content ? { content } : {}),
-    ...(cron ? { cron, timezone: timezone || DEFAULT_REMINDER_TIMEZONE } : {}),
+    ...(cron ? { cron, ...(timezone ? { timezone } : {}) } : {}),
   };
 }
 
@@ -1784,7 +1784,7 @@ function createServer(session: ChatbotMcpSession) {
       "edit_reminder",
       {
         description:
-          "Edit a reminder in the current Discord channel. Anyone in the channel may edit it. Provide content, a replacement runAt, or a replacement cron. Omitted content and schedule fields stay unchanged. Operator-configured image skip conditions are preserved and cannot be changed through this tool. Use list_reminders first when the reminder ID is not already known.",
+          "Edit a reminder in the current Discord channel. Anyone in the channel may edit it. Provide content, a replacement runAt, or a replacement cron. Omitted content and schedule fields stay unchanged. A replacement cron keeps the saved timezone unless timezone is supplied; reminders without a saved timezone use Asia/Taipei. Operator-configured image skip conditions are preserved and cannot be changed through this tool. Use list_reminders first when the reminder ID is not already known.",
         inputSchema: {
           reminderId: z.string().uuid(),
           content: z.string().trim().min(1).max(1_500).optional(),

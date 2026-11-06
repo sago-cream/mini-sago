@@ -64,8 +64,14 @@ test("normalizes reminder edits before storage", () => {
     reminderId: "123e4567-e89b-12d3-a456-426614174000",
     content: "buy tickets",
     cron: "0 9 * * *",
-    timezone: "Asia/Taipei",
   });
+  expect(
+    normalizeReminderEdit({
+      reminderId: "123e4567-e89b-12d3-a456-426614174000",
+      cron: "0 9 * * *",
+      timezone: " Asia/Tokyo ",
+    }),
+  ).toMatchObject({ timezone: "Asia/Tokyo" });
   expect(() =>
     normalizeReminderEdit({
       reminderId: "123e4567-e89b-12d3-a456-426614174000",
@@ -1303,6 +1309,18 @@ describe("MiniSago MCP server", () => {
         timezone: "Asia/Tokyo",
       },
     ]);
+
+    await client.callTool({
+      name: "edit_reminder",
+      arguments: {
+        reminderId: "123e4567-e89b-12d3-a456-426614174000",
+        cron: "  0  10 * * * ",
+      },
+    });
+    expect(edited[1]).toEqual({
+      reminderId: "123e4567-e89b-12d3-a456-426614174000",
+      cron: "0 10 * * *",
+    });
 
     await client.callTool({
       name: "cancel_reminder",

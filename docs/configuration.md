@@ -78,6 +78,9 @@ skips that day's reminder; its schedule continues. These fields live in
 `MINISAGO_REMINDER_STATE_FILE`; chat edits preserve the condition.
 Image-conditioned reminders send the user mention followed by the stored copy.
 
+Editing a reminder's cron schedule keeps its saved timezone unless a replacement
+timezone is supplied. Reminders without a saved timezone use `Asia/Taipei`.
+
 `MINISAGO_CCXP_INDEX_PATH` enables read-only CCXP meeting retrieval in guilds
 registered under the owner-managed `ccxp_meetings` feature. Initial registrations
 are `1394943277836402779` and `1000249491494019092`. The separate Oracle collector and owner password

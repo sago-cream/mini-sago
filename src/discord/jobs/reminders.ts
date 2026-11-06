@@ -231,7 +231,8 @@ export class ReminderScheduler {
       let schedule: Pick<Reminder, "nextRunAt"> &
         Partial<Pick<Reminder, "cron" | "timezone">>;
       if (input.cron) {
-        const cronTimezone = timezone || LEGACY_DEFAULT_TIMEZONE;
+        const cronTimezone =
+          timezone || current.timezone || LEGACY_DEFAULT_TIMEZONE;
         ensureTimezone(cronTimezone);
         schedule = {
           nextRunAt: cronNextRun(
