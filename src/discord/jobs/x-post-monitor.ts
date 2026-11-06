@@ -66,6 +66,7 @@ export type XPostState = {
   lastPostUrl?: string;
   lastCheckedAt?: string;
   pendingPosts?: PendingXPost[];
+  pendingReposts?: { post: XPost; deliveredChannelIds: string[] }[];
   digest?: XPostDigest;
 };
 
@@ -478,19 +479,46 @@ async function sendXPostAlertsIfNeeded(
     return;
   }
 
-  const feedPosts = await fetchLatestXPosts(config.feedUrl);
+  await runXPostRepostTick(config, destinations, now);
+}
+
+type RepostDependencies = Omit<DigestDependencies, "summarize" | "send"> & {
+  send: (destination: ServiceDestination, post: XPost) => Promise<void>;
+};
+
+export async function runXPostRepostTick(
+  config: XPostMonitorConfig,
+  destinations: ServiceDestination[],
+  now = new Date(),
+  dependencies: Partial<RepostDependencies> = {},
+) {
+  if (!destinations.length) return;
+  const deps: RepostDependencies = {
+    fetchPosts: fetchLatestXPosts,
+    readState: () => readJsonFile<XPostState>(config.stateFile, () => ({})),
+    saveState: (state) => writeJsonFile(config.stateFile, state),
+    send: (destination, post) => sendXPost(config, destination, post),
+    ...dependencies,
+  };
+  const state = await deps.readState();
+  let feedPosts: XPost[] = [];
+  try {
+    feedPosts = await deps.fetchPosts(config.feedUrl);
+    if (!feedPosts.length) throw new Error("X feed did not contain any posts.");
+  } catch (error) {
+    if (!state.pendingReposts?.length) throw error;
+    console.warn(
+      `Failed to collect @${config.handle} posts; retrying saved reposts:`,
+      error,
+    );
+  }
   const latestPost = feedPosts
     .sort((a, b) => comparePostIds(a.id, b.id))
     .at(-1);
 
-  if (!latestPost) {
-    throw new Error("X feed did not contain any posts.");
-  }
-
-  const state = await readJsonFile<XPostState>(config.stateFile, () => ({}));
-
   if (!state.lastPostId) {
-    await writeJsonFile(config.stateFile, {
+    if (!latestPost) return;
+    await deps.saveState({
       ...state,
       lastPostId: latestPost.id,
       lastPostUrl: latestPost.url,
@@ -502,44 +530,92 @@ async function sendXPostAlertsIfNeeded(
     return;
   }
 
+  const pending = (state.pendingReposts ??= []);
+  const knownIds = new Set(pending.map(({ post }) => post.id));
   const newPosts = feedPosts
     .filter(
       (post) =>
         !config.onlyAuthoredPosts || isXPostAuthoredBy(post, config.handle),
     )
-    .filter((post) => comparePostIds(post.id, state.lastPostId ?? "0") > 0)
+    .filter(
+      (post) =>
+        comparePostIds(post.id, state.lastPostId ?? "0") > 0 &&
+        !knownIds.has(post.id),
+    )
     .sort((a, b) => comparePostIds(a.id, b.id));
 
   for (const post of newPosts) {
-    const delivery = await deliverToServiceDestinations(
-      destinations,
-      (destination) => sendXPost(config, destination, post),
+    if (knownIds.has(post.id)) continue;
+    pending.push({ post, deliveredChannelIds: [] });
+    knownIds.add(post.id);
+  }
+  const advanced =
+    latestPost && comparePostIds(latestPost.id, state.lastPostId) > 0;
+  if (advanced) {
+    state.lastPostId = latestPost.id;
+    state.lastPostUrl = latestPost.url;
+  }
+  if (
+    newPosts.length ||
+    advanced ||
+    (feedPosts.length && shouldCheckpointXPostState(state.lastCheckedAt, now))
+  ) {
+    state.lastCheckedAt = now.toISOString();
+    // Preserve collected contents before advancing the checkpoint or sending.
+    await deps.saveState(state);
+  }
+
+  const blockedChannels = new Set<string>();
+  let failure: unknown;
+  let delivered = 0;
+  for (const receipt of [...pending]) {
+    const { post } = receipt;
+    const remaining = destinations.filter(
+      ({ channelId }) =>
+        !receipt.deliveredChannelIds.includes(channelId) &&
+        !blockedChannels.has(channelId),
+    );
+    let delivery;
+    try {
+      delivery = remaining.length
+        ? await deliverToServiceDestinations(remaining, (destination) =>
+            deps.send(destination, post),
+          )
+        : { delivered: 0, failedChannelIds: [] };
+    } catch (error) {
+      failure = error;
+      for (const { channelId } of remaining) blockedChannels.add(channelId);
+      continue;
+    }
+    delivered += delivery.delivered;
+    receipt.deliveredChannelIds.push(
+      ...remaining
+        .filter(
+          ({ channelId }) => !delivery.failedChannelIds.includes(channelId),
+        )
+        .map(({ channelId }) => channelId),
     );
     if (delivery.failedChannelIds.length) {
+      for (const channelId of delivery.failedChannelIds)
+        blockedChannels.add(channelId);
       console.warn(
         `@${config.handle} X post ${post.id} failed for channels ${delivery.failedChannelIds.join(", ")}.`,
       );
     }
-    await writeJsonFile(config.stateFile, {
-      ...state,
-      lastPostId: post.id,
-      lastPostUrl: post.url,
-      lastCheckedAt: now.toISOString(),
-    });
+    if (
+      destinations.every(({ channelId }) =>
+        receipt.deliveredChannelIds.includes(channelId),
+      )
+    ) {
+      pending.splice(pending.indexOf(receipt), 1);
+    }
+    if (!pending.length) delete state.pendingReposts;
+    await deps.saveState(state);
     console.log(
       `Sent @${config.handle} X post ${post.id} to ${delivery.delivered} Discord channel(s).`,
     );
   }
-
-  if (
-    newPosts.length === 0 &&
-    shouldCheckpointXPostState(state.lastCheckedAt, now)
-  ) {
-    await writeJsonFile(config.stateFile, {
-      ...state,
-      lastCheckedAt: now.toISOString(),
-    });
-  }
+  if (failure && !delivered) throw failure;
 }
 
 export function startXPostMonitor() {

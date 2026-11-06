@@ -106,6 +106,10 @@ All services check for posts every five minutes and use instant reposts unless
 opted into daily digests. Only Holodori (`x_posts_hololive_dreams`) is opted in
 by default, sending a Traditional Chinese digest at **21:00 Asia/Taipei**.
 The primary and additional `@thsottiaux` services keep instant reposts.
+Instant reposts save collected posts and successful destination channels before
+advancing their feed checkpoint. Failed channels retry on later polls across
+restarts and feed outages; successful channels are skipped, and removed
+subscriptions no longer receive pending reposts.
 Each digest covers posts published since the previous local 21:00 cutoff up to
 the current cutoff. Posts
 published at or after the cutoff belong to the next day's digest. Missing,
