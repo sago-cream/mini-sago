@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import {
   buildXPostMessage,
@@ -6,6 +9,7 @@ import {
   isXPostAuthoredBy,
   parseXPosts,
   shouldCheckpointXPostState,
+  runXPostRepostTick,
 } from "./x-post-monitor";
 
 const sampleFeed = `<?xml version="1.0" encoding="UTF-8"?>
@@ -20,6 +24,114 @@ const sampleFeed = `<?xml version="1.0" encoding="UTF-8"?>
       <blockquote><a href="https://x.com/example/status/1">Quoted post</a></blockquote>]]></description>
   </item>
 </channel></rss>`;
+
+test.each(["unchanged", "empty", "unavailable", "removed subscription"])(
+  "retries failed instant X destinations with an %s source without repeating successful sends",
+  async (source) => {
+    const directory = await mkdtemp(join(tmpdir(), "minisago-x-repost-"));
+    const stateFile = join(directory, "state.json");
+    const config = getXPostMonitorConfigs({
+      DISCORD_BOT_TOKEN: "test",
+      X_POST_DELIVERY_MODE: "instant",
+    })[0]!;
+    config.stateFile = stateFile;
+    const destinations = [
+      { guildId: "guild", channelId: "one" },
+      { guildId: "guild", channelId: "two" },
+    ];
+    const posts = parseXPosts(sampleFeed);
+    const sent: string[] = [];
+    let failing = true;
+    const deps = {
+      fetchPosts: async () => posts,
+      send: async ({ channelId }: { channelId: string }) => {
+        if (channelId === "two" && failing) throw new Error("offline");
+        sent.push(channelId);
+      },
+    };
+    try {
+      await writeFile(stateFile, JSON.stringify({ lastPostId: "1" }));
+      await runXPostRepostTick(config, destinations, new Date(), deps);
+      expect(sent).toEqual(["one"]);
+      failing = false;
+      await runXPostRepostTick(
+        config,
+        source === "removed subscription"
+          ? destinations.slice(0, 1)
+          : destinations,
+        new Date(),
+        {
+          ...deps,
+          fetchPosts: async () => {
+            if (source === "unavailable") throw new Error("feed offline");
+            return source === "empty" ? [] : posts;
+          },
+        },
+      );
+      expect(sent).toEqual(
+        source === "removed subscription" ? ["one"] : ["one", "two"],
+      );
+      expect(JSON.parse(await readFile(stateFile, "utf8")).lastPostId).toBe(
+        posts[0]!.id,
+      );
+      expect(
+        JSON.parse(await readFile(stateFile, "utf8")).pendingReposts,
+      ).toBeUndefined();
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+
+test("saves all collected X reposts before sending and preserves author filtering", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "minisago-x-repost-"));
+  const stateFile = join(directory, "state.json");
+  const config = getXPostMonitorConfigs({
+    DISCORD_BOT_TOKEN: "test",
+    X_POST_DELIVERY_MODE: "instant",
+  })[0]!;
+  config.stateFile = stateFile;
+  config.onlyAuthoredPosts = true;
+  const first = parseXPosts(sampleFeed)[0]!;
+  const second = { ...first, id: "2078320950488297918" };
+  const retweet = {
+    ...first,
+    id: "2078320950488297919",
+    url: "https://x.com/someone_else/status/2078320950488297919",
+  };
+  const destinations = [{ guildId: "guild", channelId: "one" }];
+  const sent: string[] = [];
+  let failing = true;
+  const deps = {
+    fetchPosts: async () => [retweet, second, first],
+    send: async (_destination: unknown, post: { id: string }) => {
+      if (failing) throw new Error("offline");
+      sent.push(post.id);
+    },
+  };
+  try {
+    await runXPostRepostTick(config, destinations, new Date(), deps);
+    expect(sent).toEqual([]);
+    await writeFile(stateFile, JSON.stringify({ lastPostId: "1" }));
+    await expect(
+      runXPostRepostTick(config, destinations, new Date(), deps),
+    ).rejects.toThrow("Every service destination failed");
+    const state = JSON.parse(await readFile(stateFile, "utf8"));
+    expect(state.pendingReposts).toHaveLength(2);
+    expect(state.lastPostId).toBe(retweet.id);
+    failing = false;
+    await runXPostRepostTick(config, destinations, new Date(), {
+      ...deps,
+      fetchPosts: async () => [],
+    });
+    expect(sent).toEqual([first.id, second.id]);
+    expect(
+      JSON.parse(await readFile(stateFile, "utf8")).pendingReposts,
+    ).toBeUndefined();
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 describe("X post monitor", () => {
   test("parses post identity, full text, date, and image from FxTwitter RSS", () => {
