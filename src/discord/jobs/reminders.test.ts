@@ -155,6 +155,61 @@ describe("Reminder scheduler", () => {
     );
   });
 
+  test("preserves a recurring reminder's timezone when replacing its cron", async () => {
+    const test = await setup(new Date("2026-07-25T00:00:00.000Z"));
+    const reminder = await test.scheduler.create({
+      requesterUserId: "user-1",
+      channelId: "channel-1",
+      content: "daily check-in",
+      cron: "0 9 * * *",
+      timezone: "Asia/Tokyo",
+    });
+    const edited = await test.scheduler.edit({
+      channelId: "channel-1",
+      reminderId: reminder.id,
+      cron: "0 10 * * *",
+    });
+    expect(edited).toMatchObject({
+      timezone: "Asia/Tokyo",
+      nextRunAt: "2026-07-25T01:00:00.000Z",
+    });
+    expect(
+      JSON.parse(await readFile(test.stateFile, "utf8")).reminders,
+    ).toEqual([edited]);
+
+    expect(
+      await test.scheduler.edit({
+        channelId: "channel-1",
+        reminderId: reminder.id,
+        cron: "0 10 * * *",
+        timezone: "Asia/Taipei",
+      }),
+    ).toMatchObject({
+      timezone: "Asia/Taipei",
+      nextRunAt: "2026-07-25T02:00:00.000Z",
+    });
+  });
+
+  test("uses Taipei when editing a legacy reminder without a timezone", async () => {
+    const test = await setup(new Date("2026-07-25T00:00:00.000Z"));
+    const reminder = await test.scheduler.create({
+      requesterUserId: "user-1",
+      channelId: "channel-1",
+      content: "daily check-in",
+      runAt: "2026-07-25T01:00:00Z",
+    });
+    expect(
+      await test.scheduler.edit({
+        channelId: "channel-1",
+        reminderId: reminder.id,
+        cron: "0 10 * * *",
+      }),
+    ).toMatchObject({
+      timezone: "Asia/Taipei",
+      nextRunAt: "2026-07-25T02:00:00.000Z",
+    });
+  });
+
   test("rejects ambiguous, past, offset-less, and invalid cron schedules", async () => {
     const test = await setup(new Date("2026-07-25T10:00:00.000Z"));
     const base = {
