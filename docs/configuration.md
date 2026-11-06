@@ -70,6 +70,12 @@ See [slash-command diagnostics](bot-management.md#slash-command-diagnostics-and-
 See `.env.production.example` for production state paths and the complete
 scheduled-monitor variable names.
 
+Gamer Forum alerts save collected posts and successful destination channels in
+`GAMER_FORUM_STATE_FILE`. Failed destinations retry on the next scheduled check,
+including after a restart or when the source page is unavailable. Successful
+channels are skipped on retry, and removed subscriptions no longer receive
+pending posts. New installations seed the latest post without reposting history.
+
 Operators can set a reminder's `channelId` to a Discord thread. For drawing
 reminders, `skipIfImagePosted: { threadId, userId }` checks that user's images
 since midnight in the reminder's timezone. The image thread may be the

@@ -1,7 +1,8 @@
-import { createDiscordRequest } from "../api/request";
+import { createDiscordRequest, type DiscordRequest } from "../api/request";
 import {
   deliverToServiceDestinations,
   getServiceSubscriptionStore,
+  type ServiceDestination,
 } from "../service-subscriptions";
 import { decodeEntities, readJsonFile, writeJsonFile } from "./job-utils";
 import { Cron } from "croner";
@@ -43,6 +44,10 @@ type GamerForumState = {
   lastPostFloor?: number;
   lastPostUrl?: string;
   lastCheckedAt?: string;
+  pendingPosts?: {
+    post: GamerForumPost;
+    deliveredChannelIds: string[];
+  }[];
 };
 
 type DiscordChannel = {
@@ -475,17 +480,16 @@ function toState(post: GamerForumPost, now: Date): GamerForumState {
 }
 
 async function sendDiscordChannelMessage({
-  botToken,
+  discordRequest,
   channelId,
   guildId,
   payload,
 }: {
-  botToken: string;
+  discordRequest: DiscordRequest;
   channelId: string;
   guildId: string;
   payload: DiscordMessagePayload;
 }) {
-  const discordRequest = createDiscordRequest(botToken);
   const channel = await discordRequest<DiscordChannel>(
     `/channels/${channelId}`,
   );
@@ -502,30 +506,44 @@ async function sendDiscordChannelMessage({
   });
 }
 
-async function sendGamerForumAlertsIfNeeded(
+export async function sendGamerForumAlertsIfNeeded(
   config: GamerForumMonitorConfig,
   now = new Date(),
+  options: {
+    destinations?: ServiceDestination[];
+    discordRequest?: DiscordRequest;
+    fetchPosts?: () => Promise<GamerForumPost[]>;
+  } = {},
 ) {
   const destinations =
+    options.destinations ??
     getServiceSubscriptionStore().destinations("gamer_forum");
   if (destinations.length === 0) return;
-
-  const posts = await fetchLatestGamerForumPosts(
-    config.watchUrl,
-    config.readerBaseUrl,
-  );
-  const latestPost = posts.at(-1);
-
-  if (!latestPost) {
-    throw new Error("Gamer forum page did not contain any posts.");
-  }
 
   const state = await readJsonFile<GamerForumState>(
     config.stateFile,
     () => ({}),
   );
+  let posts: GamerForumPost[] = [];
+  try {
+    posts = await (
+      options.fetchPosts ??
+      (() => fetchLatestGamerForumPosts(config.watchUrl, config.readerBaseUrl))
+    )();
+    if (!posts.length)
+      throw new Error("Gamer forum page did not contain any posts.");
+  } catch (error) {
+    if (!state.pendingPosts?.length) throw error;
+    console.warn(
+      "Failed to collect Gamer forum posts; retrying saved posts:",
+      error,
+    );
+  }
+  posts.sort((a, b) => comparePostIds(a.id, b.id));
+  const latestPost = posts.at(-1);
 
   if (!state.lastPostId) {
+    if (!latestPost) return;
     await writeJsonFile(config.stateFile, toState(latestPost, now));
     console.log(
       `Initialized Gamer forum monitor at post ${latestPost.id}; future posts will be sent.`,
@@ -533,38 +551,65 @@ async function sendGamerForumAlertsIfNeeded(
     return;
   }
 
-  const newPosts = posts
-    .filter((post) => comparePostIds(post.id, state.lastPostId ?? "") > 0)
-    .sort((a, b) => comparePostIds(a.id, b.id));
+  const pendingPosts = (state.pendingPosts ??= []);
+  const knownIds = new Set(pendingPosts.map(({ post }) => post.id));
+  for (const post of posts) {
+    if (
+      comparePostIds(post.id, state.lastPostId) > 0 &&
+      !knownIds.has(post.id)
+    ) {
+      pendingPosts.push({ post, deliveredChannelIds: [] });
+      knownIds.add(post.id);
+    }
+  }
+  if (latestPost && comparePostIds(latestPost.id, state.lastPostId) > 0) {
+    Object.assign(state, toState(latestPost, now));
+  }
+  if (posts.length) state.lastCheckedAt = now.toISOString();
+  // Save source contents before advancing the collection checkpoint or sending.
+  await writeJsonFile(config.stateFile, state);
+  const discordRequest =
+    options.discordRequest ?? createDiscordRequest(config.botToken);
 
-  for (const post of newPosts) {
+  while (pendingPosts.length) {
+    const pending = pendingPosts[0]!;
+    const { post } = pending;
     const payload = buildGamerForumPostMessagePayload(post);
-    const delivery = await deliverToServiceDestinations(
-      destinations,
-      ({ channelId, guildId }) =>
-        sendDiscordChannelMessage({
-          botToken: config.botToken,
-          channelId,
-          guildId,
-          payload,
-        }),
+    const remaining = destinations.filter(
+      ({ channelId }) => !pending.deliveredChannelIds.includes(channelId),
+    );
+    const delivery = remaining.length
+      ? await deliverToServiceDestinations(
+          remaining,
+          ({ channelId, guildId }) =>
+            sendDiscordChannelMessage({
+              discordRequest,
+              channelId,
+              guildId,
+              payload,
+            }),
+        )
+      : { delivered: 0, failedChannelIds: [] };
+    pending.deliveredChannelIds.push(
+      ...remaining
+        .filter(
+          ({ channelId }) => !delivery.failedChannelIds.includes(channelId),
+        )
+        .map(({ channelId }) => channelId),
     );
     if (delivery.failedChannelIds.length) {
       console.warn(
         `Gamer forum post ${post.id} failed for channels ${delivery.failedChannelIds.join(", ")}.`,
       );
+      await writeJsonFile(config.stateFile, state);
+      return;
     }
-    await writeJsonFile(config.stateFile, toState(post, now));
+    pendingPosts.shift();
+    if (!pendingPosts.length) delete state.pendingPosts;
+    await writeJsonFile(config.stateFile, state);
     console.log(
       `Sent Gamer forum post ${post.id} to ${delivery.delivered} Discord channel(s).`,
     );
-  }
-
-  if (newPosts.length === 0) {
-    await writeJsonFile(config.stateFile, {
-      ...state,
-      lastCheckedAt: now.toISOString(),
-    });
   }
 }
 
@@ -575,11 +620,16 @@ export function startGamerForumMonitor() {
     return null;
   }
 
+  let running = false;
   const tick = async () => {
+    if (running) return;
+    running = true;
     try {
       await sendGamerForumAlertsIfNeeded(config);
     } catch (error) {
       console.error("Failed to check Gamer forum posts:", error);
+    } finally {
+      running = false;
     }
   };
 

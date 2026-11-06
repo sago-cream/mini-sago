@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { DiscordRequest } from "../api/request";
 
 import {
   buildForumPageUrl,
@@ -11,6 +15,7 @@ import {
   parseGamerForumMarkdownPosts,
   parseGamerForumPosts,
   parseForumCheckTimes,
+  sendGamerForumAlertsIfNeeded,
 } from "./gamer-forum-monitor";
 
 const watchUrl = "https://m.gamer.com.tw/forum/C.php?bsn=36476&snA=3047&to=112";
@@ -85,6 +90,119 @@ describe("Gamer forum page helpers", () => {
       "X-Respond-With": "markdown",
     });
   });
+});
+
+test.each(["unchanged", "empty", "unavailable", "removed subscription"])(
+  "retries a failed forum destination with an %s source without repeating successful sends",
+  async (source) => {
+    const directory = await mkdtemp(join(tmpdir(), "minisago-forum-"));
+    const stateFile = join(directory, "state.json");
+    const config = {
+      botToken: "test",
+      watchUrl,
+      readerBaseUrl: "https://reader.example.test/",
+      stateFile,
+      checkTimes: [510],
+      timezone: "Asia/Taipei",
+    };
+    const sent: string[] = [];
+    let failing = true;
+    const options = {
+      destinations: [
+        { guildId: "guild", channelId: "one" },
+        { guildId: "guild", channelId: "two" },
+      ],
+      fetchPosts: async () => parseGamerForumPosts(sampleHtml, watchUrl),
+      discordRequest: (async (path, request) => {
+        if (request?.method !== "POST") return { guild_id: "guild" };
+        if (path.includes("/two/") && failing) throw new Error("offline");
+        sent.push(path);
+        return { id: "message" };
+      }) as DiscordRequest,
+    };
+    try {
+      await writeFile(stateFile, JSON.stringify({ lastPostId: "15232" }));
+      await sendGamerForumAlertsIfNeeded(config, new Date(), options);
+      expect(sent).toEqual(["/channels/one/messages"]);
+      failing = false;
+      await sendGamerForumAlertsIfNeeded(config, new Date(), {
+        ...options,
+        destinations:
+          source === "removed subscription"
+            ? options.destinations.slice(0, 1)
+            : options.destinations,
+        fetchPosts: async () => {
+          if (source === "unavailable") throw new Error("reader offline");
+          return source === "empty" ? [] : options.fetchPosts();
+        },
+      });
+      expect(sent).toEqual(
+        source === "removed subscription"
+          ? ["/channels/one/messages"]
+          : ["/channels/one/messages", "/channels/two/messages"],
+      );
+      expect(JSON.parse(await readFile(stateFile, "utf8"))).toMatchObject({
+        lastPostId: "15233",
+      });
+      expect(
+        JSON.parse(await readFile(stateFile, "utf8")).pendingPosts,
+      ).toBeUndefined();
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+
+test("saves every collected forum post before delivery and retries an all-destination failure", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "minisago-forum-"));
+  const stateFile = join(directory, "state.json");
+  const config = {
+    botToken: "test",
+    watchUrl,
+    readerBaseUrl: "https://reader.example.test/",
+    stateFile,
+    checkTimes: [510],
+    timezone: "Asia/Taipei",
+  };
+  const post = parseGamerForumPosts(sampleHtml, watchUrl)[0]!;
+  const posts = [post, { ...post, id: "15234", text: "newer post" }];
+  const sent: string[] = [];
+  let failing = true;
+  const options = {
+    destinations: [{ guildId: "guild", channelId: "one" }],
+    fetchPosts: async () => posts,
+    discordRequest: (async (_path, request) => {
+      if (request?.method !== "POST") return { guild_id: "guild" };
+      if (failing) throw new Error("offline");
+      sent.push((request.body as { content: string }).content);
+      return { id: "message" };
+    }) as DiscordRequest,
+  };
+  try {
+    // New installations seed a checkpoint without reposting history.
+    await sendGamerForumAlertsIfNeeded(config, new Date(), options);
+    expect(sent).toEqual([]);
+    await writeFile(stateFile, JSON.stringify({ lastPostId: "15232" }));
+    await expect(
+      sendGamerForumAlertsIfNeeded(config, new Date(), options),
+    ).rejects.toThrow("Every service destination failed");
+    expect(
+      JSON.parse(await readFile(stateFile, "utf8")).pendingPosts,
+    ).toHaveLength(2);
+    failing = false;
+    await sendGamerForumAlertsIfNeeded(config, new Date(), {
+      ...options,
+      fetchPosts: async () => [],
+    });
+    expect(sent).toHaveLength(2);
+    expect(sent[0]).toContain("Y4C7W9Z3T");
+    expect(sent[1]).toContain("newer post");
+    expect(
+      JSON.parse(await readFile(stateFile, "utf8")).pendingPosts,
+    ).toBeUndefined();
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 describe("Gamer forum schedule", () => {
