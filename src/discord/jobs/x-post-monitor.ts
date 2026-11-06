@@ -565,17 +565,29 @@ export async function runXPostRepostTick(
     await deps.saveState(state);
   }
 
-  while (pending.length) {
-    const receipt = pending[0]!;
+  const blockedChannels = new Set<string>();
+  let failure: unknown;
+  let delivered = 0;
+  for (const receipt of [...pending]) {
     const { post } = receipt;
     const remaining = destinations.filter(
-      ({ channelId }) => !receipt.deliveredChannelIds.includes(channelId),
+      ({ channelId }) =>
+        !receipt.deliveredChannelIds.includes(channelId) &&
+        !blockedChannels.has(channelId),
     );
-    const delivery = remaining.length
-      ? await deliverToServiceDestinations(remaining, (destination) =>
-          deps.send(destination, post),
-        )
-      : { delivered: 0, failedChannelIds: [] };
+    let delivery;
+    try {
+      delivery = remaining.length
+        ? await deliverToServiceDestinations(remaining, (destination) =>
+            deps.send(destination, post),
+          )
+        : { delivered: 0, failedChannelIds: [] };
+    } catch (error) {
+      failure = error;
+      for (const { channelId } of remaining) blockedChannels.add(channelId);
+      continue;
+    }
+    delivered += delivery.delivered;
     receipt.deliveredChannelIds.push(
       ...remaining
         .filter(
@@ -584,19 +596,26 @@ export async function runXPostRepostTick(
         .map(({ channelId }) => channelId),
     );
     if (delivery.failedChannelIds.length) {
+      for (const channelId of delivery.failedChannelIds)
+        blockedChannels.add(channelId);
       console.warn(
         `@${config.handle} X post ${post.id} failed for channels ${delivery.failedChannelIds.join(", ")}.`,
       );
-      await deps.saveState(state);
-      return;
     }
-    pending.shift();
+    if (
+      destinations.every(({ channelId }) =>
+        receipt.deliveredChannelIds.includes(channelId),
+      )
+    ) {
+      pending.splice(pending.indexOf(receipt), 1);
+    }
     if (!pending.length) delete state.pendingReposts;
     await deps.saveState(state);
     console.log(
       `Sent @${config.handle} X post ${post.id} to ${delivery.delivered} Discord channel(s).`,
     );
   }
+  if (failure && !delivered) throw failure;
 }
 
 export function startXPostMonitor() {

@@ -134,6 +134,45 @@ test("saves all collected X reposts before sending and preserves author filterin
 });
 
 describe("X post monitor", () => {
+  test("keeps healthy destinations current while retrying failed destinations in post order", async () => {
+    const config = getXPostMonitorConfigs({
+      DISCORD_BOT_TOKEN: "test",
+      X_POST_DELIVERY_MODE: "instant",
+    })[0]!;
+    let state: import("./x-post-monitor").XPostState = { lastPostId: "1" };
+    const post = parseXPosts(sampleFeed)[0]!;
+    const posts = [post, { ...post, id: "2078320950488297918" }];
+    const sent: string[] = [];
+    let failing = true;
+    const deps = {
+      fetchPosts: async () => posts,
+      readState: async () => structuredClone(state),
+      saveState: async (next: typeof state) => {
+        state = structuredClone(next);
+      },
+      send: async (
+        { channelId }: { channelId: string },
+        post: { id: string },
+      ) => {
+        if (failing && channelId === "two") throw new Error("offline");
+        sent.push(`${channelId}:${post.id}`);
+      },
+    };
+    const destinations = [
+      { guildId: "guild", channelId: "one" },
+      { guildId: "guild", channelId: "two" },
+    ];
+    await runXPostRepostTick(config, destinations, new Date(), deps);
+    expect(sent).toEqual(posts.map(({ id }) => `one:${id}`));
+    failing = false;
+    await runXPostRepostTick(config, destinations, new Date(), deps);
+    expect(sent).toEqual([
+      ...posts.map(({ id }) => `one:${id}`),
+      ...posts.map(({ id }) => `two:${id}`),
+    ]);
+    expect(state.pendingReposts).toBeUndefined();
+  });
+
   test("parses post identity, full text, date, and image from FxTwitter RSS", () => {
     expect(parseXPosts(sampleFeed)).toEqual([
       {
