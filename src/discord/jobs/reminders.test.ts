@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -127,6 +127,33 @@ describe("Reminder scheduler", () => {
       }),
     ).rejects.toThrow();
     expect(await scheduler.list("channel-1")).toEqual([]);
+  });
+
+  test("keeps a reminder active when cancellation cannot be persisted", async () => {
+    const test = await setup(new Date("2026-07-25T10:00:00.000Z"));
+    const reminder = await test.scheduler.create({
+      requesterUserId: "user-1",
+      channelId: "channel-1",
+      content: "stand up",
+      runAt: "2026-07-25T10:01:00Z",
+    });
+    // A directory at the temporary-file path makes the real state write fail.
+    await mkdir(`${test.stateFile}.tmp`);
+
+    await expect(
+      test.scheduler.cancel("channel-1", reminder.id),
+    ).rejects.toThrow();
+    expect(await test.scheduler.list("channel-1")).toEqual([reminder]);
+    expect(
+      JSON.parse(await readFile(test.stateFile, "utf8")).reminders,
+    ).toEqual([reminder]);
+
+    await rm(`${test.stateFile}.tmp`, { recursive: true });
+    expect(await test.scheduler.cancel("channel-1", reminder.id)).toBe(true);
+    expect(await test.scheduler.list("channel-1")).toEqual([]);
+    expect(
+      JSON.parse(await readFile(test.stateFile, "utf8")).reminders,
+    ).toEqual([]);
   });
 
   test("advances recurring cron reminders in their timezone", async () => {

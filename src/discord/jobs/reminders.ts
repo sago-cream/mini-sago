@@ -297,9 +297,12 @@ export class ReminderScheduler {
           reminder.id === reminderId && reminder.channelId === channelId,
       );
       if (index < 0) return false;
-      this.reminders.splice(index, 1);
+      const reminders = this.reminders.filter(
+        (_, position) => position !== index,
+      );
+      await this.write(reminders);
+      this.reminders = reminders;
       this.failedAttempts.delete(reminderId);
-      await this.write();
       return true;
     });
   }
