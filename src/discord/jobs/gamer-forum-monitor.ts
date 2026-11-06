@@ -571,25 +571,37 @@ export async function sendGamerForumAlertsIfNeeded(
   const discordRequest =
     options.discordRequest ?? createDiscordRequest(config.botToken);
 
-  while (pendingPosts.length) {
-    const pending = pendingPosts[0]!;
+  const blockedChannels = new Set<string>();
+  let failure: unknown;
+  let delivered = 0;
+  for (const pending of [...pendingPosts]) {
     const { post } = pending;
     const payload = buildGamerForumPostMessagePayload(post);
     const remaining = destinations.filter(
-      ({ channelId }) => !pending.deliveredChannelIds.includes(channelId),
+      ({ channelId }) =>
+        !pending.deliveredChannelIds.includes(channelId) &&
+        !blockedChannels.has(channelId),
     );
-    const delivery = remaining.length
-      ? await deliverToServiceDestinations(
-          remaining,
-          ({ channelId, guildId }) =>
-            sendDiscordChannelMessage({
-              discordRequest,
-              channelId,
-              guildId,
-              payload,
-            }),
-        )
-      : { delivered: 0, failedChannelIds: [] };
+    let delivery;
+    try {
+      delivery = remaining.length
+        ? await deliverToServiceDestinations(
+            remaining,
+            ({ channelId, guildId }) =>
+              sendDiscordChannelMessage({
+                discordRequest,
+                channelId,
+                guildId,
+                payload,
+              }),
+          )
+        : { delivered: 0, failedChannelIds: [] };
+    } catch (error) {
+      failure = error;
+      for (const { channelId } of remaining) blockedChannels.add(channelId);
+      continue;
+    }
+    delivered += delivery.delivered;
     pending.deliveredChannelIds.push(
       ...remaining
         .filter(
@@ -598,19 +610,26 @@ export async function sendGamerForumAlertsIfNeeded(
         .map(({ channelId }) => channelId),
     );
     if (delivery.failedChannelIds.length) {
+      for (const channelId of delivery.failedChannelIds)
+        blockedChannels.add(channelId);
       console.warn(
         `Gamer forum post ${post.id} failed for channels ${delivery.failedChannelIds.join(", ")}.`,
       );
-      await writeJsonFile(config.stateFile, state);
-      return;
     }
-    pendingPosts.shift();
+    if (
+      destinations.every(({ channelId }) =>
+        pending.deliveredChannelIds.includes(channelId),
+      )
+    ) {
+      pendingPosts.splice(pendingPosts.indexOf(pending), 1);
+    }
     if (!pendingPosts.length) delete state.pendingPosts;
     await writeJsonFile(config.stateFile, state);
     console.log(
       `Sent Gamer forum post ${post.id} to ${delivery.delivered} Discord channel(s).`,
     );
   }
+  if (failure && !delivered) throw failure;
 }
 
 export function startGamerForumMonitor() {

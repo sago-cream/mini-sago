@@ -206,6 +206,55 @@ test("saves every collected forum post before delivery and retries an all-destin
 });
 
 describe("Gamer forum schedule", () => {
+  test("keeps healthy channels current and recovers failed channels in post order", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "minisago-forum-"));
+    const stateFile = join(directory, "state.json");
+    const config = {
+      botToken: "test",
+      watchUrl,
+      readerBaseUrl: "https://reader.example.test/",
+      stateFile,
+      checkTimes: [510],
+      timezone: "Asia/Taipei",
+    };
+    const post = parseGamerForumPosts(sampleHtml, watchUrl)[0]!;
+    const posts = [post, { ...post, id: "15234", text: "newer post" }];
+    const sent: string[] = [];
+    let failing = true;
+    const options = {
+      destinations: [
+        { guildId: "guild", channelId: "one" },
+        { guildId: "guild", channelId: "two" },
+      ],
+      fetchPosts: async () => posts,
+      discordRequest: (async (path, request) => {
+        if (request?.method !== "POST") return { guild_id: "guild" };
+        const channelId = path.split("/")[2]!;
+        if (failing && channelId === "two") throw new Error("offline");
+        const newer = (request.body as { content: string }).content.includes(
+          "newer post",
+        );
+        sent.push(`${channelId}:${newer ? "15234" : "15233"}`);
+        return { id: "message" };
+      }) as DiscordRequest,
+    };
+    try {
+      await writeFile(stateFile, JSON.stringify({ lastPostId: "15232" }));
+      await sendGamerForumAlertsIfNeeded(config, new Date(), options);
+      expect(sent).toEqual(["one:15233", "one:15234"]);
+      failing = false;
+      await sendGamerForumAlertsIfNeeded(config, new Date(), options);
+      expect(sent).toEqual([
+        "one:15233",
+        "one:15234",
+        "two:15233",
+        "two:15234",
+      ]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   const checkTimes = parseForumCheckTimes("08:30,20:30");
 
   test("parses two unique daily wall-clock times", () => {
