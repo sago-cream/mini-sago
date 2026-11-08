@@ -113,6 +113,8 @@ routing, social-action decisions, and X digests. Use a project key belonging to
 the organization that receives your API credits. API usage is billed to that
 organization; it does not consume the ChatGPT subscription's Codex allowance.
 The key is never forwarded to Discord, MCP tools, Python, or Codex processes.
+For the Mac fallback, set the same key in `.env.local` before running
+`bun run mac-agent:install`; the installer copies it to the private `agent.env`.
 
 The API backend keeps the same model profiles, prompts, conversation context,
 attachment preparation, structured replies, voice streaming, and request-scoped
