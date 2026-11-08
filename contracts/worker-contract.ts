@@ -550,12 +550,6 @@ export type MacAgentClientMessage =
       delta: string;
     }
   | {
-      type: "steer_result";
-      jobId: string;
-      requestId: string;
-      accepted: boolean;
-    }
-  | {
       type: "result";
       jobId: string;
       ok: true;
@@ -583,12 +577,6 @@ export type MacAgentServerMessage =
   | {
       type: "cancel";
       jobId: string;
-    }
-  | {
-      type: "steer";
-      jobId: string;
-      requestId: string;
-      request: string;
     }
   | {
       type: "codex_usage_request";

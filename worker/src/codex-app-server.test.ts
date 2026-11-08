@@ -60,7 +60,7 @@ describe("Codex App Server manager", () => {
     ).toBe(false);
   });
 
-  test("keeps steering in the active turn and returns only its final answer", async () => {
+  test("returns only the final answer while preserving bounded progress", async () => {
     const manager = new CodexAppServerManager();
     expect(manager.status()).toEqual({ ok: true, sessions: 0, active: 0 });
     const progress: ChatbotTaskProgress[] = [];
@@ -74,10 +74,7 @@ describe("Codex App Server manager", () => {
     }
 
     expect(manager.status()).toEqual({ ok: true, sessions: 1, active: 1 });
-    expect(await manager.steer("job-1", "Focus on the setup guide.")).toBe(
-      true,
-    );
-    expect(await result).toBe("Finished after steering.");
+    expect(await result).toBe("Finished the task.");
     expect(manager.status()).toEqual({ ok: true, sessions: 1, active: 0 });
     expect(progress).toContainEqual({
       phase: "reviewing",
@@ -90,14 +87,9 @@ describe("Codex App Server manager", () => {
     expect(JSON.stringify(progress)).not.toContain(
       "internal implementation details",
     );
-    expect(progress).toContainEqual({
-      phase: "reviewing",
-      summary: "Applying the new direction.",
-      kind: "trace",
-    });
-    expect(
-      progress.some((item) => item.summary === "Finished after steering."),
-    ).toBe(false);
+    expect(progress.some((item) => item.summary === "Finished the task.")).toBe(
+      false,
+    );
     manager.close();
   });
 
@@ -182,8 +174,7 @@ describe("Codex App Server manager", () => {
         break;
       await Bun.sleep(2);
     }
-    expect(await manager.steer("job-continue", "Continue.")).toBe(true);
-    expect(await second).toBe("Finished after steering.");
+    expect(await second).toBe("Finished the task.");
     manager.close();
   });
 });

@@ -165,41 +165,28 @@ async function handle(line: string) {
         },
       });
     }
-  } else if (message.method === "turn/steer") {
-    send({ id: message.id, result: { turnId: "turn-native" } });
-    send({
-      method: "item/completed",
-      params: {
-        threadId: "thread-native",
-        turnId: "turn-native",
-        item: {
-          id: "message-1",
-          type: "agentMessage",
-          phase: "commentary",
-          text: "Applying the new direction.",
-        },
-      },
-    });
-    send({
-      method: "item/completed",
-      params: {
-        threadId: "thread-native",
-        turnId: "turn-native",
-        item: {
-          id: "message-2",
-          type: "agentMessage",
-          phase: "final_answer",
-          text: "Finished after steering.",
-        },
-      },
-    });
-    send({
-      method: "turn/completed",
-      params: {
-        threadId: "thread-native",
-        turn: { id: "turn-native", status: "completed", items: [] },
-      },
-    });
+    if (!message.params?.outputSchema)
+      setTimeout(() => {
+        send({
+          method: "item/completed",
+          params: {
+            threadId: "thread-native",
+            turnId: "turn-native",
+            item: {
+              type: "agentMessage",
+              phase: "final_answer",
+              text: "Finished the task.",
+            },
+          },
+        });
+        send({
+          method: "turn/completed",
+          params: {
+            threadId: "thread-native",
+            turn: { id: "turn-native", status: "completed", items: [] },
+          },
+        });
+      }, 50);
   } else if (message.method === "turn/interrupt") {
     send({ id: message.id, result: {} });
     send({

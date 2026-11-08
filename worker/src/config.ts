@@ -9,6 +9,7 @@ import {
 } from "../../src/chatbot/access";
 
 export type MacAgentConfig = {
+  chatApiKey?: string;
   bridgeUrl: string;
   bridgeSecret: string;
   codexHome: string;
@@ -148,6 +149,7 @@ export async function loadMacAgentConfig(): Promise<MacAgentConfig> {
   );
 
   return {
+    chatApiKey: process.env.OPENAI_API_KEY?.trim() || undefined,
     bridgeUrl,
     bridgeSecret,
     codexHome:

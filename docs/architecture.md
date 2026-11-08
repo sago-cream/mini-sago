@@ -2,7 +2,8 @@
 
 MiniSago separates Discord authority from model execution. The hosted service
 owns identity, permissions, context retrieval, and Discord actions. Authenticated
-workers connect outbound and run Codex for chat and bounded Mac requests.
+workers connect outbound and use the OpenAI Responses API or Codex for chat,
+with Codex handling bounded Mac requests.
 Owner coding connects directly to an independently running T3 environment.
 
 ## Deployment topology
@@ -14,7 +15,8 @@ flowchart LR
     H --> W["Reserved outbound<br/>WebSocket workflow"]
     W --> O["Oracle worker<br/>chat"]
     W -. "fallback or Mac-only" .-> M["Mac helper<br/>chat, mac"]
-    O --> C["Codex"]
+    O --> A["OpenAI Responses API<br/>when OPENAI_API_KEY is configured"]
+    O --> C["Codex<br/>default chat and image generation"]
     M --> C
     H --> T["T3 environment<br/>coding sessions and workspaces"]
     T <--> UI["T3 UI"]
@@ -44,7 +46,9 @@ Bridge secrets determine each worker's profile:
 | Mac     | `chat`, `mac` | Fallback or explicit Mac target         |
 
 Workers advertise capacity. A workflow reserves a worker through chat routing
-and answering. Codex conversations have isolated configuration and request
+and answering. API chat uses stateless Responses requests with locally retained
+encrypted reasoning for tool continuations, and request-local MCP clients.
+Codex conversations have isolated configuration and request
 credentials. Linux chat can reuse an app-server process while creating and
 cleaning up a separate conversation and workspace per answer.
 

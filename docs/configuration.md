@@ -198,31 +198,35 @@ matched queries, and any per-query errors. It does not poll or repost.
 
 ## Workers
 
-| Name                                      | Required | Purpose                                                 |
-| ----------------------------------------- | -------- | ------------------------------------------------------- |
-| `MINISAGO_BRIDGE_URL`                     | No       | Hosted WebSocket URL; plain `ws://` is local-only       |
-| `MINISAGO_MCP_URL`                        | No       | MCP endpoint; derived from the bridge origin by default |
-| `MINISAGO_MAC_BRIDGE_SECRET`              | Yes      | Profile secret matching the hosted service              |
-| `MINISAGO_MAC_FILE_ROOTS`                 | No       | Colon-separated roots for owner Mac file requests       |
-| `MINISAGO_CODEX_PATH`                     | No       | Codex executable                                        |
-| `MINISAGO_CODEX_HOME`                     | No       | Isolated Codex state                                    |
-| `MINISAGO_DEPLOY_SOCKET`                  | No       | Bounded host deployment socket exposed to Oracle        |
-| `MINISAGO_DEPLOY_STATUS_FILE`             | Core     | Read-only detached deployment status                    |
-| `MINISAGO_DEPLOY_NOTIFICATION_STATE_FILE` | Core     | Delivery checkpoint for deployment results              |
-| `MINISAGO_SESSION_MONITOR_PATH`           | Mac      | Compiled macOS lock monitor                             |
-| `MINISAGO_TRACE_DATABASE_PATH`            | No       | Local response-trace database                           |
-| `MINISAGO_WORKSPACE_ROOT`                 | No       | Worker runtime directory                                |
-| `MINISAGO_MAX_CONCURRENT_JOBS`            | No       | Capacity advertised to the bridge, from 1 to 16         |
-| `MINISAGO_SANDBOX_URL`                    | Linux    | Internal request-local computation broker URL           |
-| `MINISAGO_HEADLESS`                       | Linux    | Keep a worker connected without a session monitor       |
-| `MINISAGO_WORKER_ID`                      | No       | Stable worker identity                                  |
-| `MINISAGO_CHATBOT_REPOSITORY`             | No       | Repository that owns chatbot behavior                   |
-| `MINISAGO_CHATBOT_OWNER_USER_ID`          | Yes      | Same owner ID as the hosted service                     |
-| `MINISAGO_GITHUB_CONFIG_DIR`              | No       | GitHub state for optional worker Skillbook sync         |
+| Name                                      | Required | Purpose                                                         |
+| ----------------------------------------- | -------- | --------------------------------------------------------------- |
+| `MINISAGO_BRIDGE_URL`                     | No       | Hosted WebSocket URL; plain `ws://` is local-only               |
+| `MINISAGO_MCP_URL`                        | No       | MCP endpoint; derived from the bridge origin by default         |
+| `MINISAGO_MAC_BRIDGE_SECRET`              | Yes      | Profile secret matching the hosted service                      |
+| `MINISAGO_MAC_FILE_ROOTS`                 | No       | Colon-separated roots for owner Mac file requests               |
+| `OPENAI_API_KEY`                          | No       | Regular OpenAI API chat; blank uses ChatGPT-authenticated Codex |
+| `MINISAGO_CODEX_PATH`                     | No       | Codex executable                                                |
+| `MINISAGO_CODEX_HOME`                     | No       | Isolated Codex state                                            |
+| `MINISAGO_DEPLOY_SOCKET`                  | No       | Bounded host deployment socket exposed to Oracle                |
+| `MINISAGO_DEPLOY_STATUS_FILE`             | Core     | Read-only detached deployment status                            |
+| `MINISAGO_DEPLOY_NOTIFICATION_STATE_FILE` | Core     | Delivery checkpoint for deployment results                      |
+| `MINISAGO_SESSION_MONITOR_PATH`           | Mac      | Compiled macOS lock monitor                                     |
+| `MINISAGO_TRACE_DATABASE_PATH`            | No       | Local response-trace database                                   |
+| `MINISAGO_WORKSPACE_ROOT`                 | No       | Worker runtime directory                                        |
+| `MINISAGO_MAX_CONCURRENT_JOBS`            | No       | Capacity advertised to the bridge, from 1 to 16                 |
+| `MINISAGO_SANDBOX_URL`                    | Linux    | Internal request-local computation broker URL                   |
+| `MINISAGO_HEADLESS`                       | Linux    | Keep a worker connected without a session monitor               |
+| `MINISAGO_WORKER_ID`                      | No       | Stable worker identity                                          |
+| `MINISAGO_CHATBOT_REPOSITORY`             | No       | Repository that owns chatbot behavior                           |
+| `MINISAGO_CHATBOT_OWNER_USER_ID`          | Yes      | Same owner ID as the hosted service                             |
+| `MINISAGO_GITHUB_CONFIG_DIR`              | No       | GitHub state for optional worker Skillbook sync                 |
 
 Worker URLs must use TLS outside local or container-local hosts. Bridge secrets
 must contain at least 32 bytes. The owner ID is validated as a Discord snowflake
 on both sides.
+
+See [OpenAI API chat](workers.md#openai-api-chat) for setup and billing. The API
+key belongs only on chat workers; it is not needed by the hosted Discord service.
 
 Prompt policy and context budgets are versioned with the application. Roll them
 back by deploying the corresponding commit.
@@ -374,7 +378,8 @@ an existing policy file. It has no environment-variable opt-in or owner bypass.
 Enable it for a guild with `configure_feature_availability`; optional role
 filters limit who can trigger the 90-second continuation. Disabled guilds require
 a mention, a reply that notifies the bot, or `/ask` for another chat answer.
-Coding-thread steering has its own independent registration.
+Only the owner can control linked T3 coding sessions. Coding control cannot be
+registered or enabled for other members.
 
 The shared [feature registry and access guard](feature-registration.md) generate
 supported registration scopes, initial policies, and agent capability metadata.

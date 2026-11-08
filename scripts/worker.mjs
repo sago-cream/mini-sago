@@ -174,6 +174,7 @@ async function install() {
 
   const environment = [
     envLine("PATH", workerPath),
+    envLine("OPENAI_API_KEY", process.env.OPENAI_API_KEY?.trim() || ""),
     envLine(
       "MINISAGO_BRIDGE_URL",
       process.env.MINISAGO_BRIDGE_URL?.trim() ||
