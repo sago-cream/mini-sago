@@ -105,6 +105,31 @@ By default, owner file requests are limited to Desktop, Documents, Downloads,
 Movies, Music, Pictures, and iCloud Drive. Override those roots with
 `MINISAGO_MAC_FILE_ROOTS`.
 
+## OpenAI API chat
+
+Set `OPENAI_API_KEY` in the worker's private environment file and recreate the
+worker to use the regular OpenAI Responses API for chat, voice replies, owner
+routing, social-action decisions, and X digests. Use a project key belonging to
+the organization that receives your API credits. API usage is billed to that
+organization; it does not consume the ChatGPT subscription's Codex allowance.
+The key is never forwarded to Discord, MCP tools, Python, or Codex processes.
+
+The API backend keeps the same model profiles, prompts, conversation context,
+attachment preparation, structured replies, voice streaming, and request-scoped
+Discord and media tools. MCP calls still run locally through the authenticated,
+permission-bound host. Web search uses the Responses API's web search tool.
+Requests keep their existing deadlines, and API errors do not silently fall
+back to subscription usage. Health reports `chatBackend: "openai-api"`.
+
+Keep ChatGPT authentication for bounded Mac file work and the separate image
+generator. Claiming Pro API credits can disable Codex API-key access for the
+linked organization; this backend calls the regular Responses API directly.
+It does not authenticate Codex with the key. Owner coding continues in T3 using
+that environment's provider configuration.
+
+To return chat to its Codex backend, remove `OPENAI_API_KEY` and recreate the
+worker. Keep private environment files outside version control with mode 600.
+
 ## Authentication and capacity
 
 ChatGPT device authentication can expire and remains subject to account plan

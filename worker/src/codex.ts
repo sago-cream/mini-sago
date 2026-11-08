@@ -1,3 +1,4 @@
+import { runOpenAIChat, type ChatToolServer } from "./openai-chat";
 import { timing, type TimingSink } from "../../src/observability/timing";
 import { dirname, join } from "node:path";
 
@@ -111,6 +112,7 @@ export const SOCIAL_ACTION_PROFILE = {
 export const CHATBOT_MODEL_VERBOSITY = "medium";
 
 type CodexRunOptions = {
+  chatApiKey?: string;
   onTiming?: TimingSink;
   warmChat?: boolean;
   appServer?: CodexAppServerManager;
@@ -1153,7 +1155,53 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
 
     promptDone();
     let content: string | undefined;
+    const useApi = Boolean(options.chatApiKey && job.executionRoute !== "mac");
+    if (useApi) {
+      const servers: ChatToolServer[] = [];
+      if (job.purpose === "answer") {
+        servers.push({
+          name: "minisago",
+          url: options.mcpUrl,
+          token: job.mcpAccessToken,
+        });
+        if (mediaMcp)
+          servers.push({
+            name: "minisago_media",
+            command: process.execPath,
+            args: [MEDIA_MCP_SERVER_PATH],
+            env: {
+              ...codexEnvironment(options.codexHome, options.codexPath),
+              ...mediaMcp.environment,
+            },
+          });
+        servers.push({
+          name: "nthusa",
+          url: NTHU_CAMPUS_MCP_URL,
+          optional: true,
+        });
+      }
+      const replyParser = new StreamingReplyParser(
+        options.onReplyDelta ?? (() => undefined),
+      );
+      content = await runOpenAIChat({
+        apiKey: options.chatApiKey!,
+        ...profile,
+        instructions: prompt.developerInstructions,
+        prompt: `${prompt.taskInstruction}\n\n${prompt.context}`.trim(),
+        schema: outputSchema as unknown as Record<string, unknown>,
+        imagePaths: prepared.imagePaths,
+        servers,
+        webSearch: job.purpose !== "x_post_digest",
+        onTextDelta:
+          job.purpose === "answer" && job.streamReply
+            ? (delta) => replyParser.push(delta)
+            : undefined,
+        onMcpToolCall: options.onMcpToolCall,
+        signal: timeoutController.signal,
+      });
+    }
     if (
+      !useApi &&
       options.warmChat !== false &&
       process.platform === "linux" &&
       job.purpose === "answer" &&
@@ -1246,13 +1294,26 @@ export async function runCodexJob(job: CodexJob, options: CodexRunOptions) {
       let safeReply = enforceFirstPersonIdentity(answer.reply.trim(), false);
       if (!safeReply) {
         safeReply = enforceFirstPersonIdentity(
-          await repairAnswerIdentity(
-            answer.reply,
-            prepared.directory,
-            profile,
-            options,
-            timeoutController.signal,
-          ),
+          useApi
+            ? (
+                JSON.parse(
+                  await runOpenAIChat({
+                    apiKey: options.chatApiKey!,
+                    ...profile,
+                    instructions: IDENTITY_REPAIR_INSTRUCTIONS,
+                    prompt: JSON.stringify({ candidate: answer.reply }),
+                    schema: IDENTITY_REPAIR_OUTPUT_SCHEMA,
+                    signal: timeoutController.signal,
+                  }),
+                ) as { reply: string }
+              ).reply
+            : await repairAnswerIdentity(
+                answer.reply,
+                prepared.directory,
+                profile,
+                options,
+                timeoutController.signal,
+              ),
           false,
         );
       }

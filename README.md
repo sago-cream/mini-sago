@@ -5,6 +5,10 @@
 An AI-powered Discord bot for conversation, channel summaries, emoji management,
 and development through T3 coding sessions.
 
+Set `OPENAI_API_KEY` on the worker to run chat, voice replies, routing, and
+digests through the regular OpenAI Responses API. Without a key, chat uses the
+worker's ChatGPT-authenticated Codex runtime. See [API chat setup](docs/workers.md#openai-api-chat).
+
 Check out the full feature list on our [site](https://mini.sagocream.com/).
 
 Mention MiniSago or reply to her message to continue a conversation. Automatic
@@ -55,7 +59,7 @@ See [slash-command diagnostics](docs/bot-management.md#slash-command-diagnostics
 
 ## Self-host mini sago
 
-You need a Discord application, a host for the bot, a Codex chat worker, and
+You need a Discord application, a host for the bot, a chat worker, and
 [Bun](https://bun.sh/). Owner coding also needs a separate T3 environment.
 
 Start with [Discord setup](docs/discord-setup.md) and

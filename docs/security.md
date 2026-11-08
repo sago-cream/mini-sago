@@ -221,3 +221,14 @@ deletion requests must also cover retained memory history, traces, and any
 relevant development workspaces. Discord and other providers' copies follow
 their own deletion processes. Self-hosted operators must supply their own contact
 and privacy policy rather than adopting the hosted service's contact details.
+
+## API chat credentials
+
+With `OPENAI_API_KEY` configured, the worker calls the regular OpenAI Responses
+API directly. The API key stays in the worker process and never enters prompts,
+MCP subprocess environments, Codex environments, Discord messages, or traces.
+Tools are advertised per request and executed through the existing MCP clients;
+the host retains requester identity, channel permissions, and action checks.
+API requests use `store: false`, preserving encrypted reasoning only in memory
+for the current request's tool-call loop. The worker closes all MCP clients and
+removes its attachment workspace when the request finishes or fails.

@@ -146,14 +146,15 @@ export class MacAgentClient {
       .catch(() => console.warn("Skillbook background sync could not start."));
     if (this.config.headless) {
       this.unlocked = true;
-      void prewarmChatRuntime({
-        ...this.config,
-        appServer: this.appServer,
-      }).catch(() =>
-        console.warn(
-          "Chat runtime prewarm unavailable; the next request will start it.",
-        ),
-      );
+      if (!this.config.chatApiKey)
+        void prewarmChatRuntime({
+          ...this.config,
+          appServer: this.appServer,
+        }).catch(() =>
+          console.warn(
+            "Chat runtime prewarm unavailable; the next request will start it.",
+          ),
+        );
       void this.connectWhenReady();
       console.log("MiniSago headless worker started.");
       return;
@@ -183,9 +184,13 @@ export class MacAgentClient {
       this.authenticated && this.socket?.readyState === WebSocket.OPEN;
     return {
       ok: Boolean(
-        this.unlocked && bridge && this.codexAuthenticated && appServer.ok,
+        this.unlocked &&
+        bridge &&
+        (Boolean(this.config.chatApiKey) ||
+          (this.codexAuthenticated && appServer.ok)),
       ),
       bridge,
+      chatBackend: this.config.chatApiKey ? "openai-api" : "codex",
       codexAuthenticated: this.codexAuthenticated,
       activeJobs: this.currentJobs.size,
       appServer,
@@ -222,7 +227,7 @@ export class MacAgentClient {
     }
 
     this.codexAuthenticated = await checkCodexAuthentication(this.config);
-    if (!this.codexAuthenticated) {
+    if (!this.codexAuthenticated && !this.config.chatApiKey) {
       console.warn("Local Codex authentication unavailable; chatbot offline.");
       this.authRetryTimer = setTimeout(
         () => void this.connectWhenReady(),

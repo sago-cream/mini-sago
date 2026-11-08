@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",
+    "openai": "7.53.0",
     "pdfjs-dist": "6.1.200",
     "zod": "4.4.3"
   },
