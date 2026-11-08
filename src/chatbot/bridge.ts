@@ -40,13 +40,6 @@ type PendingUsageRequest = {
   timer: ReturnType<typeof setTimeout>;
 };
 
-type PendingSteer = {
-  jobId: string;
-  workerId: string;
-  resolve: (accepted: boolean) => void;
-  timer: ReturnType<typeof setTimeout>;
-};
-
 type Worker = {
   id: string;
   socket: Socket;
@@ -101,7 +94,6 @@ export type WorkflowLease = {
     job: ChatbotJob,
     onProgress?: (progress: ChatbotTaskProgress) => void,
   ) => DispatchResult;
-  steer: (jobId: string, request: string) => Promise<boolean>;
   stop: (jobId: string) => boolean;
   route: (
     capabilities: ChatbotWorkerCapability[],
@@ -313,7 +305,6 @@ export class MacAgentBridge {
     ReturnType<typeof setTimeout>
   >();
   private pendingJobs = new Map<string, PendingJob>();
-  private pendingSteers = new Map<string, PendingSteer>();
   private pendingUsageRequests = new Map<string, PendingUsageRequest>();
   private workflows = new Map<string, Workflow>();
 
@@ -408,7 +399,6 @@ export class MacAgentBridge {
         ...repositoryCapabilities,
         dispatch: (job, onProgress) =>
           this.dispatchWorkflowJob(job, workflowId, onProgress),
-        steer: (jobId, request) => this.steerJob(jobId, workflowId, request),
         stop: (jobId) => this.stopJob(jobId, workflowId),
         route: (requiredCapabilities, repository) =>
           this.routeWorkflow(workflowId, requiredCapabilities, repository),
@@ -529,20 +519,6 @@ export class MacAgentBridge {
 
     if (message.type === "result") {
       this.finishJob(worker, message);
-      return;
-    }
-
-    if (message.type === "steer_result") {
-      const pending = this.pendingSteers.get(message.requestId);
-      if (
-        pending?.jobId === message.jobId &&
-        pending.workerId === worker.id &&
-        typeof message.accepted === "boolean"
-      ) {
-        clearTimeout(pending.timer);
-        this.pendingSteers.delete(message.requestId);
-        pending.resolve(message.accepted);
-      }
       return;
     }
 
@@ -703,43 +679,6 @@ export class MacAgentBridge {
     }, 10_000);
     if (worker) send(worker.socket, { type: "cancel", jobId });
     return true;
-  }
-
-  private steerJob(
-    jobId: string,
-    workflowId: string,
-    request: string,
-  ): Promise<boolean> {
-    const pendingJob = this.pendingJobs.get(jobId);
-    if (
-      !request.trim() ||
-      !pendingJob ||
-      pendingJob.workflowId !== workflowId ||
-      pendingJob.stopping
-    ) {
-      return Promise.resolve(false);
-    }
-    const worker = this.workers.get(pendingJob.workerId);
-    if (!worker) return Promise.resolve(false);
-    const requestId = randomUUID();
-    return new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        this.pendingSteers.delete(requestId);
-        resolve(false);
-      }, 5_000);
-      this.pendingSteers.set(requestId, {
-        jobId,
-        workerId: worker.id,
-        resolve,
-        timer,
-      });
-      send(worker.socket, {
-        type: "steer",
-        jobId,
-        requestId,
-        request: request.trim(),
-      });
-    });
   }
 
   private routeWorkflow(
@@ -924,12 +863,6 @@ export class MacAgentBridge {
 
   private deletePendingJob(pendingJob: PendingJob) {
     this.pendingJobs.delete(pendingJob.id);
-    for (const [requestId, pending] of this.pendingSteers) {
-      if (pending.jobId !== pendingJob.id) continue;
-      clearTimeout(pending.timer);
-      this.pendingSteers.delete(requestId);
-      pending.resolve(false);
-    }
     if (!pendingJob.workflowId) return;
     const workflow = this.workflows.get(pendingJob.workflowId);
     if (workflow?.activeJobId === pendingJob.id) {

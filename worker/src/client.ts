@@ -82,14 +82,6 @@ function parseServerMessage(value: unknown) {
       return record as MacAgentServerMessage;
     }
     if (
-      record.type === "steer" &&
-      typeof record.jobId === "string" &&
-      typeof record.requestId === "string" &&
-      typeof record.request === "string"
-    ) {
-      return record as MacAgentServerMessage;
-    }
-    if (
       record.type === "codex_usage_request" &&
       typeof record.requestId === "string"
     ) {
@@ -306,29 +298,6 @@ export class MacAgentClient {
 
     if (message.type === "cancel") {
       this.currentJobs.get(message.jobId)?.abort();
-      return;
-    }
-
-    if (message.type === "steer") {
-      let accepted = false;
-      try {
-        accepted = await this.appServer.steer(message.jobId, message.request);
-      } catch (error) {
-        console.warn(
-          `Job ${message.jobId} steering failed: ${
-            error instanceof Error ? error.message : "unknown error"
-          }`,
-        );
-      }
-      this.send({
-        type: "steer_result",
-        jobId: message.jobId,
-        requestId: message.requestId,
-        accepted,
-      });
-      if (!accepted) {
-        console.warn(`Job ${message.jobId} could not be steered.`);
-      }
       return;
     }
 

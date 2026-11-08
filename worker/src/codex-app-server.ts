@@ -231,18 +231,6 @@ class CodexAppServerSession {
     }
   }
 
-  async steer(jobId: string, input: string) {
-    await this.ready;
-    const active = this.active;
-    if (active?.jobId !== jobId || !active.turnId) return false;
-    const response = await this.request("turn/steer", {
-      threadId: this.threadId,
-      input: [{ type: "text", text: input }],
-      expectedTurnId: active.turnId,
-    });
-    return response.turnId === active.turnId;
-  }
-
   async interrupt(jobId: string) {
     await this.ready.catch(() => undefined);
     const active = this.active;
@@ -647,10 +635,6 @@ export class CodexAppServerManager {
         this.scheduleClose(options.taskId, session);
       }
     }
-  }
-
-  async steer(jobId: string, request: string) {
-    return (await this.jobs.get(jobId)?.steer(jobId, request)) ?? false;
   }
 
   async interrupt(jobId: string) {
