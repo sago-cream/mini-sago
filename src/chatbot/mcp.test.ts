@@ -1532,9 +1532,20 @@ test("Drive tools are conditional, read-only, and preserve strict schemas throug
     session.capabilities.find((c) => c.id === "nthusa_drive")?.tools,
   ).toHaveLength(4);
   const client = await connect(session.token);
-  const listing = (await client.listTools()).tools.filter((t) =>
-    t.name.includes("drive"),
-  );
+  const tools = (await client.listTools()).tools;
+  const contactTool = tools.find((t) => t.name === "lookup_calendar_contacts");
+  expect(contactTool?.inputSchema.properties?.query).toEqual({
+    type: "string",
+    minLength: 2,
+    maxLength: 80,
+  });
+  const invalidContact = await client.callTool({
+    name: "lookup_calendar_contacts",
+    arguments: { query: "!?" },
+  });
+  expect(invalidContact.isError).toBe(true);
+  expect(calls).toHaveLength(0);
+  const listing = tools.filter((t) => t.name.includes("drive"));
   expect(listing).toHaveLength(3);
   for (const tool of listing)
     expect(tool.annotations).toMatchObject({

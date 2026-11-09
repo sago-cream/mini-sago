@@ -10,7 +10,9 @@ export const contactsSchema = z
       .trim()
       .min(2)
       .max(80)
-      .regex(/[\p{L}\p{N}]/u),
+      .refine((value) => /[\p{L}\p{N}]/u.test(value), {
+        message: "Query must contain a letter or number.",
+      }),
     limit: z.number().int().min(1).max(10).default(10),
   })
   .strict();

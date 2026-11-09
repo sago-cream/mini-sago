@@ -1,5 +1,12 @@
 import { expect, test } from "bun:test";
-import { matchCalendarContacts } from "./calendar-contacts";
+import { contactsSchema, matchCalendarContacts } from "./calendar-contacts";
+
+test("contact queries retain Unicode validation", () => {
+  for (const query of ["陳宇", "Alice", "１２", "𠮷田", "  資訊  "])
+    expect(contactsSchema.safeParse({ query }).success).toBe(true);
+  for (const query of ["", "a", "  ", "!?", "😀😀", "x".repeat(81)])
+    expect(contactsSchema.safeParse({ query }).success).toBe(false);
+});
 const header = [
   "Last Name",
   "Middle Name",
