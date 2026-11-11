@@ -46,6 +46,7 @@ function fixture(
   const posts: Array<{ path: string; method?: string; body: any }> = [];
   let items: T3ThreadRead["items"] = [];
   let status = "idle";
+  let link: string | null | undefined = "https://t3.example/thread/t3-thread";
   let failSend = false;
   let failStop = false;
   const store = new DeveloperThreadStore(":memory:");
@@ -69,7 +70,7 @@ function fixture(
         return {
           threadId: "t3-thread",
           projectId: "project",
-          link: "https://t3.example/thread/t3-thread",
+          link,
         };
       if (name === "t3_thread_send" || name === "t3_thread_send_attachments") {
         if (failSend) throw new Error("network failure");
@@ -85,7 +86,7 @@ function fixture(
             threadId: "t3-thread",
             projectId: "project",
             title: "Fix",
-            link: "https://t3.example/thread/t3-thread",
+            link,
             status,
             model: "project-model",
             runtimeMode: "full-access",
@@ -124,6 +125,9 @@ function fixture(
     },
     setStatus(next: string) {
       status = next;
+    },
+    setLink(next: typeof link) {
+      link = next;
     },
     failSend() {
       failSend = true;
@@ -242,6 +246,49 @@ test("starts an ordinary T3 worktree with project defaults and sends the owner's
   ).toBe(true);
   expect(f.store.get("discord-thread")!.t3!.threadId).toBe("t3-thread");
   f.store.close();
+});
+
+test.each([null, undefined])(
+  "starts and continues coding when T3 has no session link: %s",
+  async (link) => {
+    const f = fixture();
+    f.setLink(link);
+    try {
+      await f.start();
+      expect(f.store.get("discord-thread")!.t3!.link).toBeUndefined();
+      expect(
+        f.posts.some((post) => post.body?.content?.includes("T3 session")),
+      ).toBe(true);
+      f.setItems([item(1, "Fixed the bug.")]);
+      await f.handle("Continue with tests", "continuation");
+      expect(
+        f.calls.filter((call) => call.name === "t3_thread_send"),
+      ).toHaveLength(2);
+      expect(
+        f.posts.some((post) => post.body?.content === "Fixed the bug."),
+      ).toBe(true);
+    } finally {
+      f.store.close();
+    }
+  },
+);
+
+test("keeps an existing session link when a later T3 read returns null", async () => {
+  const f = fixture();
+  try {
+    await f.start();
+    f.setLink(null);
+    f.setItems([item(1, "Tests passed.")]);
+    await f.registry.sync(f.store.get("discord-thread")!, f.discord);
+    expect(f.store.get("discord-thread")!.t3!.link).toBe(
+      "https://t3.example/thread/t3-thread",
+    );
+    expect(f.posts.some((post) => post.body?.content === "Tests passed.")).toBe(
+      true,
+    );
+  } finally {
+    f.store.close();
+  }
 });
 
 test("continuations and status work without a coding worker or rerouting, and duplicate Discord deliveries do not rerun", async () => {

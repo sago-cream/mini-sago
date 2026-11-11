@@ -48,7 +48,7 @@ export async function createDeveloperThread(
 const launched = z.object({
   threadId: z.string(),
   projectId: z.string(),
-  link: z.string().optional(),
+  link: z.string().nullish(),
 });
 const preparedUpload = z.object({
   attachmentId: z.string(),
@@ -684,8 +684,9 @@ export class DeveloperTaskRegistry {
     });
   }
 
-  private webLink(link: string | undefined) {
-    if (!link || !this.client?.webUrl) return link;
+  private webLink(link: string | null | undefined) {
+    if (!link) return undefined;
+    if (!this.client?.webUrl) return link;
     const parsed = new URL(link);
     const origin = new URL(this.client.webUrl);
     parsed.protocol = origin.protocol;
