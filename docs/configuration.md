@@ -89,6 +89,9 @@ Image-conditioned reminders send the user mention followed by the stored copy.
 
 Editing a reminder's cron schedule keeps its saved timezone unless a replacement
 timezone is supplied. Reminders without a saved timezone use `Asia/Taipei`.
+Only a missing state file starts an empty schedule. If the file is unreadable
+or contains invalid state, reminder operations fail without replacing it.
+Repair or restore the file; the next reminder request retries loading it.
 
 `MINISAGO_CCXP_INDEX_PATH` enables read-only CCXP meeting retrieval in guilds
 registered under the owner-managed `ccxp_meetings` feature. Initial registrations

@@ -129,6 +129,66 @@ describe("Reminder scheduler", () => {
     expect(await scheduler.list("channel-1")).toEqual([]);
   });
 
+  test.each([
+    "{broken JSON",
+    JSON.stringify({ version: 2, reminders: [] }),
+    JSON.stringify({ version: 1, reminders: [null] }),
+  ])(
+    "preserves invalid saved state and retries after repair: %s",
+    async (raw) => {
+      const test = await setup(new Date("2026-07-25T10:00:00.000Z"));
+      const input = {
+        requesterUserId: "user-1",
+        channelId: "channel-1",
+        content: "stand up",
+        runAt: "2026-07-25T10:01:00Z",
+      };
+      const saved = await test.scheduler.create(input);
+      test.scheduler.stop();
+      await writeFile(test.stateFile, raw);
+      let posted = 0;
+      const scheduler = new ReminderScheduler({
+        stateFile: test.stateFile,
+        post: async () => {
+          posted++;
+        },
+        now: () => new Date("2026-07-25T10:00:00.000Z"),
+      });
+      schedulers.push(scheduler);
+
+      await expect(scheduler.start()).rejects.toThrow();
+      await expect(scheduler.create(input)).rejects.toThrow();
+      await expect(scheduler.list("channel-1")).rejects.toThrow();
+      await expect(scheduler.cancel("channel-1", saved.id)).rejects.toThrow();
+      await expect(scheduler.tick()).rejects.toThrow();
+      expect(posted).toBe(0);
+      expect(await readFile(test.stateFile, "utf8")).toBe(raw);
+
+      await writeFile(
+        test.stateFile,
+        JSON.stringify({ version: 1, reminders: [saved] }),
+      );
+      const added = await scheduler.create({
+        ...input,
+        content: "drink water",
+      });
+      expect(await scheduler.list("channel-1")).toEqual([saved, added]);
+    },
+  );
+
+  test("does not treat an unreadable state path as an empty schedule", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "minisago-reminders-"));
+    directories.push(directory);
+    const scheduler = new ReminderScheduler({
+      stateFile: directory,
+      post: async () => {},
+    });
+    schedulers.push(scheduler);
+
+    await expect(scheduler.start()).rejects.toThrow();
+    await expect(scheduler.list("channel-1")).rejects.toThrow();
+  });
+
   test("keeps a reminder active when cancellation cannot be persisted", async () => {
     const test = await setup(new Date("2026-07-25T10:00:00.000Z"));
     const reminder = await test.scheduler.create({
