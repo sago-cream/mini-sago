@@ -70,7 +70,10 @@ See [slash-command diagnostics](bot-management.md#slash-command-diagnostics-and-
 See `.env.production.example` for production state paths and the complete
 scheduled-monitor variable names.
 
-Gamer Forum alerts save collected posts and successful destination channels in
+Gamer Forum alerts fetch HTML through `GAMER_FORUM_READER_BASE_URL` (Jina Reader
+by default) to read the thread's pagination and collect newer posts. A reader
+error leaves the collection checkpoint intact for the next scheduled check.
+Alerts save collected posts and successful destination channels in
 `GAMER_FORUM_STATE_FILE`. Failed destinations retry on the next scheduled check,
 including after a restart or when the source page is unavailable. Successful
 channels are skipped on retry, and removed subscriptions no longer receive

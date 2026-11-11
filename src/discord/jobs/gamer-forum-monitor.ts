@@ -17,7 +17,7 @@ const MESSAGE_LIMIT = 2_000;
 export const GAMER_FORUM_READER_HEADERS = {
   "User-Agent": "MiniSago/0.1",
   "X-Cache-Tolerance": "300",
-  "X-Respond-With": "markdown",
+  "X-Respond-With": "html",
 } as const;
 
 export type GamerForumPost = {
@@ -434,10 +434,14 @@ export function buildForumReaderUrl(
 async function fetchForumHtml(url: string, readerBaseUrl: string) {
   const response = await fetch(buildForumReaderUrl(url, readerBaseUrl), {
     headers: GAMER_FORUM_READER_HEADERS,
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch Gamer forum page: ${response.status}`);
+    await response.body?.cancel();
+    throw new Error(
+      `Gamer forum reader returned HTTP ${response.status} for ${url}.`,
+    );
   }
 
   return response.text();
@@ -445,29 +449,45 @@ async function fetchForumHtml(url: string, readerBaseUrl: string) {
 
 function parseForumReaderResponse(response: string, sourceUrl: string) {
   const htmlPosts = parseGamerForumPosts(response, sourceUrl);
-  return htmlPosts.length > 0
-    ? htmlPosts
-    : parseGamerForumMarkdownPosts(response, sourceUrl);
+  const posts =
+    htmlPosts.length > 0
+      ? htmlPosts
+      : parseGamerForumMarkdownPosts(response, sourceUrl);
+  if (!posts.length) {
+    throw new Error(`Gamer forum reader returned no posts for ${sourceUrl}.`);
+  }
+  return posts;
 }
 
 async function fetchLatestGamerForumPosts(
   watchUrl: string,
   readerBaseUrl: string,
+  lastPostId?: string,
 ) {
   const html = await fetchForumHtml(watchUrl, readerBaseUrl);
   const currentPage = getForumCurrentPageNumber(html, watchUrl);
   const lastPage = getForumLastPageNumber(html);
 
-  if (currentPage && lastPage && lastPage > currentPage) {
-    const lastPageUrl = buildForumPageUrl(watchUrl, lastPage);
-
-    return parseForumReaderResponse(
-      await fetchForumHtml(lastPageUrl, readerBaseUrl),
-      lastPageUrl,
-    );
+  const posts: GamerForumPost[] = [];
+  if (currentPage && lastPage) {
+    for (let page = lastPage; page > currentPage; page--) {
+      const pageUrl = buildForumPageUrl(watchUrl, page);
+      const pagePosts = parseForumReaderResponse(
+        await fetchForumHtml(pageUrl, readerBaseUrl),
+        pageUrl,
+      );
+      posts.push(...pagePosts);
+      if (
+        !lastPostId ||
+        pagePosts.some(({ id }) => comparePostIds(id, lastPostId) <= 0)
+      ) {
+        return posts;
+      }
+    }
   }
 
-  return parseForumReaderResponse(html, watchUrl);
+  posts.push(...parseForumReaderResponse(html, watchUrl));
+  return posts;
 }
 
 function toState(post: GamerForumPost, now: Date): GamerForumState {
@@ -528,7 +548,12 @@ export async function sendGamerForumAlertsIfNeeded(
   try {
     posts = await (
       options.fetchPosts ??
-      (() => fetchLatestGamerForumPosts(config.watchUrl, config.readerBaseUrl))
+      (() =>
+        fetchLatestGamerForumPosts(
+          config.watchUrl,
+          config.readerBaseUrl,
+          state.lastPostId,
+        ))
     )();
     if (!posts.length)
       throw new Error("Gamer forum page did not contain any posts.");

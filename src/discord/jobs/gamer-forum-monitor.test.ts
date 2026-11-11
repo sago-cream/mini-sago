@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -87,10 +87,78 @@ describe("Gamer forum page helpers", () => {
     expect(GAMER_FORUM_READER_HEADERS).toEqual({
       "User-Agent": "MiniSago/0.1",
       "X-Cache-Tolerance": "300",
-      "X-Respond-With": "markdown",
+      "X-Respond-With": "html",
     });
   });
 });
+
+test.each([200, 403])(
+  "follows Reader pagination and preserves the checkpoint if the last page returns HTTP %i",
+  async (status) => {
+    const directory = await mkdtemp(join(tmpdir(), "minisago-forum-"));
+    const stateFile = join(directory, "state.json");
+    const config = {
+      botToken: "test",
+      watchUrl,
+      readerBaseUrl: "https://reader.example.test/",
+      stateFile,
+      checkTimes: [510],
+      timezone: "Asia/Taipei",
+    };
+    const lastPageUrl = buildForumPageUrl(watchUrl, 7);
+    const fetchMock = spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(sampleHtml))
+      .mockResolvedValueOnce(
+        new Response(
+          status === 200
+            ? sampleHtml.replaceAll("15233", "15234").replace("#116", "#120")
+            : "Access denied",
+          { status },
+        ),
+      );
+    const sent: unknown[] = [];
+    const options = {
+      destinations: [{ guildId: "guild", channelId: "one" }],
+      discordRequest: (async (_path, request) => {
+        if (request?.method !== "POST") return { guild_id: "guild" };
+        sent.push(request.body);
+        return { id: "message" };
+      }) as DiscordRequest,
+    };
+    try {
+      await writeFile(stateFile, JSON.stringify({ lastPostId: "15232" }));
+      const run = sendGamerForumAlertsIfNeeded(config, new Date(), options);
+      if (status === 403) {
+        await expect(run).rejects.toThrow(
+          "Gamer forum reader returned HTTP 403",
+        );
+        expect(sent).toHaveLength(0);
+        expect(JSON.parse(await readFile(stateFile, "utf8"))).toEqual({
+          lastPostId: "15232",
+        });
+      } else {
+        await run;
+        expect(sent).toEqual([
+          expect.objectContaining({ content: expect.stringContaining("#116") }),
+          expect.objectContaining({ content: expect.stringContaining("#120") }),
+        ]);
+        expect(JSON.parse(await readFile(stateFile, "utf8")).lastPostId).toBe(
+          "15234",
+        );
+      }
+      expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+        buildForumReaderUrl(watchUrl, config.readerBaseUrl),
+        buildForumReaderUrl(lastPageUrl, config.readerBaseUrl),
+      ]);
+      for (const [, request] of fetchMock.mock.calls) {
+        expect(request?.headers).toEqual(GAMER_FORUM_READER_HEADERS);
+      }
+    } finally {
+      fetchMock.mockRestore();
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
 
 test.each(["unchanged", "empty", "unavailable", "removed subscription"])(
   "retries a failed forum destination with an %s source without repeating successful sends",
