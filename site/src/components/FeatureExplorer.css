@@ -25,6 +25,14 @@
     padding: 8px 12px;
     cursor: pointer;
     list-style: none;
+    border-radius: 8px;
+    transition: background-color 150ms ease;
+}
+.sidebar-section summary:hover {
+    background: var(--clr-blue);
+}
+.sidebar-section summary:focus-visible {
+    outline-offset: -3px;
 }
 .sidebar-section summary::-webkit-details-marker {
     display: none;
@@ -36,10 +44,10 @@
     transform: rotate(180deg);
 }
 .sidebar-section h2 {
-    font-size: 13px;
+    font-size: 14px;
     letter-spacing: 0;
     line-height: 1.5;
-    color: var(--clr-text-muted);
+    color: var(--clr-text);
     margin: 0;
 }
 .sidebar-section button {
@@ -88,7 +96,9 @@
     font-size: 13px;
     color: var(--clr-text-muted);
 }
-.feature-mobile-menu {
+.feature-mobile-menu,
+.feature-picker,
+.feature-mobile-notes {
     display: none;
 }
 @media (max-width: 1000px) {
@@ -119,16 +129,109 @@
         font-size: 14px;
         min-height: 48px;
     }
+    .feature-mobile-menu > span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .feature-mobile-menu[aria-expanded='true'] {
+        border-color: var(--clr-accent);
+        color: var(--clr-accent);
+    }
+    .feature-mobile-menu[aria-expanded='true'] svg {
+        transform: rotate(180deg);
+    }
     .feature-sidebar {
         display: none;
-        position: static;
-        max-height: 360px;
-        padding: 16px;
-        border: 1px solid var(--clr-border);
-        border-radius: 12px;
     }
-    .feature-sidebar.sidebar-open {
+    .feature-picker[open] {
+        display: flex;
+        flex-direction: column;
+        width: calc(100% - 32px);
+        max-width: 480px;
+        max-height: calc(100dvh - 32px);
+        padding: 0;
+        border: 1px solid var(--clr-border);
+        border-radius: var(--radius-card);
+        background: var(--clr-surface);
+        color: var(--clr-text);
+        box-shadow: var(--shadow-surface);
+        overflow: hidden;
+    }
+    .feature-picker::backdrop {
+        background: color-mix(in srgb, var(--clr-text) 40%, transparent);
+    }
+    .feature-picker-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-shrink: 0;
+        padding: 12px 16px 12px 24px;
+        border-bottom: 1px solid var(--clr-border);
+    }
+    .feature-picker-heading h2 {
+        font-size: 20px;
+        letter-spacing: 0;
+    }
+    .feature-picker-heading button {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--clr-text-muted);
+    }
+    .feature-picker-heading button:hover {
+        background: var(--clr-lilac);
+        color: var(--clr-accent);
+    }
+    .feature-picker-heading button:focus-visible {
+        outline-offset: -3px;
+    }
+    .feature-picker-navigation {
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 12px;
+        scrollbar-width: thin;
+    }
+    .feature-mobile-notes {
         display: block;
+        flex-shrink: 0;
+        margin-top: 12px;
+        color: var(--clr-text-muted);
+        font-size: 13px;
+    }
+    .feature-mobile-notes summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 44px;
+        border-top: 1px solid var(--clr-border);
+        cursor: pointer;
+        list-style: none;
+    }
+    .feature-mobile-notes summary::-webkit-details-marker {
+        display: none;
+    }
+    .feature-mobile-notes[open] summary svg {
+        transform: rotate(180deg);
+    }
+    .feature-mobile-notes > div {
+        padding-bottom: 8px;
+    }
+    .feature-mobile-notes .feature-access-note {
+        margin: 12px 0 0;
+        font-size: inherit;
+    }
+    .feature-note {
+        display: none;
     }
     .feature-preview {
         position: static;
