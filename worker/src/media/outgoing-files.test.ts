@@ -10,6 +10,7 @@ import {
   requestedArtifactIds,
   requestedFilePaths,
 } from "./outgoing-files";
+import { PythonProcessor, pythonArtifactExtensions } from "./python";
 
 const temporaryDirectories: string[] = [];
 
@@ -192,6 +193,47 @@ describe("Mac outgoing files", () => {
 });
 
 describe("generated artifacts", () => {
+  test.each([...pythonArtifactExtensions])(
+    "attaches Python .%s outputs to the final answer",
+    async (extension) => {
+      const root = await mkdtemp(join(tmpdir(), "minisago-artifacts-"));
+      temporaryDirectories.push(root);
+      const outputDirectory = join(root, "outputs");
+      await mkdir(outputDirectory);
+      const bytes = Buffer.from('{"total":3}');
+      const processor = await PythonProcessor.create(
+        { version: 1, root, outputDirectory, attachments: [] },
+        {
+          idFactory: () => "result",
+          runner: async () => ({
+            stdout: "",
+            stderr: "",
+            artifact: { data: bytes.toString("base64"), size: bytes.length },
+          }),
+        },
+      );
+      const artifact = await processor.run({
+        code: "generate_output()",
+        mediaIds: [],
+        outputExtension: extension,
+      });
+      const result = await prepareGeneratedArtifacts(
+        JSON.stringify({ reply: "done", artifacts: [artifact.mediaId] }),
+        outputDirectory,
+      );
+
+      expect(result.content).toBe(JSON.stringify({ reply: "done" }));
+      expect(result.files).toHaveLength(1);
+      expect(result.files[0]).toMatchObject({
+        filename: artifact.mediaId,
+        size: bytes.length,
+        data: bytes.toString("base64"),
+      });
+      if (extension === "json")
+        expect(result.files[0]!.contentType).toBe("application/json");
+    },
+  );
+
   test("extracts one generated artifact ID and removes the model-only field", () => {
     expect(
       requestedArtifactIds(
