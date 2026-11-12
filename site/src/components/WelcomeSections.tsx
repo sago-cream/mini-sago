@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { ArrowRight, ArrowUpRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 import { SELF_HOST_URL } from '@/features';
@@ -40,9 +40,9 @@ export function AccessSago(): JSX.Element {
                     目前迷你西米露只在部分伺服器中活躍。你可以私訊建議我在其他伺服器啟用，或依照開源自架指南，架設自己的迷你西米露。
                 </p>
             </div>
-            <a className='button' href={SELF_HOST_URL}>
-                開源自架指南 <ArrowUpRight aria-hidden='true' size={18} />
-            </a>
+            <Link className='button' href={SELF_HOST_URL}>
+                開源自架指南 <ArrowRight aria-hidden='true' size={18} />
+            </Link>
         </section>
     );
 }

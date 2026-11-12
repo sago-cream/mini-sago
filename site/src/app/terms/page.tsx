@@ -23,7 +23,7 @@ export default function TermsPage() {
                     因計算資源有限，目前僅在管理者開放的部分伺服器與頻道中提供服務。
                     各功能會依伺服器設定、使用者權限與已串接的服務而有所不同。
                     如果你認識管理者並想取得使用權限，可以直接詢問；自行架設則請參考{' '}
-                    <a href={SELF_HOST_URL}>開源自架指南</a>。
+                    <Link href={SELF_HOST_URL}>開源自架指南</Link>。
                 </p>
             </section>
             <section>

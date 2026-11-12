@@ -160,7 +160,12 @@ h2 {
         width: calc(100% - 40px);
     }
     .header-inner {
-        gap: 8px;
+        flex-wrap: wrap;
+        gap: 4px 8px;
+        padding-block: 8px;
+    }
+    .site-header {
+        height: auto;
     }
     .brand {
         font-size: 22px;
@@ -174,6 +179,11 @@ h2 {
         display: none;
     }
     .header-navigation {
+        position: static;
+        order: 1;
+        width: 100%;
+        transform: none;
+        justify-content: center;
         gap: 16px;
     }
     .github-link {
