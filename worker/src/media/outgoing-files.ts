@@ -16,6 +16,7 @@ const generatedArtifactExtensions = new Set([
   ".gif",
   ".jpeg",
   ".jpg",
+  ".json",
   ".mov",
   ".mp3",
   ".mp4",
