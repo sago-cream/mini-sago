@@ -19,7 +19,10 @@ older channel discussions; web search has its own example.
 The landing page explains access through shared Discord servers and links to the
 repository's self-host guide for readers who want their own instance. The feature
 guide fills the viewport, with independent scrolling for the sidebar and the
-conversation; a minimal footer contains the access-scope note.
+conversation; a minimal footer contains the access-scope note. On mobile, a
+modal picker gives the feature categories their own scrollable space and returns
+focus to the selector when dismissed. Feature notes and access scope share a
+usage disclosure below the conversation, leaving more room to read the demo.
 
 `/privacy/` explains the hosted bot's data processing and deletion requests;
 `/terms/` explains access, acceptable use, service limitations, and the

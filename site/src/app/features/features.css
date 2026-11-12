@@ -69,11 +69,15 @@
         gap: 12px;
         padding-block: 16px;
     }
-    .feature-guide-page .feature-workspace:has(.sidebar-open) {
-        grid-template-rows: auto auto minmax(0, 1fr);
+    .feature-guide-footer {
+        display: none;
     }
-    .feature-guide-page .feature-sidebar.sidebar-open {
-        max-height: min(24dvh, 192px);
+    .feature-guide-page .feature-preview {
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+    .feature-guide-page .discord-demo {
+        min-height: 280px;
     }
     .feature-guide-page .feature-preview-heading {
         margin-bottom: 12px;
