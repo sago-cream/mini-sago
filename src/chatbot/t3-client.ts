@@ -24,7 +24,7 @@ export const t3ThreadRead = z
         threadId: z.string(),
         projectId: z.string(),
         title: z.string(),
-        link: z.string().optional(),
+        link: z.string().nullish(),
         status: z.string(),
         model: z.string(),
         runtimeMode: z.string(),
