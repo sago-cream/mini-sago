@@ -92,7 +92,7 @@ function parseState(value: unknown): ReminderState {
     throw new Error("Unsupported reminder state.");
   }
 
-  const reminders = state.reminders.filter((item): item is Reminder => {
+  const valid = state.reminders.every((item) => {
     if (!item || typeof item !== "object") return false;
     const reminder = item as Partial<Reminder>;
     return (
@@ -107,7 +107,8 @@ function parseState(value: unknown): ReminderState {
       (reminder.timezone === undefined || typeof reminder.timezone === "string")
     );
   });
-  return { version: 1, reminders };
+  if (!valid) throw new Error("Invalid saved reminder.");
+  return { version: 1, reminders: state.reminders };
 }
 
 export class ReminderScheduler {
@@ -125,7 +126,12 @@ export class ReminderScheduler {
   }
 
   start() {
-    this.started ??= this.load().then(() => this.scheduleNextTick());
+    this.started ??= this.load()
+      .then(() => this.scheduleNextTick())
+      .catch((error) => {
+        this.started = undefined;
+        throw error;
+      });
     return this.started;
   }
 
@@ -352,12 +358,7 @@ export class ReminderScheduler {
         JSON.parse(await readFile(this.options.stateFile, "utf8")),
       ).reminders;
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-        console.error(
-          `Failed to read reminder state at ${this.options.stateFile}:`,
-          error,
-        );
-      }
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       this.reminders = [];
     }
   }
@@ -396,7 +397,9 @@ export function configureChatbotReminderScheduler(
       process.env.MINISAGO_REMINDER_STATE_FILE?.trim() || DEFAULT_STATE_FILE,
     post,
   });
-  void chatbotReminderScheduler.start();
+  void chatbotReminderScheduler.start().catch((error) => {
+    console.error("Failed to start reminder scheduler:", error);
+  });
   return chatbotReminderScheduler;
 }
 
