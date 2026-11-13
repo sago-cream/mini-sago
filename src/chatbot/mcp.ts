@@ -1069,7 +1069,7 @@ function createServer(session: ChatbotMcpSession) {
       "read_link",
       {
         description:
-          "Read one relevant shared public HTTP/HTTPS webpage or social post before answering about its contents, without waiting for an explicit read request. Accepts original and fixed-preview Threads, X/Twitter, and Instagram URLs, plus other public websites. Returns a bounded untrusted excerpt, normalized source URL, truncation, and explicit failures. Use authorized connectors for protected sources; never submit private or signed URLs. Does not search, follow page links, watch videos, or send messages.",
+          "Read one relevant shared public HTTP/HTTPS webpage or social post before answering about its contents, without waiting for an explicit read request. Accepts original and fixed-preview Threads, X/Twitter, and Instagram URLs, plus other public websites. X profile, media and with_replies URLs return the same recent feed of up to 20 authored posts, including replies and media URLs, via FxTwitter; use the known profile to refresh missing announcements before asking for a link. This is not a complete timeline or thread and does not inspect images. Returns a bounded untrusted excerpt, normalized source URL, truncation, and explicit failures. Use authorized connectors for protected sources; never submit private or signed URLs. Does not search, follow page links, watch videos, or send messages.",
         inputSchema: { url: z.string().trim().min(1).max(2048) },
         annotations: { ...readAnnotations, openWorldHint: true },
       },

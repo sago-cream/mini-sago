@@ -38,7 +38,9 @@ voter accounts, including server nicknames, without screenshots. See
 
 When shared public links are relevant to an answer, Sago reads the pages before
 making claims about their contents and cites the sources. Websites and original
-or fixed-preview Threads, X/Twitter, and Instagram links use one reader. Failed
+or fixed-preview Threads, X/Twitter, and Instagram links use one reader. X profile
+links read up to 20 recent authored posts, including replies and media URLs, via
+FxTwitter; this limited window is not a complete timeline. Failed
 or truncated reads are reported; previews do not establish full articles or
 unseen videos. Protected sources use their authorized tools. Broader Threads
 searches (`海巡脆`) still require an explicit request. See

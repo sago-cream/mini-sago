@@ -1,4 +1,5 @@
 import { isIP } from "node:net";
+import { readXProfile, xProfileHandle } from "./x-profile-reader";
 import {
   fetchReaderPage,
   publicPageReaderBaseUrl,
@@ -108,6 +109,17 @@ export async function readLink(
       throw new PublicPageReadError(
         `Use the authorized ${authorizedTool} tool for this source; this URL was not sent to the public reader.`,
       );
+    }
+    const handle = xProfileHandle(source);
+    if (handle) {
+      const result = await readXProfile(handle);
+      return {
+        status: "complete",
+        url,
+        ...result,
+        content: result.content.slice(0, MAX_CONTENT_CHARACTERS),
+        truncated: result.content.length > MAX_CONTENT_CHARACTERS,
+      };
     }
     const markdown = await fetchReaderPage(url, readerBaseUrl);
     if (

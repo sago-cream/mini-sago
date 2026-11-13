@@ -355,7 +355,7 @@ export const FEATURE_DEFINITIONS = {
   },
   link_read: {
     description:
-      "Read relevant shared public websites and social posts with read_link before making content claims. Cite sources, disclose unavailable or truncated reads, and distinguish previews and comments from original content. Use authorized connectors for protected sources.",
+      "Read relevant shared public websites and social posts with read_link before making content claims. X profile links return up to 20 recent authored posts including replies and media URLs via FxTwitter; refresh known profiles for missing announcements. Cite sources, disclose unavailable or truncated reads and incomplete feed coverage, and distinguish previews and comments from original content. Use authorized connectors for protected sources.",
     access: "request",
     capability: {
       id: "link_read",
