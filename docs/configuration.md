@@ -164,7 +164,9 @@ posts before the agent makes claims about their contents. It replaces the
 Threads-only `read_threads_post` tool and `threads_read` capability with the
 `link_read` capability. The agent reads up to three relevant URLs per answer
 from the request, reply target, or nearby context; it does not fetch unrelated
-links or follow URLs discovered inside pages. Protected sources continue to use
+links. When collecting recent X announcements or recovering a missing item, the
+agent refreshes the known profile before asking for a post link and may read
+relevant same-account posts returned by that feed; other page links are not followed. Protected sources continue to use
 registered, authorized tools. Public reader requests must not include private
 links, credentials, or signed access parameters.
 
@@ -174,7 +176,15 @@ ordinary website query parameters are preserved. The tool rejects IP literals,
 local/reserved hostnames, non-HTTP(S) URLs, credentials, nonstandard ports, and
 recognized token/signature query parameters before contacting the reader.
 
-Page reads and Threads searches share `LINK_READER_BASE_URL`, defaulting to
+X profile URLs (including `/media` and `/with_replies`) read the same bounded
+FxTwitter RSS feed directly, with up to 20 authored posts including replies and
+media URLs. This is a recent snapshot, not a complete timeline, gallery, or
+conversation thread; missing posts do not establish absence. Media links are not
+image inspection or video transcription. This transport uses a fixed public
+FxTwitter endpoint without credentials or additional configuration, independently
+of `LINK_READER_BASE_URL`, with the same 30-second and 256 KB limits.
+
+Other page reads and Threads searches share `LINK_READER_BASE_URL`, defaulting to
 `https://r.jina.ai/`. Existing `THREADS_SEARCH_READER_BASE_URL` settings remain a
 fallback when the new setting is unset. Fetches time out after 30 seconds,
 reject reader HTTP redirects, and cancel responses exceeding 256 KB. Page reads

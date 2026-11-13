@@ -36,6 +36,25 @@ export async function fetchReaderPage(
       `Public page reader returned HTTP ${response.status}.`,
     );
   }
+  const markdown = await readBoundedPublicResponse(response);
+  if (
+    !markdown.trim() ||
+    /Warning: Target URL returned error|^Title: (?:Page Not Found|Log in|Login|Access Denied)|^Title: [^\n]*[•|–—]\s*(?:Log in|Login)\s*$/imu.test(
+      markdown,
+    ) ||
+    /requiring CAPTCHA|verify you are human|log in to (?:see|continue)|(?:content|page) (?:isn't|is not) available/iu.test(
+      markdown,
+    )
+  ) {
+    throw new PublicPageReadError(
+      "The public page could not be read; it may require login or verification.",
+    );
+  }
+  return markdown;
+}
+
+export async function readBoundedPublicResponse(response: Response) {
+  if (!response.body) throw new PublicPageReadError("Empty response.");
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -53,19 +72,5 @@ export async function fetchReaderPage(
   } finally {
     reader.releaseLock();
   }
-  const markdown = Buffer.concat(chunks).toString("utf8");
-  if (
-    !markdown.trim() ||
-    /Warning: Target URL returned error|^Title: (?:Page Not Found|Log in|Login|Access Denied)|^Title: [^\n]*[•|–—]\s*(?:Log in|Login)\s*$/imu.test(
-      markdown,
-    ) ||
-    /requiring CAPTCHA|verify you are human|log in to (?:see|continue)|(?:content|page) (?:isn't|is not) available/iu.test(
-      markdown,
-    )
-  ) {
-    throw new PublicPageReadError(
-      "The public page could not be read; it may require login or verification.",
-    );
-  }
-  return markdown;
+  return Buffer.concat(chunks).toString("utf8");
 }

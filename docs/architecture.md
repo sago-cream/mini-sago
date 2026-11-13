@@ -188,7 +188,9 @@ rollback. Discord history remains request-scoped. Sanitized operational traces
 are retained for 14 days and exposed only as bounded previous-answer metadata.
 
 Relevant shared public links use one bounded `read_link` MCP tool for websites
-and social posts. A shared policy defines reading before content claims in both
+and social posts. X profiles use the same RSS parser as the X monitor to expose a
+bounded recent window of authored posts, replies, and media URLs through FxTwitter.
+A shared policy defines reading before content claims in both
 worker and MCP instructions; page reads and Threads search share reader transport,
 timeouts, response limits, and configuration. Broad `search_threads` calls require an
 explicit search request. Protected sources keep their authorized tools and access
