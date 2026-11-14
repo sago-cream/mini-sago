@@ -8,6 +8,9 @@ import {
   buildForumPageUrl,
   buildForumReaderUrl,
   buildGamerForumPostMessagePayload,
+  buildGamerForumPostMessagePayloads,
+  extractGamerForumGiftCodes,
+  sendGamerForumPostMessages,
   formatGamerForumPostMessage,
   GAMER_FORUM_READER_HEADERS,
   getForumCurrentPageNumber,
@@ -140,7 +143,9 @@ test.each([200, 403])(
         await run;
         expect(sent).toEqual([
           expect.objectContaining({ content: expect.stringContaining("#116") }),
+          { content: "Y4C7W9Z3T", allowed_mentions: { parse: [] } },
           expect.objectContaining({ content: expect.stringContaining("#120") }),
+          { content: "Y4C7W9Z3T", allowed_mentions: { parse: [] } },
         ]);
         expect(JSON.parse(await readFile(stateFile, "utf8")).lastPostId).toBe(
           "15234",
@@ -191,7 +196,10 @@ test.each(["unchanged", "empty", "unavailable", "removed subscription"])(
     try {
       await writeFile(stateFile, JSON.stringify({ lastPostId: "15232" }));
       await sendGamerForumAlertsIfNeeded(config, new Date(), options);
-      expect(sent).toEqual(["/channels/one/messages"]);
+      expect(sent).toEqual([
+        "/channels/one/messages",
+        "/channels/one/messages",
+      ]);
       failing = false;
       await sendGamerForumAlertsIfNeeded(config, new Date(), {
         ...options,
@@ -206,8 +214,13 @@ test.each(["unchanged", "empty", "unavailable", "removed subscription"])(
       });
       expect(sent).toEqual(
         source === "removed subscription"
-          ? ["/channels/one/messages"]
-          : ["/channels/one/messages", "/channels/two/messages"],
+          ? ["/channels/one/messages", "/channels/one/messages"]
+          : [
+              "/channels/one/messages",
+              "/channels/one/messages",
+              "/channels/two/messages",
+              "/channels/two/messages",
+            ],
       );
       expect(JSON.parse(await readFile(stateFile, "utf8"))).toMatchObject({
         lastPostId: "15233",
@@ -262,9 +275,10 @@ test("saves every collected forum post before delivery and retries an all-destin
       ...options,
       fetchPosts: async () => [],
     });
-    expect(sent).toHaveLength(2);
+    expect(sent).toHaveLength(3);
     expect(sent[0]).toContain("Y4C7W9Z3T");
-    expect(sent[1]).toContain("newer post");
+    expect(sent[1]).toBe("Y4C7W9Z3T");
+    expect(sent[2]).toContain("newer post");
     expect(
       JSON.parse(await readFile(stateFile, "utf8")).pendingPosts,
     ).toBeUndefined();
@@ -309,12 +323,14 @@ describe("Gamer forum schedule", () => {
     try {
       await writeFile(stateFile, JSON.stringify({ lastPostId: "15232" }));
       await sendGamerForumAlertsIfNeeded(config, new Date(), options);
-      expect(sent).toEqual(["one:15233", "one:15234"]);
+      expect(sent).toEqual(["one:15233", "one:15233", "one:15234"]);
       failing = false;
       await sendGamerForumAlertsIfNeeded(config, new Date(), options);
       expect(sent).toEqual([
         "one:15233",
+        "one:15233",
         "one:15234",
+        "two:15233",
         "two:15233",
         "two:15234",
       ]);
@@ -381,4 +397,146 @@ describe("Gamer forum Discord message", () => {
     ]);
     expect(payload.allowed_mentions.parse).toEqual([]);
   });
+});
+
+describe("Gamer forum gift-code messages", () => {
+  test.each([
+    ["路過發個禮包碼:R9P4D2X7H", ["R9P4D2X7H"]],
+    ["今天有比賽 禮品碼記得領嘿\nX2K7H6Q3N", ["X2K7H6Q3N"]],
+    ["禮品碼：`Y4C7W9Z3T`，R9P4D2X7H\nY4C7W9Z3T", ["Y4C7W9Z3T", "R9P4D2X7H"]],
+    [
+      "https://example.test/X2K7H6Q3N?code=R9P4D2X7H 20261114 THANKYOU x2k7h6q3n X1",
+      [],
+    ],
+    [
+      "prefixX2K7H6Q3Nsuffix _X2K7H6Q3N X2K7H6Q3N_ ABCD12345678901234567 foo-X2K7H6Q3N",
+      [],
+    ],
+    ["只有圖片，沒有文字序號", []],
+  ])("extracts candidates from %s", (text, expected) => {
+    expect(extractGamerForumGiftCodes(text as string)).toEqual(expected);
+  });
+
+  test("keeps the original notification and emits one bare message per code", () => {
+    for (const post of [
+      parseGamerForumPosts(sampleHtml, watchUrl)[0],
+      parseGamerForumMarkdownPosts(sampleMarkdown, watchUrl)[0],
+    ]) {
+      expect(buildGamerForumPostMessagePayloads(post)).toEqual([
+        buildGamerForumPostMessagePayload(post),
+        { content: "Y4C7W9Z3T", allowed_mentions: { parse: [] } },
+      ]);
+      expect(
+        buildGamerForumPostMessagePayloads({ ...post, text: "沒有序號" }),
+      ).toEqual([
+        buildGamerForumPostMessagePayload({ ...post, text: "沒有序號" }),
+      ]);
+    }
+  });
+
+  test("extracts from the full post even if the notification body is truncated", () => {
+    const post = {
+      ...parseGamerForumPosts(sampleHtml, watchUrl)[0],
+      text: "文".repeat(2100) + "X2K7H6Q3N",
+    };
+    const payloads = buildGamerForumPostMessagePayloads(post);
+    expect(payloads[0].content.length).toBeLessThanOrEqual(2000);
+    expect(payloads[0].content).not.toContain("X2K7H6Q3N");
+    expect(payloads[1].content).toBe("X2K7H6Q3N");
+  });
+
+  test("validates the guild and awaits messages in order, propagating send failures", async () => {
+    const post = {
+      ...parseGamerForumPosts(sampleHtml, watchUrl)[0],
+      text: "R9P4D2X7H X2K7H6Q3N",
+    };
+    const payloads = buildGamerForumPostMessagePayloads(post);
+    const sent: unknown[] = [];
+    let guildId = "guild";
+    let failCode = false;
+    const discordRequest = (async (_path, request) => {
+      if (request?.method === "POST") {
+        const body = request.body as { content: string };
+        if (failCode && body.content === "R9P4D2X7H")
+          throw new Error("500 failed");
+        sent.push(body);
+        return { id: "message" };
+      }
+      return { id: "channel", guild_id: guildId };
+    }) as DiscordRequest;
+    const send = () =>
+      sendGamerForumPostMessages({
+        discordRequest,
+        guildId: "guild",
+        channelId: "channel",
+        payloads,
+      });
+    await send();
+    expect(sent).toEqual(payloads);
+    sent.length = 0;
+    guildId = "other";
+    await expect(send()).rejects.toThrow("not configured guild");
+    expect(sent).toEqual([]);
+    guildId = "guild";
+    failCode = true;
+    await expect(send()).rejects.toThrow("500");
+    expect(sent).toEqual([payloads[0]]);
+  });
+});
+
+test("resumes a partially delivered code batch from disk without repeating successful messages", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "minisago-forum-codes-"));
+  const stateFile = join(directory, "state.json");
+  const config = {
+    botToken: "test",
+    watchUrl,
+    readerBaseUrl: "https://reader.example.test/",
+    stateFile,
+    checkTimes: [510],
+    timezone: "Asia/Taipei",
+  };
+  const post = {
+    ...parseGamerForumPosts(sampleHtml, watchUrl)[0],
+    text: "R9P4D2X7H X2K7H6Q3N",
+  };
+  const sent: Record<string, string[]> = { one: [], two: [] };
+  let failing = true;
+  const options = {
+    destinations: [
+      { guildId: "guild", channelId: "one" },
+      { guildId: "guild", channelId: "two" },
+    ],
+    fetchPosts: async () => [post],
+    discordRequest: (async (path, request) => {
+      if (request?.method !== "POST") return { guild_id: "guild" };
+      const channelId = path.split("/")[2]!;
+      const content = (request.body as { content: string }).content;
+      if (failing && channelId === "one" && content === "X2K7H6Q3N")
+        throw new Error("offline");
+      sent[channelId]!.push(content);
+      return { id: "message" };
+    }) as DiscordRequest,
+  };
+  try {
+    await writeFile(stateFile, JSON.stringify({ lastPostId: "15232" }));
+    await sendGamerForumAlertsIfNeeded(config, new Date(), options);
+    const saved = JSON.parse(await readFile(stateFile, "utf8"));
+    expect(saved.pendingPosts[0].sentMessageCounts).toEqual({ one: 2, two: 3 });
+    expect(saved.pendingPosts[0].deliveredChannelIds).toEqual(["two"]);
+    failing = false;
+    await sendGamerForumAlertsIfNeeded(config, new Date(), {
+      ...options,
+      fetchPosts: async () => [],
+    });
+    const expected = buildGamerForumPostMessagePayloads(post).map(
+      ({ content }) => content,
+    );
+    expect(sent.one).toEqual(expected);
+    expect(sent.two).toEqual(expected);
+    expect(
+      JSON.parse(await readFile(stateFile, "utf8")).pendingPosts,
+    ).toBeUndefined();
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

@@ -269,6 +269,31 @@ Run `bun run t3:login` on the bot host to approve its separate grant. Projects,
 models, permission modes, skills, and workspaces are configured in T3. Coding is
 owner-only. See [T3 setup](t3-coding.md).
 
+## Gamer forum notifications
+
+The `gamer_forum` service forwards new posts from the Mahjong Soul gift-code
+thread. Each notification keeps the original text, source link, and image embed,
+then sends each distinct detected gift code as a separate plain-text message in
+the same subscribed channel. On mobile, copy that entire message to get just the
+code. Repeated codes within one post are sent once; separate posts are independent.
+
+Detection needs no model or additional configuration. It recognizes uppercase
+ASCII letters and digits in tokens of 8–16 characters containing at least one of
+each, including codes next to Chinese text. URLs are ignored. This is a heuristic:
+unusual formats, lowercase codes, and image-only codes are not extracted, and
+matching text is not proof a code is valid or unexpired. The full post is still
+forwarded even when no code is detected.
+
+`GAMER_FORUM_URL` selects the source; `GAMER_FORUM_CHECK_TIMES` defaults to
+`08:30,20:30` in `GAMER_FORUM_TIMEZONE` (`Asia/Taipei`).
+`GAMER_FORUM_READER_BASE_URL` defaults to `https://r.jina.ai/`.
+`GAMER_FORUM_CHANNEL_ID` seeds the default destination; owner-managed service
+subscriptions control saved destinations. Set `GAMER_FORUM_MONITOR_DISABLED=true`
+to disable the job. `GAMER_FORUM_STATE_FILE` stores the last seen post; the first
+check establishes a baseline without sending old posts. Delivery progress is saved
+after each message, so a failed code send resumes on a later check without
+repeating previously saved messages.
+
 ## Persistent state
 
 Production state must live under `/app/state` on the persistent

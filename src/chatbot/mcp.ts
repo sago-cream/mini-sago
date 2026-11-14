@@ -878,7 +878,7 @@ function createServer(session: ChatbotMcpSession) {
       "list_managed_services",
       {
         description:
-          "List every managed background posting service and its current Discord destinations. Return channelMention values verbatim in the answer so Discord renders clickable channel links.",
+          "List every managed background posting service and its current Discord destinations. Gamer forum reposts include a separate plain-text message per detected gift code for copying; detection uses text rules, not a model or OCR. Return channelMention values verbatim in the answer so Discord renders clickable channel links.",
         inputSchema: {},
         annotations: readAnnotations,
       },
