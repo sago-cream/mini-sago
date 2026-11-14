@@ -65,37 +65,14 @@ See [slash-command diagnostics](docs/bot-management.md#slash-command-diagnostics
 
 ## Self-host mini sago
 
-You need a Discord application, a host for the bot, a chat worker, and
-[Bun](https://bun.sh/). Owner coding also needs a separate T3 environment.
+Start with the [self-host guide](docs/self-host.md), or read the
+[Traditional Chinese guide on the website](https://mini.sagocream.com/self-host/).
+It walks through the requirements, Discord application, bot configuration,
+separate chat worker, first-response checks, and ongoing operation.
 
-Start with [Discord setup](docs/discord-setup.md) and
-[worker setup](docs/workers.md). Use these guides for the rest of your setup:
-
-- [T3 coding setup](docs/t3-coding.md)
-- [Architecture](docs/architecture.md)
-- [Configuration](docs/configuration.md)
-- [Security](docs/security.md)
-- [Feature registration and access](docs/feature-registration.md)
-- [Read-only Gmail setup](docs/mail.md)
-- [Operations](docs/operations.md)
-- [Bot management](docs/bot-management.md)
-- [CCXP meeting retrieval and password rotation](docs/ccxp-meetings.md)
-- [Durable-state backup and restore](docs/operations.md#durable-state-backup-and-restore)
-
-For local bot development, install both dependency sets and configure
-`.env.local` using the Discord and worker guides:
-
-```bash
-bun install --frozen-lockfile
-bun install --cwd worker --frozen-lockfile
-cp .env.example .env.local
-bun run dev
-```
-
-Run only one Gateway connection per bot token. Set
-`DISCORD_GATEWAY_DISABLED=true` for a local HTTP-only instance when production
-uses the same token. `bun run dev` starts the bot; run the worker separately
-following [worker setup](docs/workers.md).
+The basic setup needs a Discord application, [Bun](https://bun.sh/), a host for
+the bot, and an authenticated chat worker. Owner coding also needs a separate
+T3 environment. Optional integrations can be added after chat is working.
 
 Before submitting code, run `bun run build`, `bun run --cwd worker build`,
 `bun run format:check`, and the tests relevant to your change. See the

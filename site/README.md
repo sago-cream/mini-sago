@@ -17,12 +17,18 @@ retrieval, calendar actions, and feature settings. Conversation summaries includ
 older channel discussions; web search has its own example.
 
 The landing page explains access through shared Discord servers and links to the
-repository's self-host guide for readers who want their own instance. The feature
+website's `/self-host/` guide for readers who want their own instance. The feature
 guide fills the viewport, with independent scrolling for the sidebar and the
 conversation; a minimal footer contains the access-scope note. On mobile, a
 modal picker gives the feature categories their own scrollable space and returns
 focus to the selector when dismissed. Feature notes and access scope share a
 usage disclosure below the conversation, leaving more room to read the demo.
+
+`/self-host/` walks through prerequisites, Discord setup, core configuration,
+worker authentication, verification, troubleshooting, and ongoing operation in
+Traditional Chinese. It links to `docs/self-host.md` for the English walkthrough
+and to the detailed repository runbooks. Keep both walkthroughs aligned when
+the setup changes. The shared navigation, homepage, and terms page link here.
 
 `/privacy/` explains the hosted bot's data processing and deletion requests;
 `/terms/` explains access, acceptable use, service limitations, and the
@@ -47,7 +53,7 @@ exports a static site to `site/out/`; serve that directory with any static host.
 No bot credentials or backend connection are needed.
 
 The production origin is `https://mini.sagocream.com`. Canonical URLs and social
-sharing metadata use this origin. `/sitemap.xml` lists the four public pages and
+sharing metadata use this origin. `/sitemap.xml` lists the five public pages and
 `/robots.txt` allows crawling and points to the sitemap. Submit the sitemap and
 request indexing of the homepage in Google Search Console after deployment.
 The public ownership-verification tag lives in `src/app/layout.tsx`; keep it in
@@ -55,7 +61,7 @@ place to retain Search Console verification, or replace it for your own instance
 
 Update `src/features.ts` when capabilities or access requirements change, including
 the example conversations and any setup notes. `SELF_HOST_URL` links to the
-README's self-host section.
+website's `/self-host/` page.
 
 The hero and avatar use the original `public/images/minisago3.png` artwork.
 Keep the asset unchanged.

@@ -3,7 +3,7 @@ import { ArrowUpRight } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
-import { REPOSITORY_URL } from '@/features';
+import { REPOSITORY_URL, SELF_HOST_URL } from '@/features';
 
 import './SiteChrome.css';
 
@@ -22,7 +22,7 @@ function GitHubLink(): JSX.Element {
 }
 
 interface SiteHeaderProps {
-    readonly activePage?: 'intro' | 'features';
+    readonly activePage?: 'intro' | 'features' | 'self-host';
 }
 
 export function SiteHeader({ activePage }: SiteHeaderProps = {}): JSX.Element {
@@ -64,6 +64,14 @@ export function SiteHeader({ activePage }: SiteHeaderProps = {}): JSX.Element {
                             href='/features/'
                         >
                             功能導覽
+                        </Link>
+                        <Link
+                            aria-current={
+                                activePage === 'self-host' ? 'page' : undefined
+                            }
+                            href={SELF_HOST_URL}
+                        >
+                            自架指南
                         </Link>
                     </nav>
                     <GitHubLink />

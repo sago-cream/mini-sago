@@ -1,0 +1,144 @@
+.self-host-page {
+    padding-block: 48px 96px;
+}
+.self-host-heading {
+    max-width: 760px;
+    margin-bottom: 48px;
+}
+.self-host-heading h1 {
+    font-size: clamp(32px, 4vw, 48px);
+    line-height: 1.4;
+    letter-spacing: -1px;
+}
+.self-host-heading p {
+    margin-block: 16px;
+    color: var(--clr-text-muted);
+}
+.self-host-heading a,
+.self-host-content a {
+    color: var(--clr-accent);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    overflow-wrap: anywhere;
+}
+.self-host-layout {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 760px);
+    gap: 64px;
+    align-items: start;
+}
+.self-host-nav {
+    position: sticky;
+    top: 32px;
+    font-size: 14px;
+}
+.self-host-nav ol {
+    margin: 0;
+    padding-left: 24px;
+}
+.self-host-nav a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding-left: 4px;
+}
+.self-host-nav a:hover {
+    color: var(--clr-accent);
+}
+.self-host-content {
+    min-width: 0;
+}
+.self-host-content section + section {
+    margin-top: 48px;
+    padding-top: 40px;
+    border-top: 1px solid var(--clr-border);
+}
+.self-host-content h2 {
+    font-size: 24px;
+    letter-spacing: -0.5px;
+}
+.self-host-content h3 {
+    margin-top: 24px;
+    font-size: 20px;
+}
+.self-host-content p,
+.self-host-content ol,
+.self-host-content ul,
+.self-host-content dl {
+    margin-block: 16px 0;
+}
+.self-host-content ol,
+.self-host-content ul {
+    padding-left: 24px;
+}
+.self-host-content li + li {
+    margin-top: 12px;
+}
+.self-host-content code {
+    font-size: 0.875em;
+    overflow-wrap: anywhere;
+}
+.self-host-content pre {
+    margin-block: 20px;
+    padding: 20px;
+    overflow-x: auto;
+    border: 1px solid var(--clr-border);
+    border-radius: 12px;
+    background: var(--clr-surface);
+    line-height: 1.8;
+}
+.self-host-content pre code {
+    overflow-wrap: normal;
+}
+.self-host-content dt {
+    font-weight: 600;
+}
+.self-host-content dd {
+    margin: 4px 0 0;
+    color: var(--clr-text-muted);
+}
+.self-host-requirements > div + div,
+.self-host-troubleshooting > div + div {
+    margin-top: 20px;
+}
+.self-host-note {
+    margin-top: 24px;
+    padding: 24px;
+    border-radius: 12px;
+    background: var(--clr-lilac);
+}
+.self-host-note p {
+    margin-top: 8px;
+}
+@media (max-width: 900px) {
+    .self-host-layout {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 32px;
+    }
+    .self-host-nav {
+        position: static;
+        padding-bottom: 24px;
+        border-bottom: 1px solid var(--clr-border);
+    }
+    .self-host-nav ol {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 24px;
+    }
+}
+@media (max-width: 600px) {
+    .self-host-page {
+        padding-block: 32px 48px;
+    }
+    .self-host-heading {
+        margin-bottom: 32px;
+    }
+    .self-host-content section + section {
+        margin-top: 32px;
+        padding-top: 32px;
+    }
+    .self-host-content pre,
+    .self-host-note {
+        padding: 16px;
+    }
+}
