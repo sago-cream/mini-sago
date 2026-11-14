@@ -101,6 +101,12 @@ mode. Keep Discord bot credentials and unrelated production secrets outside
 that environment, and enforce protected branches at GitHub. Merge and deployment
 authorization follows the owner's instructions and repository guidance.
 
+When [MiniSago CD](operations.md#continuous-deployment) is enabled, merging to
+`main` schedules deployment after checks and image publication. Account for
+that automatic rollout when requesting merge authorization. Check its Actions
+deploy job or the host's commit-specific status instead of submitting another
+deployment for the same merge.
+
 For MiniSago deployment, configure `bun scripts/deployment-mcp.ts` as a provider
 MCP server in a T3 environment that can reach `MINISAGO_DEPLOY_SOCKET`. It exposes
 `deploy_minisago` and `get_minisago_deployment`, each taking a full commit SHA.

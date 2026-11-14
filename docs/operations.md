@@ -87,6 +87,64 @@ use the `sago-cloud` SSH alias to reach the same host job. `SAGO_CLOUD_HOST` and
 `SAGO_CLOUD_OPERATIONS_ROOT` override the host and operations checkout location.
 Image waiting occurs only on the host; the client needs no GitHub Actions access.
 
+### Continuous deployment
+
+The `Container image` workflow runs the reusable `Check` workflow alongside
+the ARM64 core, worker, and CCXP image builds. Its `deploy` job runs only for
+`main`, after every check and image build succeeds, and only when repository
+variable `SAGO_CLOUD_CD_ENABLED` is `true`.
+
+Create the GitHub environment `sago-cloud` and configure:
+
+| Setting                      | Kind                 | Purpose                                                         |
+| ---------------------------- | -------------------- | --------------------------------------------------------------- |
+| `SAGO_CLOUD_CD_ENABLED`      | Repository variable  | Set to `true` after completing setup; unset or `false` skips CD |
+| `SAGO_CLOUD_HOST`            | Environment variable | Tailscale hostname, defaults to `sago-cloud`                    |
+| `TS_OAUTH_CLIENT_ID`         | Environment secret   | Tailscale OAuth client ID                                       |
+| `TS_OAUTH_SECRET`            | Environment secret   | Tailscale OAuth client secret                                   |
+| `SAGO_CLOUD_SSH_KEY`         | Environment secret   | Dedicated OpenSSH private key for the host's `ubuntu` account   |
+| `SAGO_CLOUD_SSH_KNOWN_HOSTS` | Environment secret   | Verified SSH host-key entry matching `SAGO_CLOUD_HOST`          |
+
+In the `sago-cream.github` tailnet, authorize `tag:minisago-cd` and create an
+OAuth client with write access to auth keys for that tag. Grant those tagged
+nodes TCP 22 access to sago-cloud. The
+[Tailscale action](https://github.com/tailscale/github-action) creates an
+ephemeral CI node and removes it at job cleanup; it does not use or change
+the Mac's Tailscale profile.
+
+Generate a dedicated Ed25519 key, install its public key in the host's
+`ubuntu` authorized keys with the `restrict` option, and upload only its private
+key to the environment secret. Verify the host fingerprint through an existing
+trusted SSH connection before storing its known-hosts entry. Keep strict
+host-key checking enabled. Install the current sago-cloud deployment socket
+handler and `/srv/sago-cloud/operations/scripts/request-minisago-deploy` before
+enabling CD. The helper must support both `deploy SHA` and `status SHA`.
+
+GitHub serializes CD jobs without cancelling an active rollout. The host's
+bounded deployment job shares `/srv/sago-cloud/state/minisago-deploy/lock`
+with manual and T3 requests. CD waits and retries a busy submission for up to
+20 minutes, joins an existing job for its commit, and does not resubmit an
+accepted job. A completed job makes repeated CI runs a no-op. An explicit CI
+rerun can retry a failed job.
+
+The client skips superseded builds before submission, and the host rejects
+commits that no longer match current `main`. Once accepted, the host owns
+image downloads, commit-pinned deployment, and container health checks. CD polls
+the commit-specific status until `complete` or `failed`; its result is recorded
+in GitHub Actions. The existing operations checkout and production secrets stay
+on the VM. CD does not update that checkout or deploy T3 and other stacks.
+Direct operations commands in sago-cloud do not acquire this lock; avoid running
+them during a MiniSago rollout.
+
+To pause CD, set `SAGO_CLOUD_CD_ENABLED=false`; this does not cancel an accepted
+host job. Re-run the `Container image` workflow on `main` to retry a failed
+release. If the CI wait times out or loses SSH connectivity, inspect
+`bun run deploy --status --commit <full SHA>` before retrying: the host job can
+continue independently. Environment protection rules can require approval;
+leave required reviewers unset for automatic deployment.
+
+### Manual access
+
 For Mac deployments, the `sago-cream.github` Tailscale profile must use **Exit
 Node → None**, not Automatic/Recommended. Disconnect, select that profile, and
 clear its exit node before connecting. The CLI equivalent, with that profile

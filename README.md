@@ -30,6 +30,10 @@ Authorized self-deployments run as host jobs while T3 stays running; completion
 and failure return through the same Discord thread after the bot reconnects.
 See [T3 coding setup](docs/t3-coding.md).
 
+MiniSago supports continuous deployment to Sago Cloud: after `main` passes checks
+and publishes its images, GitHub Actions submits the commit to the same host
+deployment job used by T3. See [CD setup](docs/operations.md#continuous-deployment).
+
 Ask Sago to generate an image or edit an attachment, avatar, or existing emoji.
 She sends the result back as a Discord attachment and can add an edited copy as
 an emoji or sticker when requested. Image generation uses the Linux worker's

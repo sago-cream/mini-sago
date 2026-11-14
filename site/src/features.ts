@@ -838,7 +838,7 @@ export const FEATURES = [
                 text: '已停止工作並結束 Discord 開發連線，這串回到一般聊天。T3 工作階段和檔案會保留。',
             },
         ],
-        note: '',
+        note: 'MiniSago 可設定持續部署：main 通過檢查並發布映像後，自動透過同一個主機部署工作更新 Sago Cloud；部署共用鎖，避免同時更新。',
     },
     {
         id: 'reviews',
