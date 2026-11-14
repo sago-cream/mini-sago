@@ -8,11 +8,16 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
+  check:
+    uses: ./.github/workflows/check.yml
+
   build:
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         include:
@@ -58,3 +63,44 @@ jobs:
           labels: ${{ steps.metadata.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy:
+    needs: [check, build]
+    if: github.ref == 'refs/heads/main' && vars.SAGO_CLOUD_CD_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: sago-cloud
+    concurrency:
+      group: sago-cloud-minisago
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.9
+      - name: Configure deployment SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.SAGO_CLOUD_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.SAGO_CLOUD_SSH_KNOWN_HOSTS }}
+        run: |
+          test -n "$DEPLOY_KEY" && test -n "$KNOWN_HOSTS"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/sago-cloud-cd
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/sago-cloud-cd ~/.ssh/known_hosts
+      - name: Connect to Sago Cloud
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:minisago-cd
+          ping: ${{ vars.SAGO_CLOUD_HOST || 'sago-cloud' }}
+      - name: Submit host deployment and wait for its result
+        env:
+          SAGO_CLOUD_HOST: ${{ vars.SAGO_CLOUD_HOST || 'sago-cloud' }}
+        run: bun scripts/deploy-ci.ts "$GITHUB_SHA"
+      - name: Remove deployment credentials
+        if: always()
+        run: rm -f ~/.ssh/sago-cloud-cd ~/.ssh/known_hosts

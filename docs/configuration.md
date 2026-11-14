@@ -221,6 +221,10 @@ uses `SAGO_CLOUD_HOST` (default `sago-cloud`) over SSH and
 Deployment status stays on the host; the bot needs only its ordinary T3 relay
 state. See [deployment operations](operations.md#sago-cloud-deployment).
 
+Continuous deployment uses GitHub Actions environment secrets and repository
+variables, separate from bot and worker settings. See
+[Sago Cloud CD configuration](operations.md#continuous-deployment).
+
 ## Workers
 
 | Name                             | Required | Purpose                                                         |

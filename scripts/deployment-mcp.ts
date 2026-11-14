@@ -17,7 +17,7 @@ export function createDeploymentServer(socketPath: string) {
     "deploy_minisago",
     {
       description:
-        "Deploy the current merged MiniSago main commit, only with explicit owner authorization. Acceptance is not completion. T3 stays running: use get_minisago_deployment until complete or failed and report the result in your reply, which the Discord relay delivers after the bot reconnects.",
+        "Deploy the current merged MiniSago main commit, only with explicit owner authorization. When CD is enabled, merging main already schedules deployment; read status instead of submitting a duplicate. Acceptance is not completion. T3 stays running: use get_minisago_deployment until complete or failed and report the result in your reply, which the Discord relay delivers after the bot reconnects.",
       inputSchema,
     },
     async ({ commit }) => ({

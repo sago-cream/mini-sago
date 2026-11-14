@@ -16,6 +16,7 @@
   "include": [
     "src/**/*.ts",
     "scripts/deploy-socket.ts",
+    "scripts/deploy-ci.ts",
     "scripts/deployment-mcp.ts"
   ],
   "exclude": ["node_modules"]
