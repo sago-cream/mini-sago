@@ -4,7 +4,11 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { requestMinisagoDeployment } from "./deploy-socket";
+import {
+  getMinisagoDeployment,
+  parseDeploymentStatus,
+  requestMinisagoDeployment,
+} from "./deploy-socket";
 
 const roots: string[] = [];
 
@@ -19,7 +23,6 @@ test("submits one immutable MiniSago deployment request", async () => {
   roots.push(root);
   const socketPath = join(root, "deploy.sock");
   const commit = "0123456789abcdef0123456789abcdef01234567";
-  const channelId = "1282936453134815275";
   const requests: string[] = [];
   const server = createServer((socket) => {
     socket.setEncoding("utf8");
@@ -30,10 +33,10 @@ test("submits one immutable MiniSago deployment request", async () => {
   });
   await new Promise<void>((resolve) => server.listen(socketPath, resolve));
 
-  await expect(
-    requestMinisagoDeployment(socketPath, commit, channelId),
-  ).resolves.toBe(`accepted ${commit}`);
-  expect(requests).toEqual([`deploy ${commit} ${channelId}\n`]);
+  await expect(requestMinisagoDeployment(socketPath, commit)).resolves.toBe(
+    `accepted ${commit}`,
+  );
+  expect(requests).toEqual([`deploy ${commit}\n`]);
 
   await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
@@ -45,15 +48,14 @@ test("rejects a host denial", async () => {
   roots.push(root);
   const socketPath = join(root, "deploy.sock");
   const commit = "0123456789abcdef0123456789abcdef01234567";
-  const channelId = "1282936453134815275";
   const server = createServer((socket) => {
     socket.on("data", () => socket.end("busy deployment-in-progress\n"));
   });
   await new Promise<void>((resolve) => server.listen(socketPath, resolve));
 
-  await expect(
-    requestMinisagoDeployment(socketPath, commit, channelId),
-  ).rejects.toThrow("busy deployment-in-progress");
+  await expect(requestMinisagoDeployment(socketPath, commit)).rejects.toThrow(
+    "busy deployment-in-progress",
+  );
 
   await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
@@ -73,10 +75,56 @@ test("accepts a complete acknowledgment while the host keeps the connection open
   });
   await new Promise<void>((resolve) => server.listen(socketPath, resolve));
   try {
-    await expect(
-      requestMinisagoDeployment(socketPath, commit, "1282936453134815275"),
-    ).resolves.toBe(`accepted ${commit}`);
+    await expect(requestMinisagoDeployment(socketPath, commit)).resolves.toBe(
+      `accepted ${commit}`,
+    );
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
+});
+
+test("queries commit-specific status without submitting deployment", async () => {
+  const root = await mkdtemp(join(tmpdir(), "minisago-status-"));
+  roots.push(root);
+  const socketPath = join(root, "deploy.sock");
+  const commit = "a".repeat(40);
+  const status = {
+    commit,
+    status: "running",
+    exitCode: null,
+    updatedAt: "2026-11-14T00:00:00Z",
+  };
+  const requests: string[] = [];
+  const server = createServer((socket) =>
+    socket.once("data", (data) => {
+      requests.push(data.toString());
+      socket.end(JSON.stringify(status) + "\n");
+    }),
+  );
+  await new Promise<void>((resolve) => server.listen(socketPath, resolve));
+  try {
+    expect(await getMinisagoDeployment(socketPath, commit)).toEqual(status);
+    expect(requests).toEqual([`status ${commit}\n`]);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+test("rejects mismatched or contradictory terminal results", () => {
+  const commit = "a".repeat(40);
+  const status = {
+    commit,
+    status: "complete",
+    exitCode: 0,
+    updatedAt: "2026-11-14T00:00:00Z",
+  };
+  expect(parseDeploymentStatus(JSON.stringify(status), commit)).toEqual(status);
+  for (const change of [
+    { commit: "b".repeat(40) },
+    { exitCode: 1 },
+    { status: "failed", exitCode: null },
+    { updatedAt: "invalid" },
+  ])
+    expect(() =>
+      parseDeploymentStatus(JSON.stringify({ ...status, ...change }), commit),
+    ).toThrow();
 });

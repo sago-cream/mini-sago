@@ -13,6 +13,10 @@
     "isolatedModules": true,
     "types": ["bun-types"]
   },
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts",
+    "scripts/deploy-socket.ts",
+    "scripts/deployment-mcp.ts"
+  ],
   "exclude": ["node_modules"]
 }

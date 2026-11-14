@@ -516,7 +516,7 @@ export const FEATURE_DEFINITIONS = {
   },
   self_development: {
     description:
-      "Inspect or change your own behavior and implementation through the configured chatbot repository, and deploy it from main when explicitly requested.",
+      "Inspect or change your own behavior and implementation through the configured chatbot repository, and deploy the merged main commit when explicitly requested. T3 stays running during bot deployment; read the host deployment status and report completion or failure through the normal reply.",
     access: "owner",
     capability: { id: "self_development", category: "development" },
   },

@@ -1,155 +1,111 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { setTimeout as delay } from "node:timers/promises";
+import {
+  COMMIT_SHA,
+  deploymentCommand,
+  exchangeDeploymentRequest,
+  parseDeploymentStatus,
+} from "./deploy-socket";
 
-import { requestMinisagoDeployment } from "./deploy-socket";
-
-const repository = "sago-cream/mini-sago";
-const workflow = "image.yml";
-const service = "minisago";
-const remoteHost = process.env.SAGO_CLOUD_HOST ?? "sago-cloud";
-const remoteDeployRoot =
-  process.env.SAGO_CLOUD_OPERATIONS_ROOT ?? "/srv/sago-cloud/operations";
-const sshConnectTimeout = "10";
-const sshRetryDelay = "15";
-const sshAttempts = 3;
-
-function output(command, args) {
-  return execFileSync(command, args, { encoding: "utf8" }).trim();
-}
-
-function run(command, args) {
-  const result = spawnSync(command, args, { stdio: "inherit" });
-
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
+export function parseDeploymentArguments(args) {
+  let commit;
+  let wait = true;
+  let status = false;
+  for (let index = 0; index < args.length; index++) {
+    if (args[index] === "--commit" && !commit) commit = args[++index];
+    else if (args[index] === "--no-wait") wait = false;
+    else if (args[index] === "--status") status = true;
+    else
+      throw new Error(
+        "Usage: bun run deploy [--commit <full SHA>] [--no-wait | --status]",
+      );
   }
+  if (
+    (commit !== undefined && !COMMIT_SHA.test(commit)) ||
+    args.at(-1) === "--commit"
+  )
+    throw new Error("MiniSago deployment requires a full commit SHA.");
+  if (status && !commit)
+    throw new Error("Deployment status requires --commit <full SHA>.");
+  return { commit, wait, status };
 }
 
-function hasRemote(name) {
-  return output("git", ["remote"]).split("\n").includes(name);
-}
-
-function remoteBranchCommit(remote, branch) {
-  return output("git", [
+export function resolveDeploymentCommit(requested, output) {
+  const main = output("git", [
     "ls-remote",
     "--exit-code",
-    remote,
-    `refs/heads/${branch}`,
+    "origin",
+    "refs/heads/main",
   ]).split(/\s/u)[0];
+  if (!COMMIT_SHA.test(main)) throw new Error("Unable to resolve origin/main.");
+  if (requested && requested !== main)
+    throw new Error(
+      "Deploy the current origin/main commit. Merge changes through a PR first.",
+    );
+  return requested ?? main;
 }
 
-function deployRemote() {
-  const remoteCommand = `${remoteDeployRoot}/scripts/deploy-${service}`;
-
-  for (let attempt = 1; attempt <= sshAttempts; attempt += 1) {
-    const result = spawnSync(
+async function main() {
+  const args = parseDeploymentArguments(process.argv.slice(2));
+  const output = (command, values) =>
+    execFileSync(command, values, { encoding: "utf8" }).trim();
+  const commit = args.status
+    ? args.commit
+    : resolveDeploymentCommit(args.commit, output);
+  const socket = process.env.MINISAGO_DEPLOY_SOCKET?.trim();
+  const host = process.env.SAGO_CLOUD_HOST ?? "sago-cloud";
+  const root =
+    process.env.SAGO_CLOUD_OPERATIONS_ROOT ?? "/srv/sago-cloud/operations";
+  if (!/^\/[a-zA-Z0-9_./-]+$/u.test(root))
+    throw new Error("Invalid operations root.");
+  const request = async (command) => {
+    const protocol = deploymentCommand(command, commit);
+    if (socket) return exchangeDeploymentRequest(socket, protocol);
+    return execFileSync(
       "ssh",
       [
         "-o",
         "BatchMode=yes",
         "-o",
-        `ConnectTimeout=${sshConnectTimeout}`,
-        remoteHost,
-        remoteCommand,
+        "ConnectTimeout=10",
+        host,
+        `${root}/scripts/request-minisago-deploy ${command} ${commit}`,
       ],
-      { encoding: "utf8" },
+      { encoding: "utf8", timeout: 20_000 },
+    ).trim();
+  };
+  if (args.status) {
+    console.log(
+      JSON.stringify(parseDeploymentStatus(await request("status"), commit)),
     );
-
-    if (result.stdout) process.stdout.write(result.stdout);
-    if (result.stderr) process.stderr.write(result.stderr);
-    if (result.status === 0) return;
-
-    const timedOut = result.stderr?.includes("Operation timed out");
-    if (!timedOut || attempt === sshAttempts) {
-      if (timedOut) {
-        console.error(
-          `Unable to reach ${remoteHost} after ${sshAttempts} attempts. Check that its SSH service and firewall permit this network.`,
-        );
-      }
-      process.exit(result.status ?? 1);
-    }
-
-    console.error(
-      `SSH connection to ${remoteHost} timed out; retrying in ${sshRetryDelay} seconds (${attempt}/${sshAttempts}).`,
-    );
-    run("sleep", [sshRetryDelay]);
-  }
-}
-
-async function deploy(commit) {
-  const deploySocket = process.env.MINISAGO_DEPLOY_SOCKET?.trim();
-  if (!deploySocket) {
-    deployRemote();
     return;
   }
-
-  const channelId = process.env.MINISAGO_DISCORD_CHANNEL_ID?.trim() || "";
-  await requestMinisagoDeployment(deploySocket, commit, channelId);
-  console.log(
-    `MiniSago deployment for ${commit} was accepted. The bot and Oracle will restart.`,
-  );
-}
-
-function waitForImage(commit) {
-  let runId = "";
-
-  for (let attempt = 0; attempt < 30 && !runId; attempt += 1) {
-    const runs = JSON.parse(
-      output("gh", [
-        "run",
-        "list",
-        "--repo",
-        repository,
-        "--workflow",
-        workflow,
-        "--commit",
-        commit,
-        "--limit",
-        "1",
-        "--json",
-        "databaseId",
-      ]),
-    );
-
-    runId = runs[0]?.databaseId?.toString() ?? "";
-    if (!runId) run("sleep", ["2"]);
+  const accepted = await request("deploy");
+  if (accepted !== `accepted ${commit}`) throw new Error(accepted);
+  console.log(`MiniSago deployment accepted: ${commit}`);
+  if (!args.wait) return;
+  const deadline = Date.now() + 20 * 60_000;
+  let previous;
+  while (Date.now() < deadline) {
+    const status = parseDeploymentStatus(await request("status"), commit);
+    if (status.status !== previous)
+      console.log(`MiniSago deployment: ${status.status}`);
+    previous = status.status;
+    if (status.status === "failed")
+      throw new Error(
+        `Deployment ${commit} failed with exit code ${status.exitCode}.`,
+      );
+    if (status.status === "complete") return;
+    await delay(5_000);
   }
-
-  if (!runId) {
-    console.error(`No ${workflow} run appeared for ${commit}.`);
-    process.exit(1);
-  }
-
-  run("gh", ["run", "watch", runId, "--repo", repository, "--exit-status"]);
-}
-
-const branch = output("git", ["branch", "--show-current"]);
-
-if (branch !== "main") {
-  console.error(
-    `Deploy from main. Current branch is ${branch || "(detached)"}.`,
+  throw new Error(
+    `Deployment is still pending. Check bun run deploy --status --commit ${commit}`,
   );
-  process.exit(1);
 }
 
-if (output("git", ["status", "--porcelain"])) {
-  console.error("Commit or stash local changes before deploying.");
-  process.exit(1);
+if (import.meta.main) {
+  await main().catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
 }
-
-if (!hasRemote("origin")) {
-  console.error("Missing origin remote.");
-  process.exit(1);
-}
-
-const commit = output("git", ["rev-parse", "HEAD"]);
-const remoteCommit = remoteBranchCommit("origin", branch);
-
-if (commit !== remoteCommit) {
-  console.error(
-    "Local main does not match origin/main. Merge changes through a PR, then update local main before deploying. This script never pushes code.",
-  );
-  process.exit(1);
-}
-
-waitForImage(commit);
-await deploy(commit);

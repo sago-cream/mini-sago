@@ -116,7 +116,7 @@ describe("Discord chatbot", () => {
         expect.objectContaining({
           id: "self_development",
           availability: "conditional",
-          description: expect.stringContaining("deploy it from main"),
+          description: expect.stringContaining("deploy the merged main commit"),
           condition: expect.stringContaining("deployment"),
         }),
       ]),
