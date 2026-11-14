@@ -893,6 +893,7 @@ async function handleChatbotMentionRequest({
 
   const { workflow } = acquired;
   let result: MacAgentJobResult;
+  let developerTaskStarted = false;
   const resources = new ChatbotRequestResources(workflow);
   let savedMemoryAction: "add" | "replace" | "remove" | undefined;
   let mcpSession: ReturnType<typeof registerChatbotMcpSession> | undefined;
@@ -1668,6 +1669,7 @@ async function handleChatbotMentionRequest({
           title: developerThreadTitle,
           discordRequest,
         });
+        developerTaskStarted = true;
         return { ok: true as const, content: "" };
       }
       const answerDone = clock.start("host.answer_dispatch");
@@ -1710,6 +1712,10 @@ async function handleChatbotMentionRequest({
     };
   } finally {
     mcpSnapshot = resources.release() ?? mcpSnapshot;
+  }
+  if (developerTaskStarted) {
+    clock.mark("handler.completed");
+    return true;
   }
   if (quietTracker?.isPaused(message.channel_id)) return true;
   let reacted = false;

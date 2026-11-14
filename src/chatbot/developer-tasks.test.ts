@@ -1,4 +1,7 @@
 import { expect, spyOn, test } from "bun:test";
+import type { ServerWebSocket } from "bun";
+import { macAgentBridge, type MacAgentSocketData } from "./bridge";
+import { CHATBOT_PROTOCOL_VERSION } from "../../contracts/worker-contract";
 import { DeveloperTaskRegistry } from "./t3-coding";
 import {
   DeveloperThreadStore,
@@ -915,3 +918,115 @@ test("an interrupted chunk rewrite is repaired after restart even if T3 reverts 
     f.store.close();
   }
 });
+
+test.each(["started", "failed", "empty-chat"] as const)(
+  "coding handoff only suppresses the empty-answer fallback after startup: %s",
+  async (scenario) => {
+    const f = fixture();
+    const previousSecret = process.env.MINISAGO_WORKER_BRIDGE_SECRET;
+    const secret = "coding-handoff-test-secret-at-least-32-bytes";
+    process.env.MINISAGO_WORKER_BRIDGE_SECRET = secret;
+    const socket = {
+      data: { authenticated: false },
+      send: (value: string) => {
+        const payload = JSON.parse(value);
+        if (payload.type === "job") {
+          macAgentBridge.message(
+            socket,
+            JSON.stringify({
+              type: "result",
+              jobId: payload.job.id,
+              ok: true,
+              content: JSON.stringify({ reply: null, reaction: null }),
+            }),
+          );
+        }
+      },
+      close: () => undefined,
+    } as unknown as ServerWebSocket<MacAgentSocketData>;
+    try {
+      macAgentBridge.open(socket);
+      macAgentBridge.message(
+        socket,
+        JSON.stringify({
+          type: "authenticate",
+          protocolVersion: CHATBOT_PROTOCOL_VERSION,
+          secret,
+          workerId: "oracle",
+          repositories: [],
+        }),
+      );
+      macAgentBridge.message(
+        socket,
+        JSON.stringify({
+          type: "availability",
+          available: true,
+          capacity: 1,
+        }),
+      );
+      if (scenario === "failed") f.failSend();
+      const request = message("<@bot> pr", `handoff-${scenario}`);
+      request.mentions = [{ id: "bot" }];
+      expect(
+        await handleChatbotMention({
+          message: request,
+          botUserId: "bot",
+          accessConfig: access,
+          developerTaskRegistry: f.registry,
+          discordRequest: (async (path, init) =>
+            path.includes("messages?")
+              ? []
+              : f.discord(path, init)) as DiscordRequest,
+          executionOptions: {
+            lazyPreviousTrace: true,
+            routeRequest: async () =>
+              JSON.stringify(
+                scenario === "empty-chat"
+                  ? { route: "chat" }
+                  : {
+                      route: "oracle",
+                      repository: "owner/repo",
+                      threadTitle: "PR",
+                    },
+              ),
+          },
+          guildMemoryStore: {
+            ensure: async () => ({ revision: 0, entries: [] }) as never,
+            mutate: async () => ({}) as never,
+          },
+        }),
+      ).toBe(true);
+      const replies = f.posts.filter(
+        (post) => post.method === "POST" && post.path.endsWith("/messages"),
+      );
+      if (scenario === "started") {
+        expect(f.calls.some((call) => call.name === "t3_thread_send")).toBe(
+          true,
+        );
+        expect(f.registry.has("discord-thread")).toBe(true);
+        expect(JSON.stringify(replies)).not.toContain("我剛剛卡住了");
+        expect(JSON.stringify(replies)).not.toContain("我這次沒完成");
+      } else {
+        expect(
+          replies.some(
+            (post) =>
+              post.body.content ===
+              (scenario === "failed"
+                ? "我這次沒完成 稍後再試一次"
+                : "我剛剛卡住了 晚點再叫我一次"),
+          ),
+        ).toBe(true);
+      }
+      // The router's chat-worker reservation is released even after a handoff.
+      const acquired = macAgentBridge.acquireWorkflow(["chat"]);
+      expect(acquired.status).toBe("accepted");
+      if (acquired.status === "accepted") acquired.workflow.release();
+    } finally {
+      macAgentBridge.close(socket);
+      if (previousSecret === undefined)
+        delete process.env.MINISAGO_WORKER_BRIDGE_SECRET;
+      else process.env.MINISAGO_WORKER_BRIDGE_SECRET = previousSecret;
+      f.store.close();
+    }
+  },
+);
