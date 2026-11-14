@@ -510,7 +510,7 @@ export const FEATURE_DEFINITIONS = {
   },
   repository_work: {
     description:
-      "Start an owner-only coding session in a registered T3 project, using replied-to messages, forwarded content, and screenshots to identify the work. Continue the same session from Discord or T3, using the project’s normal model, instructions, skills, tools, and permission mode. Discord relays assistant messages and plans and provides stop, status, and end controls. T3 handles code changes, checks, commits, pull requests, and authorized merges and deployment. Answer native approval requests in T3.",
+      "Start an owner-only coding session in a registered T3 project, using replied-to messages, forwarded content, and screenshots to identify the work. Continue the same session from Discord or T3, using the project’s normal model, instructions, skills, tools, and permission mode. Explicitly ask to open another coding thread to start a separately linked sibling under the same Discord channel. Discord relays assistant messages and plans and provides stop, status, and end controls. T3 handles code changes, checks, commits, pull requests, and authorized merges and deployment. Answer native approval requests in T3.",
     access: "owner",
     capability: { id: "repository_work", category: "development" },
   },

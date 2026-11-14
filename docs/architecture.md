@@ -56,6 +56,8 @@ T3 owns coding sessions, providers, project defaults, worktrees, and history.
 The host's OAuth MCP client creates and messages ordinary T3 threads. A small
 Discord relay persists only associations and delivery checkpoints. Coding
 continuations reach T3 without acquiring a chat worker or running the router.
+An explicit request for another coding thread runs the router and opens a
+separately linked sibling in the same Discord parent channel.
 See [T3 coding](t3-coding.md).
 
 ## Chat request lifecycle

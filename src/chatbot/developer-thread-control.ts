@@ -1,3 +1,15 @@
+/** Only direct requests for a separate coding conversation bypass its current session. */
+export function requestsNewDeveloperThread(request: string) {
+  return (
+    /^(?:please\s+)?(?:open|start|create)\s+(?:(?:a|an)\s+)?(?:new|another|separate)\s+(?:t3(?:[ -]linked)?\s+(?:(?:dev(?:elopment)?|coding)\s+)?|(?:dev(?:elopment)?|coding)\s+)(?:thread|session)\b/iu.test(
+      request.trim(),
+    ) ||
+    /^(?:請)?(?:另開|另外開|開一個新|建立一個新)(?:的)?\s*(?:T3\s*(?:連結的?)?\s*)?(?:開發|程式開發)(?:討論串|工作階段)/iu.test(
+      request.trim(),
+    )
+  );
+}
+
 /** Exact host commands also work while the coding worker is busy or offline. */
 export function endDeveloperThreadTarget(
   request: string,

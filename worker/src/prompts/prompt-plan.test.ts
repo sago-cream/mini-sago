@@ -195,6 +195,7 @@ describe("prompt plan", () => {
         request: baseJob.request,
         messages: baseJob.messages,
         availableRepositories: ["sago-cream/mini-sago"],
+        currentRepository: "sago-cream/mini-sago",
         capabilities: [
           {
             id: "feature_availability",
@@ -214,6 +215,9 @@ describe("prompt plan", () => {
     expect(plan.taskInstruction).not.toContain("sago-cream/mini-sago");
     expect(plan.context).toContain("sago-cream/mini-sago");
     expect(plan.context).toContain("configure_feature_availability");
+    expect(plan.context).toContain(
+      'current_repository_json\n"sago-cream/mini-sago"',
+    );
   });
 
   test("keeps the retry attachment in context", () => {

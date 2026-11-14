@@ -35,6 +35,28 @@ function response(route: string, confidence = 1) {
     },
   };
 }
+test("separate coding threads use the repository-aware router", async () => {
+  let called = false;
+  expect(
+    await routeWithJev(
+      {
+        ...job,
+        request:
+          "open another t3 linked dev thread to work on next.js version update",
+        currentRepository: "sago-cream/mini-sago",
+      },
+      {
+        apiKey: "test",
+        fetch: async () => {
+          called = true;
+          return Response.json(response("chat"));
+        },
+      },
+    ),
+  ).toBeUndefined();
+  expect(called).toBe(false);
+});
+
 test("Jev accepts confident chat/Mac and falls back for uncertain, repository, malformed, and failed routing", async () => {
   for (const route of ["chat", "mac"]) {
     const result = await routeWithJev(job, {

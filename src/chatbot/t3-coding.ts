@@ -29,12 +29,46 @@ export async function createDeveloperThread(
   message: DiscordMessage,
   title: string | undefined,
   discord: DiscordRequest,
+  newThread = false,
 ) {
   if (!message.guild_id) return message.channel_id;
-  const channel = await discord<{ type: number }>(
+  const channel = await discord<{ type: number; parent_id?: string }>(
     `/channels/${message.channel_id}`,
   );
-  if ([10, 11, 12].includes(channel.type)) return message.channel_id;
+  if ([10, 11, 12].includes(channel.type)) {
+    if (!newThread) return message.channel_id;
+    if (!channel.parent_id)
+      throw new Error("Discord thread has no parent channel.");
+    const parent = await discord<{ type: number }>(
+      `/channels/${channel.parent_id}`,
+    );
+    const forum = [15, 16].includes(parent.type);
+    const thread = await discord<{ id: string }>(
+      `/channels/${channel.parent_id}/threads`,
+      {
+        method: "POST",
+        body: {
+          name: developerThreadName(title),
+          auto_archive_duration: 4320,
+          ...(forum
+            ? {
+                message: messageBody(
+                  `Coding request: https://discord.com/channels/${message.guild_id}/${message.channel_id}/${message.id}`,
+                ),
+              }
+            : { type: channel.type }),
+        },
+      },
+    );
+    if (channel.type === 12 && message.author?.id)
+      await discord(
+        `/channels/${thread.id}/thread-members/${message.author.id}`,
+        {
+          method: "PUT",
+        },
+      );
+    return thread.id;
+  }
   const thread = await discord<{ id: string }>(
     `/channels/${message.channel_id}/messages/${message.id}/threads`,
     {
@@ -175,71 +209,107 @@ export class DeveloperTaskRegistry {
     message,
     job,
     title,
+    newThread = false,
     discordRequest: discord,
   }: {
     message: DiscordMessage;
     job: OracleAnswerJob;
     title?: string;
+    newThread?: boolean;
     discordRequest: DiscordRequest;
   }) {
-    const client = this.connection();
-    const candidates = (await this.availableProjects()).filter(
-      (project) =>
-        project.repository.toLowerCase() === job.repository.toLowerCase(),
-    );
-    if (candidates.length !== 1)
-      throw new Error(
-        `Register one active T3 project for ${job.repository} before starting Discord coding.`,
-      );
-    const threadId = await createDeveloperThread(message, title, discord);
-    await this.recover(threadId, async () => {
-      const existing = this.saved(threadId);
-      if (existing?.t3)
-        throw new Error(
-          "This Discord thread already has a T3 session. Reply in it to continue.",
+    return this.recover(
+      `start:${message.channel_id}:${message.id}`,
+      async () => {
+        if (
+          newThread &&
+          this.store
+            .list()
+            .some(
+              (task) =>
+                task.guildId === (message.guild_id ?? "") &&
+                task.requesterUserId === job.requesterUserId &&
+                task.source?.channelId === message.channel_id &&
+                task.source.messageId === message.id,
+            )
+        )
+          return;
+        const client = this.connection();
+        const candidates = (await this.availableProjects()).filter(
+          (project) =>
+            project.repository.toLowerCase() === job.repository.toLowerCase(),
         );
-      const session = launched.parse(
-        await client.call("t3_thread_launch", {
-          projectId: candidates[0]!.id,
-          title: developerThreadName(title),
-          workspaceStrategy: {
-            type: "worktree",
-            baseRef: "HEAD",
-            startFromOrigin: true,
-          },
-          clientRequestId: `discord-thread:${threadId}`,
-          // Create idle first so the association is durable before any agent work begins.
-        }),
-      );
-      const task: SavedDeveloperThread = {
-        id: session.threadId,
-        threadId,
-        guildId: message.guild_id ?? "",
-        requesterUserId: job.requesterUserId,
-        repository: job.repository,
-        request: "",
-        title: developerThreadName(title),
-        requiresAddressing: false,
-        expiresAt: Number.MAX_SAFE_INTEGER,
-        t3: {
-          url: client.url,
-          threadId: session.threadId,
-          projectId: session.projectId,
-          link: this.webLink(session.link),
-          seenMessageIds: [],
-        },
-      };
-      this.store.save(task);
-      const recent = job.messages
-        .filter((entry) => entry.id !== message.id)
-        .map((entry) => `${entry.author}: ${entry.content}`)
-        .join("\n")
-        .slice(-8_000);
-      const source = `https://discord.com/channels/${message.guild_id ?? "@me"}/${threadId}`;
-      const initial = `${job.request}\n\nDiscord conversation: ${source}${recent ? `\n\nRecent Discord context (reference):\n${recent}` : ""}`;
-      await this.send(task, message, initial, discord);
-      await this.sync(task, discord);
-    }).finally(() => this.wakeRelay?.());
+        if (candidates.length !== 1)
+          throw new Error(
+            `Register one active T3 project for ${job.repository} before starting Discord coding.`,
+          );
+        const threadId = await createDeveloperThread(
+          message,
+          title,
+          discord,
+          newThread,
+        );
+        await this.recover(threadId, async () => {
+          const existing = this.saved(threadId);
+          if (existing?.t3)
+            throw new Error(
+              "This Discord thread already has a T3 session. Reply in it to continue.",
+            );
+          const session = launched.parse(
+            await client.call("t3_thread_launch", {
+              projectId: candidates[0]!.id,
+              title: developerThreadName(title),
+              workspaceStrategy: {
+                type: "worktree",
+                baseRef: "HEAD",
+                startFromOrigin: true,
+              },
+              clientRequestId: `discord-thread:${threadId}`,
+              // Create idle first so the association is durable before any agent work begins.
+            }),
+          );
+          const task: SavedDeveloperThread = {
+            id: session.threadId,
+            threadId,
+            guildId: message.guild_id ?? "",
+            requesterUserId: job.requesterUserId,
+            repository: job.repository,
+            request: "",
+            title: developerThreadName(title),
+            requiresAddressing: false,
+            expiresAt: Number.MAX_SAFE_INTEGER,
+            source: { channelId: message.channel_id, messageId: message.id },
+            t3: {
+              url: client.url,
+              threadId: session.threadId,
+              projectId: session.projectId,
+              link: this.webLink(session.link),
+              seenMessageIds: [],
+            },
+          };
+          this.store.save(task);
+          const recent = job.messages
+            .filter((entry) => entry.id !== message.id)
+            .map((entry) => `${entry.author}: ${entry.content}`)
+            .join("\n")
+            .slice(-8_000);
+          const source = `https://discord.com/channels/${message.guild_id ?? "@me"}/${message.channel_id}/${message.id}`;
+          const sessionContext = newThread
+            ? "This is the separate coding session requested below. The host has already created its Discord thread and T3 worktree. Do the requested repository work in this session.\n\n"
+            : "";
+          const initial = `${sessionContext}${job.request}\n\nDiscord conversation: ${source}${recent ? `\n\nRecent Discord context (reference):\n${recent}` : ""}`;
+          await this.send(task, message, initial, discord);
+          await this.sync(task, discord);
+          if (threadId !== message.channel_id && newThread)
+            await discord(`/channels/${message.channel_id}/messages`, {
+              method: "POST",
+              body: messageBody(
+                `Started a linked coding session in <#${threadId}>.`,
+              ),
+            });
+        }).finally(() => this.wakeRelay?.());
+      },
+    );
   }
 
   async handle(

@@ -48,6 +48,15 @@ forwarding context, or attaching screenshots. Sago creates a Discord thread
 fresh worktree, and posts its model, permission mode, branch, and **Open in T3**
 link. Model and permission defaults come from the T3 project.
 
+To start separate work from an existing thread, ask, for example, "open another
+t3 linked dev thread to work on next.js version update" or "另開開發討論串更新
+Next.js". Sago creates a sibling thread in the same parent channel, links its own
+T3 session and worktree, starts the requested work, and posts the new Discord
+thread link in the original conversation. The current project is supplied to the
+router when the new task leaves it implicit; name another registered project to
+switch repositories. Private threads create private siblings and add the owner.
+Forum and media channels receive a new post with a link to the source request.
+
 Replies go straight to that same session. Text follow-ups use T3's automatic
 start/steer/queue behavior. Files use T3's native attachment delivery, which queues
 a new message according to its own semantics. Up to eight files, 20 MB each and

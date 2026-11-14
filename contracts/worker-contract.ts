@@ -192,6 +192,7 @@ type NonAnswerJob = {
 type NonRoutingJob = {
   availableRepositories?: never;
   chatbotRepository?: never;
+  currentRepository?: never;
 };
 
 export type ExecutionRouteJob = ChatbotJobBase &
@@ -199,6 +200,7 @@ export type ExecutionRouteJob = ChatbotJobBase &
     purpose: "execution_route";
     availableRepositories: string[];
     chatbotRepository?: string;
+    currentRepository?: string;
     capabilities?: ChatbotCapability[];
     availableTools?: never;
     socialActionCandidateMessageIds?: never;
@@ -415,6 +417,7 @@ const ANSWER_ONLY_FIELDS = [
 const ROUTING_ONLY_FIELDS = [
   "availableRepositories",
   "chatbotRepository",
+  "currentRepository",
 ] as const;
 
 const EXECUTION_ROUTE_FORBIDDEN_FIELDS = ANSWER_ONLY_FIELDS.filter(
@@ -429,6 +432,9 @@ export function parseChatbotJob(value: unknown): ChatbotJob | null {
       !isStringArray(value.availableRepositories) ||
       (value.chatbotRepository !== undefined &&
         typeof value.chatbotRepository !== "string") ||
+      (value.currentRepository !== undefined &&
+        (typeof value.currentRepository !== "string" ||
+          !value.availableRepositories.includes(value.currentRepository))) ||
       (value.capabilities !== undefined &&
         (!Array.isArray(value.capabilities) ||
           !value.capabilities.every(isCapability))) ||

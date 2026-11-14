@@ -9,6 +9,7 @@ export type SavedDeveloperThread = PreservedDeveloperTask & {
   guildId: string;
   requiresAddressing: boolean;
   expiresAt: number;
+  source?: { channelId: string; messageId: string };
   t3?: {
     url: string;
     threadId: string;

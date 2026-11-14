@@ -1,5 +1,8 @@
 import { createMessageReactionReader } from "./message-reactions";
-import { endDeveloperThreadTarget } from "./developer-thread-control";
+import {
+  endDeveloperThreadTarget,
+  requestsNewDeveloperThread,
+} from "./developer-thread-control";
 import { readGuildEmojiMedia } from "./emoji-media";
 import { DeveloperThreadStore } from "./developer-thread-store";
 import { DeveloperTaskRegistry } from "./t3-coding";
@@ -804,7 +807,19 @@ async function handleChatbotMentionRequest({
     }
   }
 
-  if (!invocation && developerTaskRegistry.has(message.channel_id)) {
+  const currentTask = developerTaskRegistry.saved(message.channel_id);
+  const newDeveloperThread =
+    !invocation &&
+    Boolean(message.guild_id) &&
+    requesterUserId === accessConfig.ownerUserId &&
+    !message.author?.bot &&
+    !message.webhook_id &&
+    requestsNewDeveloperThread(
+      extractChatbotRequest(message, botUserId, accessConfig) ??
+        message.content ??
+        "",
+    );
+  if (!invocation && currentTask && !newDeveloperThread) {
     return developerTaskRegistry.handle(
       message,
       botUserId,
@@ -830,6 +845,14 @@ async function handleChatbotMentionRequest({
   let request =
     invocation?.request ??
     extractChatbotRequest(message, botUserId, accessConfig);
+  if (
+    newDeveloperThread &&
+    currentTask?.requesterUserId === requesterUserId &&
+    currentTask.guildId === message.guild_id
+  ) {
+    request ??= message.content?.trim() ?? "";
+    addressingMode ??= "continuation";
+  }
   if (
     request === null &&
     receivedSequence !== undefined &&
@@ -1545,6 +1568,13 @@ async function handleChatbotMentionRequest({
             }),
           ],
           availableRepositories: codingRepositories,
+          ...(newDeveloperThread &&
+          currentTask &&
+          currentTask.guildId === message.guild_id &&
+          currentTask.requesterUserId === requesterUserId &&
+          codingRepositories.includes(currentTask.repository)
+            ? { currentRepository: currentTask.repository }
+            : {}),
           ...(chatbotRepository
             ? { chatbotRepository: chatbotRepository }
             : {}),
@@ -1570,10 +1600,13 @@ async function handleChatbotMentionRequest({
         routeDone();
         executionRoute = executionRouteOrChat(route.route);
         selectedRepository = route.repository;
+        if (newDeveloperThread) {
+          executionRoute = "oracle";
+        }
         developerThreadTitle = route.threadTitle;
 
         const missingRepository = missingDeveloperRepositoryResponse(
-          route.route,
+          executionRoute,
           selectedRepository,
           codingRepositories,
         );
@@ -1667,6 +1700,7 @@ async function handleChatbotMentionRequest({
           message,
           job,
           title: developerThreadTitle,
+          newThread: newDeveloperThread,
           discordRequest,
         });
         developerTaskStarted = true;
