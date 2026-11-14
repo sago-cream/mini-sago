@@ -46,6 +46,10 @@ unseen videos. Protected sources use their authorized tools. Broader Threads
 searches (`海巡脆`) still require an explicit request. See
 [link reading configuration](docs/configuration.md#shared-links-and-threads-search).
 
+Gamer forum subscriptions forward new Mahjong Soul gift-code posts and send each
+recognized code in its own plain-text message for easy copying on mobile. See
+[Gamer forum notifications](docs/configuration.md#gamer-forum-notifications).
+
 X subscriptions check for new posts every five minutes and repost them individually.
 Daily Traditional Chinese digests are opt-in per service; only Holodori
 (`@hololive_dreams`) is opted in by default, with original links every evening

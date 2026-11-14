@@ -47,6 +47,7 @@ type GamerForumState = {
   pendingPosts?: {
     post: GamerForumPost;
     deliveredChannelIds: string[];
+    sentMessageCounts?: Record<string, number>;
   }[];
 };
 
@@ -424,6 +425,34 @@ export function buildGamerForumPostMessagePayload(
   return payload;
 }
 
+// Gift-code candidates are uppercase ASCII tokens with both letters and digits.
+// This deliberately skips URLs and does not attempt OCR or semantic validation.
+export function extractGamerForumGiftCodes(text: string): string[] {
+  const withoutUrls = text.replace(/https?:\/\/[^\s<>]+/gi, "");
+  const candidates = withoutUrls.matchAll(
+    /(?<![A-Za-z0-9_/-])[A-Z0-9]{8,16}(?![A-Za-z0-9_/-])/g,
+  );
+  return [
+    ...new Set(
+      [...candidates]
+        .map(([code]) => code)
+        .filter((code) => /[A-Z]/.test(code) && /[0-9]/.test(code)),
+    ),
+  ];
+}
+
+export function buildGamerForumPostMessagePayloads(
+  post: GamerForumPost,
+): DiscordMessagePayload[] {
+  return [
+    buildGamerForumPostMessagePayload(post),
+    ...extractGamerForumGiftCodes(post.text).map((code) => ({
+      content: code,
+      allowed_mentions: { parse: [] as [] },
+    })),
+  ];
+}
+
 export function buildForumReaderUrl(
   sourceUrl: string,
   readerBaseUrl = DEFAULT_READER_BASE_URL,
@@ -499,16 +528,18 @@ function toState(post: GamerForumPost, now: Date): GamerForumState {
   };
 }
 
-async function sendDiscordChannelMessage({
+export async function sendGamerForumPostMessages({
   discordRequest,
   channelId,
   guildId,
-  payload,
+  payloads,
+  onMessageSent,
 }: {
   discordRequest: DiscordRequest;
   channelId: string;
   guildId: string;
-  payload: DiscordMessagePayload;
+  payloads: DiscordMessagePayload[];
+  onMessageSent?: () => Promise<void>;
 }) {
   const channel = await discordRequest<DiscordChannel>(
     `/channels/${channelId}`,
@@ -520,10 +551,13 @@ async function sendDiscordChannelMessage({
     );
   }
 
-  await discordRequest(`/channels/${channelId}/messages`, {
-    method: "POST",
-    body: payload,
-  });
+  for (const payload of payloads) {
+    await discordRequest(`/channels/${channelId}/messages`, {
+      method: "POST",
+      body: payload,
+    });
+    await onMessageSent?.();
+  }
 }
 
 export async function sendGamerForumAlertsIfNeeded(
@@ -596,12 +630,18 @@ export async function sendGamerForumAlertsIfNeeded(
   const discordRequest =
     options.discordRequest ?? createDiscordRequest(config.botToken);
 
+  // Destinations send concurrently; serialize writes to the shared state file.
+  let saving = Promise.resolve();
+  const saveProgress = () => {
+    saving = saving.then(() => writeJsonFile(config.stateFile, state));
+    return saving;
+  };
   const blockedChannels = new Set<string>();
   let failure: unknown;
   let delivered = 0;
   for (const pending of [...pendingPosts]) {
     const { post } = pending;
-    const payload = buildGamerForumPostMessagePayload(post);
+    const payloads = buildGamerForumPostMessagePayloads(post);
     const remaining = destinations.filter(
       ({ channelId }) =>
         !pending.deliveredChannelIds.includes(channelId) &&
@@ -613,11 +653,18 @@ export async function sendGamerForumAlertsIfNeeded(
         ? await deliverToServiceDestinations(
             remaining,
             ({ channelId, guildId }) =>
-              sendDiscordChannelMessage({
+              sendGamerForumPostMessages({
                 discordRequest,
                 channelId,
                 guildId,
-                payload,
+                payloads: payloads.slice(
+                  pending.sentMessageCounts?.[channelId] ?? 0,
+                ),
+                onMessageSent: async () => {
+                  const counts = (pending.sentMessageCounts ??= {});
+                  counts[channelId] = (counts[channelId] ?? 0) + 1;
+                  await saveProgress();
+                },
               }),
           )
         : { delivered: 0, failedChannelIds: [] };
