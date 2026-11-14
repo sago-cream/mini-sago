@@ -9,7 +9,7 @@ import {
   getDefaultEnvironment,
 } from "@modelcontextprotocol/sdk/client/stdio.js";
 
-test("deployment MCP pins the destination and accepts only a full commit", async () => {
+test("deployment MCP submits and reads status without Discord credentials", async () => {
   const root = await mkdtemp(join(tmpdir(), "deploy-mcp-"));
   const socket = join(root, "sock");
   const commit = "a".repeat(40);
@@ -17,7 +17,16 @@ test("deployment MCP pins the destination and accepts only a full commit", async
   const server = createServer((connection) =>
     connection.once("data", (data) => {
       requests.push(data.toString());
-      connection.end(`accepted ${commit}\n`);
+      connection.end(
+        data.toString().startsWith("status ")
+          ? JSON.stringify({
+              commit,
+              status: "complete",
+              exitCode: 0,
+              updatedAt: "2026-11-14T00:00:00Z",
+            }) + "\n"
+          : `accepted ${commit}\n`,
+      );
     }),
   );
   await new Promise<void>((resolve, reject) => {
@@ -36,13 +45,13 @@ test("deployment MCP pins the destination and accepts only a full commit", async
         env: {
           ...getDefaultEnvironment(),
           MINISAGO_DEPLOY_SOCKET: socket,
-          MINISAGO_DISCORD_CHANNEL_ID: "123456789012345678",
         },
         stderr: "pipe",
       }),
     );
     expect((await client.listTools()).tools.map((t) => t.name)).toEqual([
       "deploy_minisago",
+      "get_minisago_deployment",
     ]);
     expect(
       (
@@ -58,7 +67,13 @@ test("deployment MCP pins the destination and accepts only a full commit", async
       arguments: { commit, channelId: "999999999999999999" },
     });
     expect(response.isError).not.toBe(true);
-    expect(requests).toEqual([`deploy ${commit} 123456789012345678\n`]);
+    expect(requests).toEqual([`deploy ${commit}\n`]);
+    const status = await client.callTool({
+      name: "get_minisago_deployment",
+      arguments: { commit },
+    });
+    expect(status.isError).not.toBe(true);
+    expect(requests.at(-1)).toBe(`status ${commit}\n`);
   } finally {
     await client.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));

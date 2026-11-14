@@ -14,7 +14,6 @@ export type MacAgentConfig = {
   bridgeSecret: string;
   codexHome: string;
   codexPath: string;
-  deploySocketPath?: string;
   githubConfigDir: string;
   chatbotAccess: ChatbotAccessConfig;
   maxConcurrentJobs: number;
@@ -55,17 +54,6 @@ export function macFileRoots(
   return [
     ...new Set(candidates.filter(isAbsolute).map((path) => resolve(path))),
   ];
-}
-
-export function deploySocketPath(
-  configured = process.env.MINISAGO_DEPLOY_SOCKET,
-) {
-  const path = configured?.trim();
-  if (!path) return undefined;
-  if (!isAbsolute(path)) {
-    throw new Error("MINISAGO_DEPLOY_SOCKET must be an absolute path.");
-  }
-  return resolve(path);
 }
 
 export function configuredSkillbookRepository(
@@ -156,7 +144,6 @@ export async function loadMacAgentConfig(): Promise<MacAgentConfig> {
       process.env.MINISAGO_CODEX_HOME?.trim() ||
       join(defaultApplicationSupport, "codex-home"),
     codexPath: await resolveCodexPath(),
-    deploySocketPath: deploySocketPath(),
     githubConfigDir,
     chatbotAccess,
     headless,

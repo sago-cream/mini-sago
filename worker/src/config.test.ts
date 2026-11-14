@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 
 import {
   configuredSkillbookRepository,
-  deploySocketPath,
   macFileRoots,
   validateBridgeUrl,
   validateMcpUrl,
@@ -17,14 +16,6 @@ describe("worker configuration", () => {
     expect(configuredSkillbookRepository(false, "owner/skillbook")).toBe(
       "owner/skillbook",
     );
-  });
-
-  test("accepts only an absolute deployment socket path", () => {
-    expect(deploySocketPath("/run/sago-cloud/deploy.sock")).toBe(
-      "/run/sago-cloud/deploy.sock",
-    );
-    expect(deploySocketPath(" ")).toBeUndefined();
-    expect(() => deploySocketPath("deploy.sock")).toThrow("absolute path");
   });
 
   test("limits default Mac file access to common user folders", () => {

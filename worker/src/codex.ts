@@ -118,7 +118,6 @@ type CodexRunOptions = {
   appServer?: CodexAppServerManager;
   codexHome: string;
   codexPath: string;
-  deploySocketPath?: string;
   githubConfigDir: string;
   macFileRoots: string[];
   mcpUrl: string;

@@ -196,9 +196,10 @@ environment does not silently replace a saved session. Ambiguous message sends
 are never replayed automatically. See [T3 setup and recovery](t3-coding.md).
 
 The bounded MiniSago deployment socket remains available for environments that
-can reach it. It accepts the immutable MiniSago commit and a fixed originating
-Discord channel through the deployment adapter; it exposes no general shell or
-Docker socket. Configure the adapter on the T3 environment when needed.
+can reach it. It accepts only submission and status reads for immutable MiniSago commits.
+The host verifies current remote main before deployment. It exposes no general
+shell or Docker socket. T3 reports results through its normal Discord relay.
+Configure the adapter on the T3 environment when needed.
 
 ## Retention and privacy
 

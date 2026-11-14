@@ -101,12 +101,20 @@ mode. Keep Discord bot credentials and unrelated production secrets outside
 that environment, and enforce protected branches at GitHub. Merge and deployment
 authorization follows the owner's instructions and repository guidance.
 
-For MiniSago deployment, keep the existing bounded deployment socket and configure
-its MCP adapter in the T3 environment if that machine has access to the socket.
-Other environments can use the repository's documented deployment command.
-The first T3 message includes the source Discord conversation. For the bounded
-socket command, set `MINISAGO_DISCORD_CHANNEL_ID` to that conversation's channel
-ID so the bot can deliver the deployment result there.
+For MiniSago deployment, configure `bun scripts/deployment-mcp.ts` as a provider
+MCP server in a T3 environment that can reach `MINISAGO_DEPLOY_SOCKET`. It exposes
+`deploy_minisago` and `get_minisago_deployment`, each taking a full commit SHA.
+Only deploy when the owner explicitly requests it. Submission returns acceptance;
+read status until `complete` or `failed` and report the result in the normal reply.
+`complete` means both core and chat worker passed container health checks.
+T3 and its worktree keep running while the bot restarts; the existing Discord
+relay delivers the reply when it reconnects. No Discord channel environment
+variable or special agent-resumption step is needed.
+
+Other environments use `bun run deploy --commit <full SHA>` over SSH. It works
+from a feature worktree and waits for the same host job. Both entry points require
+the requested commit to match current remote `main`; neither publishes local edits.
+Install the updated host socket handler before using this protocol.
 
 Saved tasks from the previous worker runtime remain identifiable, and their files
 are preserved. Their Codex session IDs are never interpreted as T3 thread IDs.

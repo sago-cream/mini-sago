@@ -805,7 +805,7 @@ export const FEATURES = [
         section: 'developer',
         title: '程式開發',
         description:
-            '擁有者可從 Discord 開啟 T3 開發工作階段，沿用專案的模型、工具與技能；在 Discord 或 T3 接續同一份工作，進度會同步到討論串。支援附件、停止與結束開發。',
+            '擁有者可從 Discord 開啟 T3 開發工作階段，沿用專案的模型、工具與技能；在 Discord 或 T3 接續同一份工作，進度會同步到討論串。支援附件、停止與結束開發；經授權的自我部署不會中斷 T3 工作，結果會在機器人重新連線後同步。',
         channel: '程式開發',
         messages: [
             {

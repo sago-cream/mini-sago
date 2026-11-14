@@ -64,18 +64,28 @@ resume the Discord relay without starting agent work. See [T3 setup](t3-coding.m
 
 ## Sago Cloud deployment
 
-Production changes flow through `main`. The deployment command requires a clean
-local `main` exactly matching `origin/main`:
+Production changes flow through `main`. Deploy its current remote commit from
+any checkout, including a T3 feature worktree; local edits are never published:
 
 ```bash
 bun run deploy
+bun run deploy --commit <full-origin-main-SHA>
 ```
 
-The script waits for both images, then asks the operations checkout at
-`/srv/sago-cloud/operations` to deploy core and worker as one release. It
-connects through the local `sago-cloud` SSH alias over Tailscale and retries
-connection timeouts three times. Use `SAGO_CLOUD_HOST` only for a replacement
-host.
+Both commands submit the exact commit to the bounded host deployment job. The
+host validates current remote `main`, waits for both immutable images, downloads
+both, and updates core and chat worker together. Completion requires both Compose
+stacks to pass health checks. T3 stays running throughout.
+
+The command waits for a terminal result by default. Use `--no-wait` to return
+after acceptance, or `--status --commit <full SHA>` to inspect that job later.
+Status reads never retry deployment. On failure, inspect the host log at
+`/srv/sago-cloud/state/minisago-deploy/<SHA>.log` before retrying.
+
+On the T3 host, `MINISAGO_DEPLOY_SOCKET` selects the local socket. Other machines
+use the `sago-cloud` SSH alias to reach the same host job. `SAGO_CLOUD_HOST` and
+`SAGO_CLOUD_OPERATIONS_ROOT` override the host and operations checkout location.
+Image waiting occurs only on the host; the client needs no GitHub Actions access.
 
 For Mac deployments, the `sago-cream.github` Tailscale profile must use **Exit
 Node → None**, not Automatic/Recommended. Disconnect, select that profile, and
@@ -88,12 +98,10 @@ cleanup: it can leave this profile without working internet access. Preserve
 NTHUSA's separate NAS exit-node preference and restore the original selected
 profile and connection state after deployment.
 
-On the Sago Cloud Oracle worker, `MINISAGO_DEPLOY_SOCKET` replaces SSH with the
-bounded host socket. The script submits the exact `origin/main` commit and
-returns after the host accepts it, before the deployment replaces the bot and
-worker containers. The host pins both images to that immutable commit tag.
-The restarted bot reads the host status file and posts the terminal result to
-the originating Discord development thread once.
+For Discord self-deployment, T3's deployment adapter submits the commit and
+reads its status. Its ordinary reply reports completion or failure. The bot's
+persisted Discord relay catches up after restart without resuming agent work or
+using a separate deployment notification checkpoint. See [T3 setup](t3-coding.md).
 
 The VM pulls published images rather than cloning this repository. Production
 secrets live under `/srv/sago-cloud/secrets`. Only the core container joins
@@ -319,8 +327,9 @@ must not expose a public port.
 
 ### Deployment connection failure
 
-Confirm `ssh sago-cloud` works and rerun `bun run deploy`. Do not bypass the
-clean-main or image-success checks.
+Confirm `ssh sago-cloud` works and inspect the commit with
+`bun run deploy --status --commit <full SHA>` before resubmitting. Do not bypass the
+remote-main validation or image and health checks.
 
 ## Credential rotation
 

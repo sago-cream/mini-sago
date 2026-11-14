@@ -17,7 +17,6 @@ import {
   handleChatbotMediaRequest,
 } from "./chatbot/mcp";
 import { startGamerForumMonitor } from "./discord/jobs/gamer-forum-monitor";
-import { startDeploymentNotificationMonitor } from "./discord/jobs/deployment-notifications";
 import { startInstagramGateway } from "./discord/gateway";
 import {
   handleGithubWebhookRequest,
@@ -151,7 +150,6 @@ if (process.env.DISCORD_GATEWAY_DISABLED !== "true") {
 startToeflVocabScheduler();
 startGamerForumMonitor();
 startXPostMonitor();
-startDeploymentNotificationMonitor();
 startCcxpAuthNotificationMonitor();
 
 console.log(`MiniSago listening on http://${server.hostname}:${server.port}`);
