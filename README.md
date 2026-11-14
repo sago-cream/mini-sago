@@ -24,6 +24,8 @@ Reply in the Discord thread or open its T3 link to continue the same work, with
 the project's normal model, skills, tools, and permission mode. Assistant updates
 appear in Discord, including work continued in T3. `stop`, `status`, and
 `end dev thread` control the connection without deleting the T3 workspace.
+Ask to open another coding thread to start separate work in a sibling Discord
+thread under the same channel, with its own linked T3 session and worktree.
 See [T3 coding setup](docs/t3-coding.md).
 
 Ask Sago to generate an image or edit an attachment, avatar, or existing emoji.

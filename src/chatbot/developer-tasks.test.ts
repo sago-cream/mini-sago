@@ -2,7 +2,7 @@ import { expect, spyOn, test } from "bun:test";
 import type { ServerWebSocket } from "bun";
 import { macAgentBridge, type MacAgentSocketData } from "./bridge";
 import { CHATBOT_PROTOCOL_VERSION } from "../../contracts/worker-contract";
-import { DeveloperTaskRegistry } from "./t3-coding";
+import { createDeveloperThread, DeveloperTaskRegistry } from "./t3-coding";
 import {
   DeveloperThreadStore,
   type SavedDeveloperThread,
@@ -52,6 +52,7 @@ function fixture(
   let link: string | null | undefined = "https://t3.example/thread/t3-thread";
   let failSend = false;
   let failStop = false;
+  let launches = 0;
   const store = new DeveloperThreadStore(":memory:");
   const client: T3Connection = {
     url: "https://t3.example/mcp",
@@ -69,12 +70,14 @@ function fixture(
           ],
           nextCursor: null,
         };
-      if (name === "t3_thread_launch")
+      if (name === "t3_thread_launch") {
+        launches++;
         return {
-          threadId: "t3-thread",
+          threadId: launches === 1 ? "t3-thread" : `t3-thread-${launches}`,
           projectId: "project",
           link,
         };
+      }
       if (name === "t3_thread_send" || name === "t3_thread_send_attachments") {
         if (failSend) throw new Error("network failure");
         return { threadId: "t3-thread", runId: "run", delivery: "started" };
@@ -86,7 +89,7 @@ function fixture(
       if (name === "t3_thread_read")
         return {
           thread: {
-            threadId: "t3-thread",
+            threadId: args.threadId,
             projectId: "project",
             title: "Fix",
             link,
@@ -149,6 +152,71 @@ function fixture(
       registry.handle(message(content, id), "bot", access, discord),
   };
 }
+test.each([
+  { type: 11, parentType: 0 },
+  { type: 12, parentType: 0 },
+  { type: 10, parentType: 5 },
+  { type: 11, parentType: 15 },
+  { type: 11, parentType: 16 },
+])(
+  "creates separate coding conversations under the parent: %o",
+  async ({ type, parentType }) => {
+    const calls: Array<{ path: string; init: any }> = [];
+    const discord = (async (path, init) => {
+      calls.push({ path, init });
+      if (path === "/channels/discord-thread")
+        return { type, parent_id: "parent" };
+      if (path === "/channels/parent") return { type: parentType };
+      return { id: "sibling" };
+    }) as DiscordRequest;
+    expect(
+      await createDeveloperThread(
+        message("New task"),
+        "Update Next.js",
+        discord,
+        true,
+      ),
+    ).toBe("sibling");
+    expect(calls[2]).toEqual({
+      path: "/channels/parent/threads",
+      init: {
+        method: "POST",
+        body: {
+          name: "Update Next.js",
+          auto_archive_duration: 4320,
+          ...([15, 16].includes(parentType)
+            ? {
+                message: {
+                  content:
+                    "Coding request: https://discord.com/channels/guild/discord-thread/message",
+                  allowed_mentions: { parse: [] },
+                },
+              }
+            : { type }),
+        },
+      },
+    });
+    if (type === 12)
+      expect(calls[3]).toEqual({
+        path: "/channels/sibling/thread-members/owner",
+        init: { method: "PUT" },
+      });
+    else expect(calls).toHaveLength(3);
+  },
+);
+
+test("fails before creating a sibling if the current thread has no parent", async () => {
+  const paths: string[] = [];
+  const discord = (async (path) => {
+    paths.push(path);
+    return { type: 11 };
+  }) as DiscordRequest;
+  await expect(
+    createDeveloperThread(message("New task"), "Update Next.js", discord, true),
+  ).rejects.toThrow("no parent");
+  expect(paths).toEqual(["/channels/discord-thread"]);
+});
+
 function item(
   position: number,
   text: string,
@@ -511,98 +579,180 @@ test("uploads original Discord attachments through T3's upload contract", async 
   f.store.close();
 });
 
-test("initial owner routing selects T3 projects and releases the chat worker without dispatching code execution", async () => {
-  const { macAgentBridge } = await import("./bridge");
-  const { CHATBOT_PROTOCOL_VERSION } =
-    await import("../../contracts/worker-contract");
-  const f = fixture();
-  const oldSecret = process.env.MINISAGO_WORKER_BRIDGE_SECRET;
-  const secret = "t3-routing-test-secret-at-least-32-bytes";
-  process.env.MINISAGO_WORKER_BRIDGE_SECRET = secret;
-  const sent: any[] = [];
-  const socket = {
-    data: { authenticated: false },
-    send(raw: string) {
-      sent.push(JSON.parse(raw));
-    },
-    close() {},
-  } as any;
-  try {
-    macAgentBridge.open(socket);
-    macAgentBridge.message(
-      socket,
-      JSON.stringify({
-        type: "authenticate",
-        protocolVersion: CHATBOT_PROTOCOL_VERSION,
-        secret,
-        workerId: "oracle",
-        repositories: ["unrelated/worker-repo"],
-      }),
-    );
-    macAgentBridge.message(
-      socket,
-      JSON.stringify({ type: "availability", available: true, capacity: 1 }),
-    );
-    const input = message(
-      "<@123456789012345678> Fix the bug",
-      "initial-routing",
-    );
-    const discord = (async (path, init) => {
-      if (path.includes("messages?")) {
-        expect(f.calls.some((call) => call.name === "t3_project_list")).toBe(
-          true,
-        );
-        return [];
-      }
-      return f.discord(path, init);
-    }) as DiscordRequest;
-    let advertised: string[] = [];
-    await handleChatbotMention({
-      message: input,
-      botUserId: "123456789012345678",
-      accessConfig: access,
-      discordRequest: discord,
-      developerTaskRegistry: f.registry,
-      executionOptions: {
-        lazyPreviousTrace: true,
-        routeRequest: async (routeJob) => {
-          advertised = routeJob.availableRepositories;
-          return JSON.stringify({
-            route: "oracle",
-            repository: "owner/repo",
-            threadTitle: "Fix bug",
-          });
-        },
+test.each([false, true])(
+  "owner routing starts linked T3 work and releases the chat worker (separate task: %s)",
+  async (separate) => {
+    const { macAgentBridge } = await import("./bridge");
+    const { CHATBOT_PROTOCOL_VERSION } =
+      await import("../../contracts/worker-contract");
+    const f = fixture();
+    const oldSecret = process.env.MINISAGO_WORKER_BRIDGE_SECRET;
+    const secret = "t3-routing-test-secret-at-least-32-bytes";
+    process.env.MINISAGO_WORKER_BRIDGE_SECRET = secret;
+    const sent: any[] = [];
+    const socket = {
+      data: { authenticated: false },
+      send(raw: string) {
+        sent.push(JSON.parse(raw));
       },
-      guildMemoryStore: {
-        ensure: async () => ({ revision: 0, entries: [] }),
-        mutate: async () => {
-          throw new Error("Unexpected memory write");
+      close() {},
+    } as any;
+    try {
+      if (separate) await f.start();
+      const original = f.store.get("discord-thread");
+      macAgentBridge.open(socket);
+      macAgentBridge.message(
+        socket,
+        JSON.stringify({
+          type: "authenticate",
+          protocolVersion: CHATBOT_PROTOCOL_VERSION,
+          secret,
+          workerId: "oracle",
+          repositories: ["unrelated/worker-repo"],
+        }),
+      );
+      macAgentBridge.message(
+        socket,
+        JSON.stringify({ type: "availability", available: true, capacity: 1 }),
+      );
+      const input = message(
+        separate
+          ? "open another t3 linked dev thread to work on next.js version update"
+          : "<@123456789012345678> Fix the bug",
+        "initial-routing",
+      );
+      const discord = (async (path, init) => {
+        if (path.includes("messages?")) {
+          expect(f.calls.some((call) => call.name === "t3_project_list")).toBe(
+            true,
+          );
+          return [];
+        }
+        if (path === "/channels/discord-thread")
+          return { type: 11, parent_id: "parent" };
+        if (path === "/channels/parent") return { type: 0 };
+        if (path === "/channels/parent/threads") {
+          f.posts.push({ path, method: init?.method, body: init?.body });
+          return { id: "sibling" };
+        }
+        return f.discord(path, init);
+      }) as DiscordRequest;
+      let advertised: string[] = [];
+      await handleChatbotMention({
+        message: input,
+        botUserId: "123456789012345678",
+        accessConfig: access,
+        discordRequest: discord,
+        developerTaskRegistry: f.registry,
+        executionOptions: {
+          lazyPreviousTrace: true,
+          routeRequest: async (routeJob) => {
+            advertised = routeJob.availableRepositories;
+            expect(routeJob.currentRepository).toBe(
+              separate ? "owner/repo" : undefined,
+            );
+            return JSON.stringify({
+              route: "oracle",
+              repository: "owner/repo",
+              threadTitle: "Fix bug",
+            });
+          },
         },
-      } as any,
-    });
-    expect(advertised).toEqual(["owner/repo"]);
-    expect(
-      f.calls.filter((call) => call.name === "t3_project_list"),
-    ).toHaveLength(1);
-    expect(f.calls.some((call) => call.name === "t3_thread_send")).toBe(true);
-    expect(
-      sent.some(
-        (message) =>
-          message.type === "job" && message.job.executionRoute === "oracle",
-      ),
-    ).toBe(false);
-    const available = macAgentBridge.acquireWorkflow(["chat"]);
-    expect(available.status).toBe("accepted");
-    if (available.status === "accepted") available.workflow.release();
-  } finally {
-    macAgentBridge.close(socket);
-    f.store.close();
-    if (oldSecret === undefined)
-      delete process.env.MINISAGO_WORKER_BRIDGE_SECRET;
-    else process.env.MINISAGO_WORKER_BRIDGE_SECRET = oldSecret;
-  }
-});
+        guildMemoryStore: {
+          ensure: async () => ({ revision: 0, entries: [] }),
+          mutate: async () => {
+            throw new Error("Unexpected memory write");
+          },
+        } as any,
+      });
+      if (separate) {
+        expect(f.store.get("discord-thread")).toEqual(original);
+        expect(f.store.get("sibling")?.t3?.threadId).toBe("t3-thread-2");
+        await Promise.all(
+          [0, 1].map(() =>
+            f.registry.start({
+              message: input,
+              job,
+              newThread: true,
+              discordRequest: discord,
+            }),
+          ),
+        );
+        await f.registry.handle(
+          {
+            ...message("Continue the update", "sibling-follow-up"),
+            channel_id: "sibling",
+          },
+          "bot",
+          access,
+          discord,
+        );
+        expect(
+          f.calls.filter((call) => call.name === "t3_thread_send").at(-1)?.args
+            .threadId,
+        ).toBe("t3-thread-2");
+        expect(f.store.get("sibling")?.repository).toBe("owner/repo");
+        expect(
+          f.calls.filter((call) => call.name === "t3_thread_launch"),
+        ).toHaveLength(2);
+        expect(
+          f.calls.filter((call) => call.name === "t3_thread_send")[1]?.args
+            .message,
+        ).toContain("next.js version update");
+        expect(
+          f.calls.filter((call) => call.name === "t3_thread_send")[1]?.args
+            .message,
+        ).toContain("Do the requested repository work in this session.");
+        expect(f.posts).toContainEqual({
+          path: "/channels/parent/threads",
+          method: "POST",
+          body: { name: "Fix bug", auto_archive_duration: 4320, type: 11 },
+        });
+        expect(
+          f.posts.some(
+            (post) =>
+              post.path === "/channels/sibling/messages" &&
+              post.body?.content?.includes("Open in T3"),
+          ),
+        ).toBe(true);
+        expect(
+          f.posts.some(
+            (post) =>
+              post.path === "/channels/discord-thread/messages" &&
+              post.body?.content?.includes("<#sibling>"),
+          ),
+        ).toBe(true);
+        expect(
+          f.posts.some((post) =>
+            post.path.includes(
+              "/channels/discord-thread/messages/initial-routing/threads",
+            ),
+          ),
+        ).toBe(false);
+      }
+      expect(advertised).toEqual(["owner/repo"]);
+      expect(
+        f.calls.filter((call) => call.name === "t3_project_list"),
+      ).toHaveLength(1);
+      expect(f.calls.some((call) => call.name === "t3_thread_send")).toBe(true);
+      expect(
+        sent.some(
+          (message) =>
+            message.type === "job" && message.job.executionRoute === "oracle",
+        ),
+      ).toBe(false);
+      const available = macAgentBridge.acquireWorkflow(["chat"]);
+      expect(available.status).toBe("accepted");
+      if (available.status === "accepted") available.workflow.release();
+    } finally {
+      macAgentBridge.close(socket);
+      f.store.close();
+      if (oldSecret === undefined)
+        delete process.env.MINISAGO_WORKER_BRIDGE_SECRET;
+      else process.env.MINISAGO_WORKER_BRIDGE_SECRET = oldSecret;
+    }
+  },
+);
 
 test("answers a single native task question through Discord without granting a tool approval", async () => {
   const f = fixture();

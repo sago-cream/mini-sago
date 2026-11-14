@@ -1,4 +1,5 @@
 import { hasContextAttachments } from "../../contracts/message-context";
+import { requestsNewDeveloperThread } from "./developer-thread-control";
 import { z } from "zod";
 import type {
   ChatbotMessage,
@@ -79,7 +80,8 @@ export async function routeWithJev(
     fetch?: (input: string, init: RequestInit) => Promise<Response>;
   } = {},
 ): Promise<string | undefined> {
-  if (hasContextAttachments(job)) return undefined;
+  if (hasContextAttachments(job) || requestsNewDeveloperThread(job.request))
+    return undefined;
   const key = options.apiKey ?? process.env.TYPESAFE_API_KEY?.trim();
   if (!key) return undefined;
   try {

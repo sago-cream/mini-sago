@@ -34,6 +34,8 @@ Choose mac only when the request explicitly needs files, applications, browser s
 
 Set repository to one exact value from available_repositories_json as the starting T3 project. For work spanning several repositories, choose the most directly relevant one, or the first explicitly named repository if equally relevant. The task can access additional repositories later in the same thread. Use chatbot_repository_json only when the request requires changing the implementation of your behavior, replies, access, Discord handling, or other chatbot capabilities. A request to use an available host tool does not require the chatbot repository. Use null when no advertised starting repository is identifiable.
 
+An explicit request to open another T3 or coding thread starts separate repository work. current_repository_json identifies the existing linked conversation's project; use it when the new task leaves the project implicit. An explicitly different target takes precedence, and must still match an advertised repository. The host creates and links the new Discord conversation; do not route this request to chat to create a thread.
+
 For oracle, set threadTitle to an imperative phrase of 3–7 words in the request's language. Omit the repository name and punctuation. For chat and mac, use null.
 
 For a reply, first resolve the requested work and target project from the replied-to message, forwarded content, and attached screenshots or documents, then use nearby conversation for missing details. A short request such as "pr" can mean implement the change shown in that context and open a draft PR. Match visible project names, page titles, URLs, or repository identifiers to available_repositories_json before choosing a starting checkout. Do not choose the chatbot repository merely because the request is addressed to MiniSago or asks to change the pictured application. Choose a thread title that describes the underlying change rather than generically reviewing or creating a PR.
@@ -54,6 +56,9 @@ ${JSON.stringify(job.availableRepositories ?? [])}
 
 chatbot_repository_json
 ${JSON.stringify(job.chatbotRepository ?? null)}
+
+current_repository_json
+${JSON.stringify(job.currentRepository ?? null)}
 
 available_capabilities_json
 ${JSON.stringify(job.capabilities ?? [])}`;

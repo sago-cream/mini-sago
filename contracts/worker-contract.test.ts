@@ -74,6 +74,27 @@ describe("chatbot job protocol", () => {
     ).toBe("answer");
   });
 
+  test("routing accepts only an advertised current project", () => {
+    const route = {
+      ...common,
+      purpose: "execution_route" as const,
+      availableRepositories: ["owner/repo"],
+      currentRepository: "owner/repo",
+    };
+    expect(parseChatbotJob(route)).toEqual(route);
+    expect(
+      parseChatbotJob({ ...route, currentRepository: "owner/unknown" }),
+    ).toBeNull();
+    expect(parseChatbotJob({ ...route, currentRepository: 42 })).toBeNull();
+    expect(
+      parseChatbotJob({
+        ...common,
+        purpose: "trace_lookup",
+        currentRepository: "owner/repo",
+      }),
+    ).toBeNull();
+  });
+
   test("rejects missing discriminants and required answer fields", () => {
     expect(parseChatbotJob(common)).toBeNull();
     expect(
