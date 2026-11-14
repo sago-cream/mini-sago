@@ -96,6 +96,7 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:minisago-cd
+          ping: ${{ vars.SAGO_CLOUD_HOST || 'sago-cloud' }}
       - name: Submit host deployment and wait for its result
         env:
           SAGO_CLOUD_HOST: ${{ vars.SAGO_CLOUD_HOST || 'sago-cloud' }}
